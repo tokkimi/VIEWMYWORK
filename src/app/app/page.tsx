@@ -54,7 +54,7 @@ export default async function Dashboard() {
       <PageHeader
         title={`${greeting()}, ${ctx.user.name.split(" ")[0]}`}
         description={projects.length ? `${projects.length} active project${projects.length > 1 ? "s" : ""}${awaiting ? ` · ${awaiting} waiting on clients` : ""}${overdue.length ? ` · ${overdue.length} overdue invoice${overdue.length > 1 ? "s" : ""}` : ""}` : "Let's get your first project in front of a client."}
-        actions={can(ctx, "projects", "manage") ? <ButtonLink href="/app/projects/new" variant="primary"><Plus className="size-4" />New project</ButtonLink> : undefined}
+        actions={<><ButtonLink href="/app/insights" variant="ghost">Insights</ButtonLink>{can(ctx, "projects", "manage") && <ButtonLink href="/app/projects/new" variant="primary"><Plus className="size-4" />New project</ButtonLink>}</>}
       />
 
       <div className="panel mb-10 grid grid-cols-2 divide-line overflow-hidden rounded-2xl sm:grid-cols-4 lg:grid-cols-7 [&>*]:border-line [&>*:not(:last-child)]:border-r [&>*]:border-b lg:[&>*]:border-b-0">
