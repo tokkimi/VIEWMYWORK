@@ -18,7 +18,8 @@ const clientSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required.").max(80),
   lastName: z.string().trim().max(80).default(""),
   company: zOptStr(120),
-  email: zEmail,
+  // Optional: some clients are only reachable by phone / WhatsApp. Stored as "" when absent.
+  email: zOptEmail.transform((v) => v ?? ""),
   phone: zOptStr(40),
   billingEmail: zOptEmail,
   billingAddress: zOptStr(500),
@@ -114,6 +115,29 @@ export async function inviteClientToPortalAction(fd: FormData) {
     await emit({ workspaceId: ctx.workspace.id, type: "CLIENT_INVITED", actor: { id: ctx.user.id, name: ctx.user.name }, clientId: client.id, entityType: "CLIENT", entityId: client.id, summary: ["Portal invitation sent to {email}", { email: i.email }] });
     // Link is returned so the professional can share it manually when email isn't configured.
     return { link: `${env.appUrl}/invite/${token}`, emailStatus: r.status };
+  });
+}
+
+/**
+ * Creates a portal access link that is not tied to an email address (to share by WhatsApp, SMS…).
+ * Whoever opens it creates an account with their own email and gets access to this client's portal.
+ * Single use, valid 14 days, revocable like any invitation.
+ */
+export async function createPortalLinkAction(fd: FormData) {
+  return runAction(async () => {
+    const ctx = await requireWorkspace();
+    requirePerm(ctx, "clients", "edit");
+    await requireActiveSubscription(ctx.workspace.id);
+    await rateLimit("invite-client", 30, 3600, ctx.workspace.id);
+    const i = z.object({ clientId: zId, projectId: z.string().optional(), channel: z.enum(["link", "whatsapp"]).default("link") }).parse(formToObject(fd));
+    const client = await getClient(ctx, i.clientId);
+    const token = randomToken(32);
+    await db.invitation.create({ data: { workspaceId: ctx.workspace.id, kind: "CLIENT", email: "", clientId: client.id, tokenHash: sha256(token), invitedById: ctx.user.id, expiresAt: new Date(Date.now() + 14 * 86400_000) } });
+    await emit({
+      workspaceId: ctx.workspace.id, type: "CLIENT_INVITED", actor: { id: ctx.user.id, name: ctx.user.name }, clientId: client.id, entityType: "CLIENT", entityId: client.id,
+      summary: i.channel === "whatsapp" ? "Portal access link shared by WhatsApp" : "Portal access link created",
+    });
+    return { link: `${env.appUrl}/invite/${token}`, phone: client.phone ?? "", firstName: client.firstName };
   });
 }
 

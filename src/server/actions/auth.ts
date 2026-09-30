@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { sha256 } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { runAction, AppError } from "@/lib/errors";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
@@ -28,7 +29,10 @@ export async function signupAction(fd: FormData) {
     const exists = await db.user.findUnique({ where: { email: input.email } });
     if (exists) throw new AppError("An account already exists for this email. Try signing in.", "CONFLICT");
     // Without an email provider we cannot deliver verification links; accounts are then verified on creation.
-    const autoVerify = !integrations.email();
+    // Same for a client arriving through a valid portal access link sent personally by their provider.
+    const inviteToken = safeNext(input.next)?.match(/^\/invite\/([A-Za-z0-9_-]{20,})$/)?.[1];
+    const viaLink = inviteToken ? await db.invitation.findFirst({ where: { tokenHash: sha256(inviteToken), kind: "CLIENT", email: "", acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } } }) : null;
+    const autoVerify = !integrations.email() || Boolean(viaLink);
     const user = await db.user.create({
       data: {
         name: input.name,

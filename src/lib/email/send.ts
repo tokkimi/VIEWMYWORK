@@ -27,6 +27,8 @@ export type EmailStatus = "SENT" | "FAILED" | "NOT_CONFIGURED";
  * caller surfaces that state — we never pretend an email was delivered.
  */
 export async function sendEmail(input: SendEmailInput): Promise<{ status: EmailStatus; error?: string }> {
+  // Clients reached only by WhatsApp / link have no email address.
+  if (!input.to?.trim()) return { status: "FAILED", error: "No email address." };
   let status: EmailStatus = "NOT_CONFIGURED";
   let providerMessageId: string | null = null;
   let failureReason: string | null = null;

@@ -46,8 +46,8 @@ export function ClientFields({ v = {}, compact }: { v?: ClientValues; compact?: 
       <Field label="First name" name="firstName"><Input name="firstName" defaultValue={v.firstName} required /></Field>
       <Field label="Last name" name="lastName"><Input name="lastName" defaultValue={v.lastName} /></Field>
       <Field label="Company" name="company" optional className="sm:col-span-2"><Input name="company" defaultValue={v.company ?? ""} /></Field>
-      <Field label="Email" name="email"><Input name="email" type="email" defaultValue={v.email} required /></Field>
-      <Field label="Phone" name="phone" optional><Input name="phone" type="tel" defaultValue={v.phone ?? ""} /></Field>
+      <Field label="Email" name="email" optional><Input name="email" type="email" defaultValue={v.email} /></Field>
+      <Field label="Phone / WhatsApp" name="phone" optional hint="With country code, e.g. +33 6 12 34 56 78"><Input name="phone" type="tel" defaultValue={v.phone ?? ""} /></Field>
       {!compact && (
         <>
           <Field label="Billing email" name="billingEmail" optional hint="Invoices are sent here. Defaults to the main email."><Input name="billingEmail" type="email" defaultValue={v.billingEmail ?? ""} /></Field>

@@ -44,7 +44,7 @@ export default async function ProjectLayout({ children, params }: { children: Re
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <ButtonLink href={`${base}/client-view`}><Eye className="size-4" /><Tr>Preview portal</Tr></ButtonLink>
-            {hasLevel(ctx.perms, "clients", "edit") && <InviteToPortalDialog clientId={project.clientId} email={project.client.email} projectId={id} label="Share portal" />}
+            {hasLevel(ctx.perms, "clients", "edit") && <InviteToPortalDialog clientId={project.clientId} email={project.client.email} phone={project.client.phone} projectId={id} label="Share portal" />}
             {hasLevel(perms, "tasks", "edit") && <ButtonLink href={`${base}/tasks?new=1`}><Plus className="size-4" /><Tr>Task</Tr></ButtonLink>}
             {hasLevel(perms, "projects", "edit") && <ButtonLink href={`${base}/deliverables?new=1`}><Package className="size-4" /><Tr>Deliverable</Tr></ButtonLink>}
             {hasLevel(perms, "files", "upload") && <ButtonLink href={`${base}/files`}><Upload className="size-4" /><Tr>Upload</Tr></ButtonLink>}

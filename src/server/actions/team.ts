@@ -145,7 +145,8 @@ export async function acceptInvitationAction(token: string) {
     const user = await requireVerifiedUser();
     const inv = await db.invitation.findUnique({ where: { tokenHash: sha256(token) } });
     if (!inv || inv.revokedAt || inv.acceptedAt || inv.expiresAt < new Date()) throw new AppError("This invitation is invalid or has expired.");
-    if (inv.email.toLowerCase() !== user.email.toLowerCase()) throw new AppError(["This invitation was sent to {email}. Sign in with that address to accept it.", { email: inv.email }], "FORBIDDEN");
+    // Access links (email "") can be accepted by whoever received them; email invitations need the same address.
+    if (inv.email && inv.email.toLowerCase() !== user.email.toLowerCase()) throw new AppError(["This invitation was sent to {email}. Sign in with that address to accept it.", { email: inv.email }], "FORBIDDEN");
     const jar = await cookies();
     if (inv.kind === "MEMBER") {
       const p = (inv.permissions ?? {}) as Record<string, unknown>;

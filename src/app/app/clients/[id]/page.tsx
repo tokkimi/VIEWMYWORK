@@ -57,9 +57,9 @@ export default async function ClientProfile({ params, searchParams }: { params: 
           <>
             {canEdit && <EditClientDialog v={client} />}
             {can(ctx, "projects", "manage") && <ButtonLink href={`/app/projects/new?clientId=${id}`}><Plus className="size-4" /><Tr>New project</Tr></ButtonLink>}
-            {can(ctx, "messages", "send") && <SendEmailDialog clientId={id} to={client.email} userEmail={ctx.user.email} />}
+            {can(ctx, "messages", "send") && client.email && <SendEmailDialog clientId={id} to={client.email} userEmail={ctx.user.email} />}
             {can(ctx, "invoices", "edit") && <ButtonLink href={`/app/invoices/new?clientId=${id}`}><Receipt className="size-4" /><Tr>Create invoice</Tr></ButtonLink>}
-            {canEdit && <InviteToPortalDialog clientId={id} email={client.email} />}
+            {canEdit && <InviteToPortalDialog clientId={id} email={client.email} phone={client.phone} />}
           </>
         }
       />
@@ -140,7 +140,7 @@ export default async function ClientProfile({ params, searchParams }: { params: 
                 <div key={c.id} className="flex items-center gap-3 px-4 py-3 text-sm">
                   <Avatar name={c.name} size={26} />
                   <div className="min-w-0 flex-1"><div className="truncate">{c.name}{c.role && <span className="text-muted"> · {c.role}</span>}</div><div className="truncate text-xs text-muted">{[c.email, c.phone].filter(Boolean).join(" · ")}</div></div>
-                  {canEdit && c.email && <InviteToPortalDialog clientId={id} email={c.email} label="Invite" />}
+                  {canEdit && (c.email || c.phone) && <InviteToPortalDialog clientId={id} email={c.email ?? ""} phone={c.phone} label="Invite" />}
                   {canEdit && <RemoveContactButton id={c.id} />}
                 </div>
               ))}</ListCard>

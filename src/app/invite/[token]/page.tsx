@@ -37,14 +37,14 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
               <p className="mt-2 text-sm text-muted">
                 {inv.kind === "CLIENT" ? t("Follow progress, review deliverables, access files and pay invoices in one place.") : t("You're invited as {role}.", { role: inv.title || (inv.role ? t(ROLE_LABELS[inv.role]) : t("a collaborator")) })}
               </p>
-              <p className="mt-4 text-xs text-subtle"><Tr>Invitation for</Tr> {inv.email}</p>
+              {inv.email && <p className="mt-4 text-xs text-subtle"><Tr>Invitation for</Tr> {inv.email}</p>}
               <div className="mt-6">
                 {!user ? (
                   <div className="space-y-2">
-                    <ButtonLink href={`/signup?email=${encodeURIComponent(inv.email)}&next=${encodeURIComponent(next)}`} variant="primary" className="w-full"><Tr>Create account & accept</Tr></ButtonLink>
-                    <ButtonLink href={`/login?email=${encodeURIComponent(inv.email)}&next=${encodeURIComponent(next)}`} variant="ghost" className="w-full"><Tr>I already have an account</Tr></ButtonLink>
+                    <ButtonLink href={`/signup?${inv.email ? `email=${encodeURIComponent(inv.email)}&` : ""}next=${encodeURIComponent(next)}`} variant="primary" className="w-full"><Tr>Create account & accept</Tr></ButtonLink>
+                    <ButtonLink href={`/login?${inv.email ? `email=${encodeURIComponent(inv.email)}&` : ""}next=${encodeURIComponent(next)}`} variant="ghost" className="w-full"><Tr>I already have an account</Tr></ButtonLink>
                   </div>
-                ) : user.email.toLowerCase() !== inv.email.toLowerCase() ? (
+                ) : inv.email && user.email.toLowerCase() !== inv.email.toLowerCase() ? (
                   <div className="space-y-3 text-sm">
                     <p className="text-warning">{t("You're signed in as {email}. Sign in with {invited} to accept.", { email: user.email, invited: inv.email })}</p>
                     <form action={logoutAction}><button className="text-muted underline"><Tr>Sign out</Tr></button></form>
