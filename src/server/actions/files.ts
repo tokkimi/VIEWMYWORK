@@ -39,8 +39,7 @@ export async function requestUploadAction(input: z.input<typeof uploadReq>) {
     const file = await db.file.create({
       data: { workspaceId: ctx.workspace.id, ...target, name: i.name, mimeType: i.mimeType, sizeBytes: BigInt(i.size), storageKey: key, status: "PENDING", category: categorize(i.mimeType, i.category), visibility: i.visibility, uploadedById: ctx.user.id },
     });
-    const url = await presignUpload(key, i.mimeType, i.size);
-    return { fileId: file.id, url };
+    return { fileId: file.id, ...(await presignUpload(key, i.mimeType, i.size)) };
   });
 }
 

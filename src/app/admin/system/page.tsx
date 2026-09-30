@@ -20,7 +20,7 @@ export default async function AdminSystem() {
     ["Stripe", integrations.stripe() ? t("Configured") : t("Not configured")],
     ["Stripe platform webhook", env.stripe.platformWebhookSecret ? t("Configured") : t("Missing")],
     ["Stripe Connect webhook", env.stripe.connectWebhookSecret ? t("Configured") : t("Missing")],
-    ["File storage", integrations.storage() ? `S3 bucket “${env.s3.bucket}”` : t("Not configured")],
+    ["File storage", integrations.s3() ? `S3 bucket “${env.s3.bucket}”` : integrations.blob() ? "Vercel Blob (private)" : t("Not configured")],
     ["Google Drive", integrations.googleDrive() ? t("Configured") : t("Not configured")],
     ["Cron secret", env.cronSecret ? t("Configured") : t("Missing")],
     ["Encryption key", env.encryptionKey ? t("Configured") : t("Missing")],

@@ -11,7 +11,8 @@ import { Tr, useI18n } from "@/lib/i18n/client";
 type Target = { projectId?: string; clientId?: string; phaseId?: string; taskId?: string; deliverableVersionId?: string; invoiceId?: string; expenseId?: string };
 type Item = { id: number; name: string; progress: number; state: "uploading" | "done" | "error"; error?: string };
 
-type RequestFn = (i: { name: string; mimeType: string; size: number; visibility: "INTERNAL" | "CLIENT_VISIBLE"; category?: string; target: Target }) => Promise<ActionResult<{ fileId: string; url: string }>>;
+type UploadTarget = { url: string } | { blob: { pathname: string; token: string } };
+type RequestFn = (i: { name: string; mimeType: string; size: number; visibility: "INTERNAL" | "CLIENT_VISIBLE"; category?: string; target: Target }) => Promise<ActionResult<{ fileId: string } & UploadTarget>>;
 type CompleteFn = (id: string) => Promise<ActionResult<unknown>>;
 
 function put(url: string, file: File, onProgress: (p: number) => void) {
@@ -51,7 +52,11 @@ export function Uploader({ target, configured, defaultVisibility = "INTERNAL", a
       try {
         const r = await request({ name: file.name, mimeType: file.type || "application/octet-stream", size: file.size, visibility, category, target });
         if (!r.ok) throw new Error(r.error);
-        await put(r.data.url, file, (p) => set({ progress: p }));
+        if ("blob" in r.data) {
+          // Private Vercel Blob store: the token is scoped to this path, type and size.
+          const { put: blobPut } = await import("@vercel/blob/client");
+          await blobPut(r.data.blob.pathname, file, { access: "private", token: r.data.blob.token, contentType: file.type || "application/octet-stream", multipart: file.size > 20 * 1024 * 1024, onUploadProgress: (e) => set({ progress: Math.round(e.percentage) }) });
+        } else await put(r.data.url, file, (p) => set({ progress: p }));
         const c = await complete(r.data.fileId);
         if (!c.ok) throw new Error(c.error);
         set({ state: "done", progress: 100 });

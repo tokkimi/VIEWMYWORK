@@ -30,6 +30,9 @@ export const env = {
 export const integrations = {
   email: () => Boolean(env.email.resendKey),
   stripe: () => Boolean(env.stripe.secretKey),
-  storage: () => Boolean(env.s3.bucket && env.s3.accessKeyId && env.s3.secretAccessKey),
+  s3: () => Boolean(env.s3.bucket && env.s3.accessKeyId && env.s3.secretAccessKey),
+  /** Vercel Blob (private store), configured by connecting a Blob store to the Vercel project. */
+  blob: () => Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+  storage: () => Boolean(env.s3.bucket && env.s3.accessKeyId && env.s3.secretAccessKey) || Boolean(process.env.BLOB_READ_WRITE_TOKEN),
   googleDrive: () => Boolean(env.google.clientId && env.google.clientSecret),
 };

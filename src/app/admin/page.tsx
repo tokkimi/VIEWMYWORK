@@ -22,7 +22,7 @@ export default async function AdminOverview() {
     platformRevenue(),
     db.emailLog.count({ where: { status: "FAILED", createdAt: { gte: d30 } } }),
   ]);
-  const cfg = [[t("Email (Resend)"), integrations.email()], ["Stripe", integrations.stripe()], [t("File storage (S3)"), integrations.storage()], ["Google Drive", integrations.googleDrive()]] as const;
+  const cfg = [[t("Email (Resend)"), integrations.email()], ["Stripe", integrations.stripe()], [t("File storage"), integrations.storage()], ["Google Drive", integrations.googleDrive()]] as const;
   return (
     <>
       <PageHeader title="Platform overview" description="Platform subscription metrics only — professionals' client revenue is never included." />

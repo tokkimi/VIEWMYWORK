@@ -90,7 +90,7 @@ export async function requestPortalUploadAction(input: { name: string; mimeType:
     await assertQuota(ctx.workspace.id, i.size);
     const key = `ws/${ctx.workspace.id}/${crypto.randomUUID()}/${i.name.replace(/[^\w.\- ()]+/g, "_").slice(0, 120)}`;
     const file = await db.file.create({ data: { workspaceId: ctx.workspace.id, projectId: project.id, clientId: ctx.client.id, name: i.name, mimeType: i.mimeType, sizeBytes: BigInt(i.size), storageKey: key, status: "PENDING", category: categorize(i.mimeType), visibility: "CLIENT_VISIBLE", uploadedById: ctx.user.id, uploadedByClient: true } });
-    return { fileId: file.id, url: await presignUpload(key, i.mimeType, i.size) };
+    return { fileId: file.id, ...(await presignUpload(key, i.mimeType, i.size)) };
   });
 }
 

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth/session";
 import { isUuid } from "@/lib/auth/context";
-import { presignDownload } from "@/lib/storage";
+import { downloadResponse } from "@/lib/storage";
 import { memberCanReadFile, clientCanReadFile } from "@/server/services/files";
 
 /**
@@ -24,8 +24,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.redirect(file.externalUrl, 302);
   }
   try {
-    const url = await presignDownload(file.storageKey!, file.name, req.nextUrl.searchParams.get("download") !== "1");
-    return NextResponse.redirect(url, { status: 302, headers: { "Cache-Control": "private, max-age=240" } });
+    return await downloadResponse(file.storageKey!, file.name, file.mimeType, req.nextUrl.searchParams.get("download") !== "1");
   } catch {
     return NextResponse.json({ error: "Storage unavailable" }, { status: 503 });
   }
