@@ -66,7 +66,7 @@ The tests cover tenant isolation (forged ids and workspace cookies), authorizati
 
 ## Deploying on Vercel
 
-1. Attach a Postgres database (e.g. Neon from the Vercel Marketplace) and set `DATABASE_URL` (pooled) and `DIRECT_URL`.
+1. Attach a Postgres database (e.g. Neon from the Vercel Marketplace). `DATABASE_URL` / `POSTGRES_PRISMA_URL` (pooled) and `DATABASE_URL_UNPOOLED` / `POSTGRES_URL_NON_POOLING` (migrations) are detected automatically.
 2. Set `APP_URL`, `ENCRYPTION_KEY`, `CRON_SECRET` and `SUPER_ADMIN_EMAIL`, plus any optional integrations.
-3. The build command `npm run vercel-build` applies migrations and bootstraps plans and templates idempotently.
+3. The build (`scripts/vercel-build.mjs`) applies migrations and bootstraps plans and templates idempotently.
 4. `vercel.json` schedules the daily cron job.

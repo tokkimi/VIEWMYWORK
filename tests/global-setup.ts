@@ -9,5 +9,5 @@ export default async function setup() {
   await db.$executeRawUnsafe("DROP SCHEMA IF EXISTS public CASCADE");
   await db.$executeRawUnsafe("CREATE SCHEMA public");
   await db.$disconnect();
-  execSync("npx prisma migrate deploy", { env: { ...process.env, DATABASE_URL: url, DIRECT_URL: url }, stdio: "ignore" });
+  execSync("npx prisma migrate deploy", { env: { ...process.env, DATABASE_URL: url }, stdio: "ignore" });
 }

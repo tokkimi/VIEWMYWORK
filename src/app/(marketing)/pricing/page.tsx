@@ -19,7 +19,7 @@ function storage(mb: number | null) {
 
 export default async function Pricing() {
   // Prices, quotas and features come from the Plan table, managed in Platform Administration.
-  const plans = await db.plan.findMany({ where: { isActive: true, isPublic: true }, include: { features: true }, orderBy: { sortOrder: "asc" } });
+  const plans = await db.plan.findMany({ where: { isActive: true, isPublic: true }, include: { features: true }, orderBy: { sortOrder: "asc" } }).catch(() => []);
   return (
     <div className="mx-auto max-w-6xl px-5 py-20">
       <div className="mx-auto max-w-2xl text-center">

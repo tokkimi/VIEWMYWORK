@@ -2,7 +2,7 @@ import { vi } from "vitest";
 
 const url = process.env.TEST_DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/viewmywork_test";
 process.env.DATABASE_URL = url;
-process.env.DIRECT_URL = url;
+
 process.env.ENCRYPTION_KEY = "test-encryption-key-0123456789abcdef";
 process.env.APP_URL = "http://localhost:3000";
 
