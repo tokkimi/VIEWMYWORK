@@ -10,6 +10,7 @@ run("npx prisma generate");
 if (direct) {
   run("npx prisma migrate deploy", { DATABASE_URL: direct });
   run("node prisma/bootstrap.mjs", { DATABASE_URL: direct });
+  if (process.env.DEMO_ACCOUNTS === "1") run("node prisma/seed-demo.mjs", { DATABASE_URL: direct });
 } else {
   console.warn("\n⚠️  No DATABASE_URL configured — skipping migrations. Attach a Postgres database and redeploy.\n");
 }
