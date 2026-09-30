@@ -4,14 +4,19 @@ import { useEffect } from "react";
 
 const KEY = "fmf-reloaded-at";
 
-/** After a new deployment, stale pages fail to load their code: reload once to pick up the new version. */
+/**
+ * Page transitions can fail for transient reasons: a new deployment (stale code chunks) or a
+ * momentary server/database hiccup. Reload the page once — at most every 30s per page — before
+ * showing the error screen. Permission and not-found errors are never retried.
+ */
 export function useAutoRecover(error: Error) {
   useEffect(() => {
-    const stale = /ChunkLoadError|Loading chunk|Failed to fetch dynamically imported module|Failed to load|dpl|deployment/i.test(`${error?.name} ${error?.message}`);
+    if (/permission|not found|can't access/i.test(error?.message ?? "")) return;
+    const key = `${KEY}:${window.location.pathname}`;
     let last = 0;
-    try { last = Number(sessionStorage.getItem(KEY) || 0); } catch {}
-    if (stale && Date.now() - last > 30_000) {
-      try { sessionStorage.setItem(KEY, String(Date.now())); } catch {}
+    try { last = Number(sessionStorage.getItem(key) || 0); } catch {}
+    if (Date.now() - last > 30_000) {
+      try { sessionStorage.setItem(key, String(Date.now())); } catch {}
       window.location.reload();
     }
   }, [error]);

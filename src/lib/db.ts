@@ -1,6 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 
-const dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL;
+const rawUrl = process.env.DATABASE_URL || process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL;
+// Serverless Postgres (Neon) can take a few seconds to wake up: allow for it instead of failing the page.
+const dbUrl = rawUrl && !/[?&]connect_timeout=/.test(rawUrl) ? `${rawUrl}${rawUrl.includes("?") ? "&" : "?"}connect_timeout=15` : rawUrl;
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 

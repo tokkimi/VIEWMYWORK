@@ -1980,4 +1980,7 @@ export const fr: Record<string, string> = {
   "Upload an image": "Importer une image",
   "Uploading…": "Import en cours…",
   "Use a PNG, JPG or WebP image.": "Utilisez une image PNG, JPG ou WebP.",
+  "This site blocks live embedding — screenshots shown. Open the site": "Ce site bloque l’affichage en direct — captures affichées. Ouvrir le site",
+  "Website address": "Adresse du site",
+  "e.g. monsite.fr or https://staging.monsite.fr": "ex. monsite.fr ou https://recette.monsite.fr",
 };

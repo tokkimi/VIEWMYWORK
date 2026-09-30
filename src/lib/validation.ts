@@ -14,6 +14,8 @@ export const zMoney = z.preprocess((v) => parseMoneyToCents(v as string), z.numb
 export const zOptMoney = z.preprocess((v) => (v === "" || v === null || v === undefined ? undefined : parseMoneyToCents(v as string)), z.number({ message: "Enter a valid amount." }).int().nonnegative().optional());
 export const zBool = z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean());
 export const zCurrency = z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/, "Invalid currency.");
+/** Like zUrl, but accepts a bare domain ("monsite.fr") and assumes https. */
+export const zSiteUrl = z.preprocess((v) => (typeof v === "string" && v.trim() && !/^[a-z][a-z0-9+.-]*:/i.test(v.trim()) ? `https://${v.trim()}` : v), z.string().trim().url("Enter a valid URL.").refine((u) => /^https?:\/\//i.test(u), "Only http(s) links are allowed.").max(2000));
 export const zUrl = z.string().trim().url("Enter a valid URL.").refine((u) => /^https?:\/\//i.test(u), "Only http(s) links are allowed.").max(2000);
 export const zPercentBps = z.preprocess((v) => (v === "" || v === undefined ? 0 : Math.round(Number(String(v).replace(",", ".")) * 100)), z.number().int().min(0).max(10000));
 

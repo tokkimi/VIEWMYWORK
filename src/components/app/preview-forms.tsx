@@ -15,8 +15,8 @@ export function AddPreviewDialog({ projectId }: { projectId: string }) {
       {(close) => (
         <Form action={addPreviewAction} onSuccess={close} className="space-y-4">
           <input type="hidden" name="projectId" value={projectId} />
-          <Field label="Label" name="label"><Input name="label" required placeholder={t("Staging website")} /></Field>
-          <Field label="URL" name="url"><Input name="url" type="url" required placeholder="https://staging.example.com" /></Field>
+          <Field label="Website address" name="url" hint="e.g. monsite.fr or https://staging.monsite.fr"><Input name="url" inputMode="url" autoComplete="url" required placeholder="monsite.fr" /></Field>
+          <Field label="Label" name="label" optional><Input name="label" placeholder={t("Staging website")} /></Field>
           <Field label="Type" name="type">
             <Select name="type" defaultValue="WEBSITE">
               <option value="WEBSITE">{t("Website")}</option>
