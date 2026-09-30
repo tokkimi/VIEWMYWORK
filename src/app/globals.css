@@ -45,8 +45,16 @@
   }
   /* Horizontal strips (tabs, tables, timelines) scroll on their own without moving the page. */
   .overflow-x-auto {
-    overscroll-behavior-x: contain;
+    /* A horizontal strip must never also scroll vertically (1px of overflow is enough to make it wobble). */
+    overflow-y: hidden;
+    overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
   body {
     @apply bg-bg text-fg font-sans antialiased;
