@@ -33,6 +33,7 @@ export const integrations = {
   s3: () => Boolean(env.s3.bucket && env.s3.accessKeyId && env.s3.secretAccessKey),
   /** Vercel Blob (private store), configured by connecting a Blob store to the Vercel project. */
   blob: () => Boolean(process.env.BLOB_READ_WRITE_TOKEN),
-  storage: () => Boolean(env.s3.bucket && env.s3.accessKeyId && env.s3.secretAccessKey) || Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+  // Always available: without S3 or Blob, files are kept in the database (smaller size limit).
+  storage: () => true,
   googleDrive: () => Boolean(env.google.clientId && env.google.clientSecret),
 };

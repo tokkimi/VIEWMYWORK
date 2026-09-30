@@ -1225,3 +1225,13 @@ model SiteShot {
   data      Bytes
   createdAt DateTime @default(now())
 }
+
+/// Built-in file storage (used when neither S3 nor Vercel Blob is configured): files are split into
+/// chunks of at most a few MB, keyed by File.storageKey.
+model FileChunk {
+  key  String
+  idx  Int
+  data Bytes
+
+  @@id([key, idx])
+}

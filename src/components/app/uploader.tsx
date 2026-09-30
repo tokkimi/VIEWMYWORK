@@ -11,7 +11,22 @@ import { Tr, useI18n } from "@/lib/i18n/client";
 type Target = { projectId?: string; clientId?: string; phaseId?: string; taskId?: string; deliverableVersionId?: string; invoiceId?: string; expenseId?: string };
 type Item = { id: number; name: string; progress: number; state: "uploading" | "done" | "error"; error?: string };
 
-type UploadTarget = { url: string } | { blob: { pathname: string; token: string } };
+type UploadTarget = { url: string } | { blob: { pathname: string; token: string } } | { chunks: { key: string; chunkSize: number } };
+
+/** Built-in storage: send the file in chunks to our own endpoint. */
+async function putChunks(key: string, chunkSize: number, file: File, onProgress: (p: number) => void) {
+  const parts = Math.max(1, Math.ceil(file.size / chunkSize));
+  for (let idx = 0; idx < parts; idx++) {
+    const body = file.slice(idx * chunkSize, (idx + 1) * chunkSize);
+    let ok = false;
+    for (let attempt = 0; attempt < 3 && !ok; attempt++) {
+      const r = await fetch(`/api/upload-chunk?key=${encodeURIComponent(key)}&idx=${idx}`, { method: "POST", body, headers: { "Content-Type": "application/octet-stream" } }).catch(() => null);
+      ok = Boolean(r?.ok);
+    }
+    if (!ok) throw new Error("Network error during upload.");
+    onProgress(Math.round(((idx + 1) / parts) * 100));
+  }
+}
 type RequestFn = (i: { name: string; mimeType: string; size: number; visibility: "INTERNAL" | "CLIENT_VISIBLE"; category?: string; target: Target }) => Promise<ActionResult<{ fileId: string } & UploadTarget>>;
 type CompleteFn = (id: string) => Promise<ActionResult<unknown>>;
 
@@ -28,7 +43,7 @@ function put(url: string, file: File, onProgress: (p: number) => void) {
 }
 
 /** Direct-to-storage uploader with progress. Quotas and types are enforced server-side before any byte is sent. */
-export function Uploader({ target, configured, defaultVisibility = "INTERNAL", allowVisibility = true, category, compact, request = requestUploadAction as RequestFn, complete = completeUploadAction as CompleteFn, onUploaded }: { target: Target; configured: boolean; defaultVisibility?: "INTERNAL" | "CLIENT_VISIBLE"; allowVisibility?: boolean; category?: string; compact?: boolean; request?: RequestFn; complete?: CompleteFn; onUploaded?: () => void }) {
+export function Uploader({ target, configured, defaultVisibility = "INTERNAL", allowVisibility = true, category, compact, request = requestUploadAction as RequestFn, complete = completeUploadAction as CompleteFn, onUploaded, maxMb = 200 }: { target: Target; configured: boolean; maxMb?: number; defaultVisibility?: "INTERNAL" | "CLIENT_VISIBLE"; allowVisibility?: boolean; category?: string; compact?: boolean; request?: RequestFn; complete?: CompleteFn; onUploaded?: () => void }) {
   const { t } = useI18n();
   const [items, setItems] = useState<Item[]>([]);
   const [drag, setDrag] = useState(false);
@@ -52,7 +67,8 @@ export function Uploader({ target, configured, defaultVisibility = "INTERNAL", a
       try {
         const r = await request({ name: file.name, mimeType: file.type || "application/octet-stream", size: file.size, visibility, category, target });
         if (!r.ok) throw new Error(r.error);
-        if ("blob" in r.data) {
+        if ("chunks" in r.data) await putChunks(r.data.chunks.key, r.data.chunks.chunkSize, file, (p) => set({ progress: p }));
+        else if ("blob" in r.data) {
           // Private Vercel Blob store: the token is scoped to this path, type and size.
           const { put: blobPut } = await import("@vercel/blob/client");
           await blobPut(r.data.blob.pathname, file, { access: "private", token: r.data.blob.token, contentType: file.type || "application/octet-stream", multipart: file.size > 20 * 1024 * 1024, onUploadProgress: (e) => set({ progress: Math.round(e.percentage) }) });
@@ -78,7 +94,7 @@ export function Uploader({ target, configured, defaultVisibility = "INTERNAL", a
       >
         <div className="flex items-center gap-3">
           <UploadCloud className="size-5 shrink-0 text-muted" />
-          <div className="text-sm"><span className="text-fg"><Tr>Drop files here</Tr></span> <span className="text-muted"><Tr>or</Tr></span> <button type="button" onClick={() => input.current?.click()} className="text-accent hover:underline"><Tr>browse</Tr></button><div className="text-xs text-subtle"><Tr>PDF, images, documents, videos, archives · up to 200 MB</Tr></div></div>
+          <div className="text-sm"><span className="text-fg"><Tr>Drop files here</Tr></span> <span className="text-muted"><Tr>or</Tr></span> <button type="button" onClick={() => input.current?.click()} className="text-accent hover:underline"><Tr>browse</Tr></button><div className="text-xs text-subtle">{t("PDF, images, documents, videos, archives · up to {n} MB", { n: maxMb })}</div></div>
         </div>
         {allowVisibility && (
           <div className="flex rounded-lg border border-line p-0.5 text-xs" role="radiogroup" aria-label={t("Visibility of uploaded files")}>

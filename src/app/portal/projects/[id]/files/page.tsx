@@ -1,3 +1,4 @@
+import { uploadLimitMb } from "@/lib/storage";
 import { db } from "@/lib/db";
 import { requirePortal, getPortalProject } from "@/lib/auth/portal";
 import { FileGrid } from "@/components/app/files";
@@ -18,7 +19,7 @@ export default async function PortalProjectFiles({ params }: { params: Promise<{
   return (
     <div className="space-y-6">
       {requests.length > 0 && <div className="rounded-2xl border border-accent/30 bg-accent-soft/40 p-4 text-sm"><div className="font-medium"><Tr>Requested from you</Tr></div><ul className="mt-1 list-inside list-disc text-muted">{requests.map((r) => <li key={r.id}>{r.label}</li>)}</ul></div>}
-      <PortalUploader projectId={id} configured={integrations.storage()} />
+      <PortalUploader projectId={id} configured={integrations.storage()} maxMb={uploadLimitMb()} />
       {files.length === 0 ? <EmptyState title="No files yet" description="Documents shared with you and files you upload appear here." /> : <FileGrid files={files.map(toFileDTO)} showVisibility={false} />}
     </div>
   );

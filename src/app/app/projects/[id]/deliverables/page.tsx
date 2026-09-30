@@ -1,3 +1,4 @@
+import { uploadLimitMb } from "@/lib/storage";
 import { Package, ExternalLink, CheckCircle2, MessageSquareWarning } from "lucide-react";
 import { db } from "@/lib/db";
 import { loadProject } from "@/server/queries/project";
@@ -54,7 +55,7 @@ export default async function Deliverables({ params, searchParams }: { params: P
                 </div>
                 <div className="border-t border-line p-5">
                   {canEdit && current && d.status !== "APPROVED" && d.status !== "WAITING_FOR_CLIENT" && (
-                    <div className="mb-4"><Uploader target={{ deliverableVersionId: current.id }} configured={integrations.storage()} compact defaultVisibility="CLIENT_VISIBLE" category="DELIVERABLE" /></div>
+                    <div className="mb-4"><Uploader target={{ deliverableVersionId: current.id }} configured={integrations.storage()} maxMb={uploadLimitMb()} compact defaultVisibility="CLIENT_VISIBLE" category="DELIVERABLE" /></div>
                   )}
                   {current && current.files.length > 0 ? <FileGrid files={current.files.map(toFileDTO)} canManage={canEdit && d.status !== "APPROVED"} /> : <p className="text-sm text-subtle"><Tr>No files on V</Tr>{d.currentVersion}.</p>}
                 </div>

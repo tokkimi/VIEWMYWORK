@@ -2017,4 +2017,5 @@ export const fr: Record<string, string> = {
   "With country code, e.g. +33 6 12 34 56 78. Leave empty to choose the contact in WhatsApp.": "Avec l’indicatif, ex. +33 6 12 34 56 78. Laissez vide pour choisir le contact dans WhatsApp.",
   "Your access link is ready. Open WhatsApp to send it — the message is pre-filled.": "Votre lien d’accès est prêt. Ouvrez WhatsApp pour l’envoyer — le message est pré-rempli.",
   "Your website": "Votre site",
+  "PDF, images, documents, videos, archives · up to {n} MB": "PDF, images, documents, vidéos, archives · jusqu’à {n} Mo",
 };

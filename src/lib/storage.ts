@@ -9,6 +9,12 @@ import { AppError } from "@/lib/errors";
  * /api/files/[id] after an authorization check.
  */
 const onBlob = () => !integrations.s3() && integrations.blob();
+/** Built-in fallback: chunks in Postgres (no external service needed). */
+const onDb = () => !integrations.s3() && !integrations.blob();
+export const DB_CHUNK_BYTES = 3 * 1024 * 1024; // below Vercel's 4.5 MB request body limit
+export const DB_MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+/** Largest accepted upload for the active storage backend, in MB (shown in upload hints). */
+export const uploadLimitMb = () => (onDb() ? DB_MAX_UPLOAD_BYTES : MAX_UPLOAD_BYTES) / 1024 / 1024;
 
 let client: S3Client | null = null;
 function s3() {
@@ -38,6 +44,7 @@ const ALL_ALLOWED = new Set(Object.values(ALLOWED).flat());
 
 export function validateUpload(mimeType: string, size: number) {
   if (!ALL_ALLOWED.has(mimeType)) throw new AppError("This file type is not supported.", "INVALID");
+  if (onDb() && size > DB_MAX_UPLOAD_BYTES) throw new AppError(["Files must be smaller than {n} MB.", { n: DB_MAX_UPLOAD_BYTES / 1024 / 1024 }], "INVALID");
   if (size <= 0 || size > MAX_UPLOAD_BYTES) throw new AppError(["Files must be smaller than {n} MB.", { n: MAX_UPLOAD_BYTES / 1024 / 1024 }], "INVALID");
 }
 
@@ -50,9 +57,10 @@ export function kindOf(mimeType: string): "PDF" | "IMAGE" | "VIDEO" | "DOCUMENT"
 }
 
 /** Where the browser sends the bytes: a presigned S3 URL, or a scoped Vercel Blob client token. */
-export type UploadTarget = { url: string } | { blob: { pathname: string; token: string } };
+export type UploadTarget = { url: string } | { blob: { pathname: string; token: string } } | { chunks: { key: string; chunkSize: number } };
 
 export async function presignUpload(key: string, mimeType: string, size: number): Promise<UploadTarget> {
+  if (onDb()) return { chunks: { key, chunkSize: DB_CHUNK_BYTES } };
   if (onBlob()) {
     const { generateClientTokenFromReadWriteToken } = await import("@vercel/blob/client");
     // The token only allows this exact pathname, this content type and at most the declared size.
@@ -66,6 +74,23 @@ export async function presignUpload(key: string, mimeType: string, size: number)
 /** Serves a stored file: redirect to a short-lived S3 URL, or stream a private Blob through us. */
 export async function downloadResponse(key: string, filename: string, mimeType: string, inline = true): Promise<Response> {
   const disposition = `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(filename)}`;
+  const safeHeaders = { "Content-Disposition": disposition, "Cache-Control": "private, max-age=300", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'; sandbox" };
+  if (onDb()) {
+    const { db } = await import("@/lib/db");
+    const parts = await db.fileChunk.findMany({ where: { key }, select: { idx: true }, orderBy: { idx: "asc" } });
+    if (!parts.length) return new Response("Not found", { status: 404 });
+    // Stream chunk by chunk so a large file is never fully held in memory.
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        for (const p of parts) {
+          const c = await db.fileChunk.findUnique({ where: { key_idx: { key, idx: p.idx } }, select: { data: true } });
+          if (c) controller.enqueue(new Uint8Array(c.data));
+        }
+        controller.close();
+      },
+    });
+    return new Response(stream, { headers: { "Content-Type": mimeType, ...safeHeaders } });
+  }
   if (onBlob()) {
     const { get } = await import("@vercel/blob");
     const r = await get(key, { access: "private" });
@@ -92,6 +117,12 @@ export async function presignDownload(key: string, filename: string, inline = tr
 }
 
 export async function headObject(key: string) {
+  if (onDb()) {
+    const { db } = await import("@/lib/db");
+    const rows = await db.$queryRaw<{ size: bigint | null; n: bigint }[]>`SELECT SUM(octet_length(data))::bigint AS size, COUNT(*)::bigint AS n FROM "FileChunk" WHERE key = ${key}`;
+    if (!rows[0] || !Number(rows[0].n)) throw new Error("Not found");
+    return { size: Number(rows[0].size ?? 0), contentType: "" };
+  }
   if (onBlob()) {
     const { head } = await import("@vercel/blob");
     const b = await head(key);
@@ -102,11 +133,22 @@ export async function headObject(key: string) {
 }
 
 export async function deleteObject(key: string) {
+  if (onDb()) {
+    const { db } = await import("@/lib/db");
+    await db.fileChunk.deleteMany({ where: { key } });
+    return;
+  }
   if (onBlob()) return (await import("@vercel/blob")).del(key);
   await s3().send(new DeleteObjectCommand({ Bucket: env.s3.bucket, Key: key }));
 }
 
 export async function putObject(key: string, body: Buffer, contentType: string) {
+  if (onDb()) {
+    const { db } = await import("@/lib/db");
+    await db.fileChunk.deleteMany({ where: { key } });
+    for (let i = 0, idx = 0; i < body.length; i += DB_CHUNK_BYTES, idx++) await db.fileChunk.create({ data: { key, idx, data: new Uint8Array(body.subarray(i, i + DB_CHUNK_BYTES)) } });
+    return;
+  }
   if (onBlob()) {
     await (await import("@vercel/blob")).put(key, body, { access: "private", contentType, addRandomSuffix: false, allowOverwrite: true });
     return;

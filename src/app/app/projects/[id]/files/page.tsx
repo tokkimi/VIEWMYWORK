@@ -1,3 +1,4 @@
+import { uploadLimitMb } from "@/lib/storage";
 import { FolderOpen } from "lucide-react";
 import { db } from "@/lib/db";
 import { loadProject } from "@/server/queries/project";
@@ -21,7 +22,7 @@ export default async function ProjectFiles({ params }: { params: Promise<{ id: s
     <div className="space-y-6">
       {canUpload && (
         <div className="space-y-2">
-          <Uploader target={{ projectId: id }} configured={integrations.storage()} />
+          <Uploader target={{ projectId: id }} configured={integrations.storage()} maxMb={uploadLimitMb()} />
           {drive?.status === "CONNECTED" && <DriveLinkDialog projectId={id} />}
         </div>
       )}
