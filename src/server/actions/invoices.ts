@@ -9,8 +9,7 @@ import { calcInvoice } from "@/lib/invoices/calc";
 import { allocateInvoiceNumber } from "@/lib/invoices/numbering";
 import { outstandingCents, isPayable } from "@/lib/invoices/status";
 import { renderInvoicePdf } from "@/lib/invoices/pdf";
-import { formatMoney } from "@/lib/money";
-import { fmtDate } from "@/lib/format";
+import { makeFmt, normalizeLocale, translate } from "@/lib/i18n/core";
 import { emit } from "@/lib/events";
 import { sendEmail } from "@/lib/email/send";
 import { emailTemplates } from "@/lib/email/templates";
@@ -86,7 +85,7 @@ export async function saveInvoiceAction(fd: FormData) {
       return { id, redirect: `/app/invoices/${id}` };
     }
     const inv = await db.invoice.create({ data: { ...data, workspaceId: ctx.workspace.id, createdById: ctx.user.id, lineItems: { create: rows } } });
-    await emit({ workspaceId: ctx.workspace.id, type: "INVOICE_CREATED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: inv.projectId, clientId: client.id, entityType: "INVOICE", entityId: inv.id, summary: `Draft invoice created for ${clientDisplayName(client)} (${formatMoney(inv.totalCents, inv.currency)})` });
+    await emit({ workspaceId: ctx.workspace.id, type: "INVOICE_CREATED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: inv.projectId, clientId: client.id, entityType: "INVOICE", entityId: inv.id, summary: ["Draft invoice created for {client} ({amount})", { client: clientDisplayName(client), amount: { money: inv.totalCents, currency: inv.currency } }] });
     return { id: inv.id, redirect: `/app/invoices/${inv.id}` };
   }, "Invoice saved.");
 }
@@ -132,8 +131,8 @@ export async function voidInvoiceAction(id: string) {
     await db.clientWait.updateMany({ where: { entityType: "INVOICE", entityId: id, resolvedAt: null }, data: { resolvedAt: new Date() } });
     await emit({
       workspaceId: ctx.workspace.id, type: "INVOICE_VOIDED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: inv.projectId, clientId: inv.clientId, entityType: "INVOICE", entityId: id,
-      summary: `Invoice ${inv.number} voided`, clientVisible: true,
-      notify: { client: true, title: `Invoice ${inv.number} was cancelled`, message: `Invoice ${inv.number} (${formatMoney(inv.totalCents, inv.currency)}) has been cancelled. No payment is needed.`, clientActionUrl: `/portal/invoices/${id}`, actionLabel: "View invoice" },
+      summary: ["Invoice {number} voided", { number: inv.number }], clientVisible: true,
+      notify: { client: true, title: ["Invoice {number} was cancelled", { number: inv.number }], message: ["Invoice {number} ({amount}) has been cancelled. No payment is needed.", { number: inv.number, amount: { money: inv.totalCents, currency: inv.currency } }], clientActionUrl: `/portal/invoices/${id}`, actionLabel: "View invoice" },
     });
     return null;
   }, "Invoice voided.");
@@ -152,8 +151,8 @@ export async function updateIssuedInvoiceAction(fd: FormData) {
     });
     await emit({
       workspaceId: ctx.workspace.id, type: "INVOICE_UPDATED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: inv.projectId, clientId: inv.clientId, entityType: "INVOICE", entityId: i.id,
-      summary: `Invoice ${inv.number} updated (due ${fmtDate(i.dueDate)})`, clientVisible: true,
-      notify: { client: true, title: `Invoice ${inv.number} updated`, message: `The due date is now ${fmtDate(i.dueDate)}.`, clientActionUrl: `/portal/invoices/${i.id}`, actionLabel: "View invoice" },
+      summary: ["Invoice {number} updated (due {date})", { number: inv.number, date: { date: i.dueDate } }], clientVisible: true,
+      notify: { client: true, title: ["Invoice {number} updated", { number: inv.number }], message: ["The due date is now {date}.", { date: { date: i.dueDate } }], clientActionUrl: `/portal/invoices/${i.id}`, actionLabel: "View invoice" },
     });
     return null;
   }, "Invoice updated.");
@@ -197,18 +196,20 @@ export async function sendInvoiceAction(fd: FormData) {
     const { seller, client } = await invoiceParties(inv);
     const pdf = await renderInvoicePdf({ ...inv, seller, client, lines: inv.lineItems, projectName: inv.project?.name, locale: inv.client.preferredLanguage });
     const due = outstandingCents(inv);
-    const t = emailTemplates.invoiceSent({ brand: { name: ctx.workspace.name, logoUrl: seller.logoUrl }, number: inv.number!, amount: formatMoney(due, inv.currency), dueDate: fmtDate(inv.dueDate), message: i.message, link: `${env.appUrl}/i/${inv.publicToken}` });
+    const locale = normalizeLocale(inv.client.preferredLanguage);
+    const fmt = makeFmt(locale);
+    const t = emailTemplates.invoiceSent({ brand: { name: ctx.workspace.name, logoUrl: seller.logoUrl }, number: inv.number!, amount: fmt.money(due, inv.currency), dueDate: fmt.date(inv.dueDate), message: i.message, link: `${env.appUrl}/i/${inv.publicToken}` }, locale);
     const mail = await sendEmail({
       to: i.to, cc: i.cc, bcc: [...i.bcc, ...(i.sendCopy ? [ctx.user.email] : [])], subject: i.subject, html: t.html, template: "invoice_sent", workspaceId: ctx.workspace.id, entityType: "INVOICE", entityId: inv.id,
       attachments: [{ filename: `${inv.number}.pdf`, content: pdf }], fromName: ctx.workspace.name, replyTo: seller.email ?? ctx.user.email,
     });
 
-    if (inv.projectId && inv0.status === "DRAFT") await db.clientWait.create({ data: { projectId: inv.projectId, reason: "PAYMENT", label: `Invoice ${inv.number}`, entityType: "INVOICE", entityId: inv.id } });
+    if (inv.projectId && inv0.status === "DRAFT") await db.clientWait.create({ data: { projectId: inv.projectId, reason: "PAYMENT", label: translate(locale, "Invoice {number}", { number: inv.number }), entityType: "INVOICE", entityId: inv.id } });
     await emit({
       workspaceId: ctx.workspace.id, type: "INVOICE_SENT", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: inv.projectId, clientId: inv.clientId, entityType: "INVOICE", entityId: inv.id,
-      summary: `Invoice ${inv.number} sent to ${i.to} (${formatMoney(inv.totalCents, inv.currency)})`, clientVisible: true,
+      summary: ["Invoice {number} sent to {to} ({amount})", { number: inv.number, to: i.to, amount: { money: inv.totalCents, currency: inv.currency } }], clientVisible: true,
       metadata: { emailStatus: mail.status },
-      notify: { client: true, title: `New invoice ${inv.number}`, message: `${formatMoney(due, inv.currency)} due ${fmtDate(inv.dueDate)}.`, clientActionUrl: `/portal/invoices/${inv.id}`, actionLabel: "View & pay" },
+      notify: { client: true, title: ["New invoice {number}", { number: inv.number }], message: ["{amount} due {date}.", { amount: { money: due, currency: inv.currency }, date: { date: inv.dueDate } }], clientActionUrl: `/portal/invoices/${inv.id}`, actionLabel: "View & pay" },
     });
     return { number: inv.number, emailStatus: mail.status, emailError: mail.error };
   });
@@ -226,7 +227,7 @@ export async function recordManualPaymentAction(fd: FormData) {
     const res = await db.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT 1 FROM "Invoice" WHERE "id" = ${inv.id}::uuid FOR UPDATE`;
       const fresh = await tx.invoice.findUniqueOrThrow({ where: { id: inv.id } });
-      if (i.amount > outstandingCents(fresh)) throw new AppError(`Amount exceeds the outstanding balance of ${formatMoney(outstandingCents(fresh), fresh.currency)}.`);
+      if (i.amount > outstandingCents(fresh)) throw new AppError(["Amount exceeds the outstanding balance of {amount}.", { amount: { money: outstandingCents(fresh), currency: fresh.currency } }]);
       const p = await tx.payment.create({ data: { workspaceId: ctx.workspace.id, invoiceId: inv.id, clientId: inv.clientId, amountCents: i.amount, currency: inv.currency, provider: "manual", method: i.method, status: "SUCCEEDED", reference: i.reference, notes: i.notes, paidAt: i.date, recordedById: ctx.user.id } });
       const r = await recomputeInvoice(tx, inv.id);
       return { payment: p, ...r };
@@ -246,7 +247,7 @@ export async function sendReminderAction(invoiceId: string) {
     if (!isPayable(inv.status) || outstandingCents(inv) <= 0) throw new AppError("This invoice has nothing outstanding.");
     const r = await deliverReminder(inv.id, "MANUAL", null, ctx.user.id);
     if (r.status === "NOT_CONFIGURED") throw new AppError("Email delivery isn't configured, so the reminder couldn't be sent.", "CONFIG");
-    if (r.status === "FAILED") throw new AppError(`The reminder couldn't be delivered: ${r.error ?? "unknown error"}`);
+    if (r.status === "FAILED") throw new AppError(["The reminder couldn't be delivered: {error}", { error: r.error ?? "unknown error" }]);
     return null;
   }, "Reminder sent.");
 }

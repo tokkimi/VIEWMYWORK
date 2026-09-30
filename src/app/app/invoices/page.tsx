@@ -9,15 +9,16 @@ import { ButtonLink } from "@/components/ui/button";
 import { LinkTabs } from "@/components/ui/tabs";
 import { Pagination } from "@/components/ui/pagination";
 import { InvoiceStatusBadge } from "@/components/status";
-import { formatMoney } from "@/lib/money";
-import { fmtDate } from "@/lib/format";
 import { deriveStatus, outstandingCents } from "@/lib/invoices/status";
 import { clientDisplayName } from "@/server/services/invoices";
+import { pageTitle, getI18n } from "@/lib/i18n/server";
+import { Tr } from "@/lib/i18n/client";
 
-export const metadata = { title: "Invoices" };
+export const generateMetadata = pageTitle("Invoices");
 const PER_PAGE = 25;
 
 export default async function Invoices({ searchParams }: { searchParams: Promise<{ status?: string; page?: string; q?: string }> }) {
+  const { t, fmt } = await getI18n();
   const ctx = await requireWorkspace();
   requirePerm(ctx, "invoices", "view");
   const sp = await searchParams;
@@ -43,7 +44,7 @@ export default async function Invoices({ searchParams }: { searchParams: Promise
 
   return (
     <>
-      <PageHeader title="Invoices" description="Create, send and track invoices. Clients pay online from their portal." actions={can(ctx, "invoices", "edit") ? <ButtonLink href="/app/invoices/new" variant="primary"><Plus className="size-4" />Create invoice</ButtonLink> : undefined} />
+      <PageHeader title="Invoices" description="Create, send and track invoices. Clients pay online from their portal." actions={can(ctx, "invoices", "edit") ? <ButtonLink href="/app/invoices/new" variant="primary"><Plus className="size-4" /><Tr>Create invoice</Tr></ButtonLink> : undefined} />
       <Suspense>
         <LinkTabs
           tabs={[
@@ -58,19 +59,19 @@ export default async function Invoices({ searchParams }: { searchParams: Promise
         />
       </Suspense>
       {invoices.length === 0 ? (
-        <EmptyState icon={<Receipt />} title={sp.status ? "No invoices here" : "No invoices yet"} description="Create your first invoice and send it directly to your client." action={can(ctx, "invoices", "edit") ? <ButtonLink href="/app/invoices/new" variant="primary">Create invoice</ButtonLink> : undefined} />
+        <EmptyState icon={<Receipt />} title={sp.status ? t("No invoices here") : t("No invoices yet")} description="Create your first invoice and send it directly to your client." action={can(ctx, "invoices", "edit") ? <ButtonLink href="/app/invoices/new" variant="primary"><Tr>Create invoice</Tr></ButtonLink> : undefined} />
       ) : (
         <>
           <Table>
             <thead>
               <tr>
-                <th className={th}>Invoice</th>
-                <th className={th}>Client</th>
-                <th className={th}>Project</th>
-                <th className={th}>Issued</th>
-                <th className={th}>Due</th>
-                <th className={`${th} text-right`}>Amount</th>
-                <th className={`${th} text-right`}>Status</th>
+                <th className={th}><Tr>Invoice</Tr></th>
+                <th className={th}><Tr>Client</Tr></th>
+                <th className={th}><Tr>Project</Tr></th>
+                <th className={th}><Tr>Issued</Tr></th>
+                <th className={th}><Tr>Due</Tr></th>
+                <th className={`${th} text-right`}><Tr>Amount</Tr></th>
+                <th className={`${th} text-right`}><Tr>Status</Tr></th>
               </tr>
             </thead>
             <tbody>
@@ -78,14 +79,14 @@ export default async function Invoices({ searchParams }: { searchParams: Promise
                 const s = deriveStatus(i);
                 return (
                   <tr key={i.id} className="hover:bg-white/[0.02]">
-                    <td className={td}><Link href={`/app/invoices/${i.id}`} className="num font-medium hover:underline">{i.number ?? "Draft"}</Link></td>
+                    <td className={td}><Link href={`/app/invoices/${i.id}`} className="num font-medium hover:underline">{i.number ?? t("Draft")}</Link></td>
                     <td className={`${td} text-muted`}>{clientDisplayName(i.client)}</td>
                     <td className={`${td} text-muted`}>{i.project?.name ?? "—"}</td>
-                    <td className={`${td} text-muted`}>{fmtDate(i.issueDate)}</td>
-                    <td className={`${td} ${s === "OVERDUE" ? "text-danger" : "text-muted"}`}>{fmtDate(i.dueDate)}</td>
+                    <td className={`${td} text-muted`}>{fmt.date(i.issueDate)}</td>
+                    <td className={`${td} ${s === "OVERDUE" ? "text-danger" : "text-muted"}`}>{fmt.date(i.dueDate)}</td>
                     <td className={`${td} num text-right`}>
-                      {formatMoney(i.totalCents, i.currency)}
-                      {s === "PARTIALLY_PAID" && <div className="text-[11px] text-subtle">{formatMoney(outstandingCents(i), i.currency)} due</div>}
+                      {fmt.money(i.totalCents, i.currency)}
+                      {s === "PARTIALLY_PAID" && <div className="text-[11px] text-subtle">{fmt.money(outstandingCents(i), i.currency)} <Tr>due</Tr></div>}
                     </td>
                     <td className={`${td} text-right`}><InvoiceStatusBadge s={s} /></td>
                   </tr>

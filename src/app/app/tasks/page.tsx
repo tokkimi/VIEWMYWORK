@@ -9,10 +9,13 @@ import { listTasks, type TaskFilters } from "@/server/queries/tasks";
 import { TaskList, TaskBoard, ViewToggle, NewTaskDialog, type TaskItem } from "@/components/app/task-views";
 import { TaskPanelLoader } from "@/components/app/task-panel-loader";
 import { TASK_STATUS, TASK_STATUSES } from "@/lib/labels";
+import { pageTitle, getI18n } from "@/lib/i18n/server";
+import { Tr } from "@/lib/i18n/client";
 
-export const metadata = { title: "Tasks" };
+export const generateMetadata = pageTitle("Tasks");
 
 export default async function Tasks({ searchParams }: { searchParams: Promise<TaskFilters & { view?: string; task?: string; new?: string }> }) {
+  const { t } = await getI18n();
   const ctx = await requireWorkspace();
   const sp = await searchParams;
   const tab = sp.tab ?? "mine";
@@ -33,18 +36,18 @@ export default async function Tasks({ searchParams }: { searchParams: Promise<Ta
       <Suspense>
         <LinkTabs tabs={[{ href: tabHref("mine"), label: "My tasks" }, { href: tabHref("all"), label: "All tasks" }, { href: tabHref("overdue"), label: "Overdue" }, { href: tabHref("upcoming"), label: "Upcoming" }, { href: tabHref("waiting"), label: "Waiting for client" }, { href: tabHref("completed"), label: "Completed" }]} />
       </Suspense>
-      <form className="mb-5 flex flex-wrap gap-2" aria-label="Filters">
+      <form className="mb-5 flex flex-wrap gap-2" aria-label={t("Filters")}>
         {keep("tab")}{keep("view")}
-        <input name="q" defaultValue={sp.q} placeholder="Search tasks…" aria-label="Search tasks" className={`${inputClass} w-48`} />
-        <select name="projectId" defaultValue={sp.projectId ?? ""} aria-label="Project" className={`${inputClass} w-auto`}><option value="">All projects</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
-        {clients.length > 0 && <select name="clientId" defaultValue={sp.clientId ?? ""} aria-label="Client" className={`${inputClass} w-auto`}><option value="">All clients</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.company || `${c.firstName} ${c.lastName}`}</option>)}</select>}
-        <select name="assigneeId" defaultValue={sp.assigneeId ?? ""} aria-label="Assignee" className={`${inputClass} w-auto`}><option value="">Anyone</option><option value="none">Unassigned</option>{members.map((m) => <option key={m.user.id} value={m.user.id}>{m.user.name}</option>)}</select>
-        <select name="status" defaultValue={sp.status ?? ""} aria-label="Status" className={`${inputClass} w-auto`}><option value="">Any status</option>{TASK_STATUSES.map((s) => <option key={s} value={s}>{TASK_STATUS[s].label}</option>)}</select>
-        <select name="priority" defaultValue={sp.priority ?? ""} aria-label="Priority" className={`${inputClass} w-auto`}><option value="">Any priority</option><option value="URGENT">Urgent</option><option value="HIGH">High</option><option value="MEDIUM">Medium</option><option value="LOW">Low</option></select>
-        <button className="h-9 rounded-[10px] border border-line px-3 text-sm text-muted hover:text-fg">Apply</button>
+        <input name="q" defaultValue={sp.q} placeholder={t("Search tasks…")} aria-label={t("Search tasks")} className={`${inputClass} w-48`} />
+        <select name="projectId" defaultValue={sp.projectId ?? ""} aria-label={t("Project")} className={`${inputClass} w-auto`}><option value="">{t("All projects")}</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+        {clients.length > 0 && <select name="clientId" defaultValue={sp.clientId ?? ""} aria-label={t("Client")} className={`${inputClass} w-auto`}><option value="">{t("All clients")}</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.company || `${c.firstName} ${c.lastName}`}</option>)}</select>}
+        <select name="assigneeId" defaultValue={sp.assigneeId ?? ""} aria-label={t("Assignee")} className={`${inputClass} w-auto`}><option value="">{t("Anyone")}</option><option value="none">{t("Unassigned")}</option>{members.map((m) => <option key={m.user.id} value={m.user.id}>{m.user.name}</option>)}</select>
+        <select name="status" defaultValue={sp.status ?? ""} aria-label={t("Status")} className={`${inputClass} w-auto`}><option value="">{t("Any status")}</option>{TASK_STATUSES.map((s) => <option key={s} value={s}>{t(TASK_STATUS[s].label)}</option>)}</select>
+        <select name="priority" defaultValue={sp.priority ?? ""} aria-label={t("Priority")} className={`${inputClass} w-auto`}><option value="">{t("Any priority")}</option><option value="URGENT">{t("Urgent")}</option><option value="HIGH">{t("High")}</option><option value="MEDIUM">{t("Medium")}</option><option value="LOW">{t("Low")}</option></select>
+        <button className="h-9 rounded-[10px] border border-line px-3 text-sm text-muted hover:text-fg"><Tr>Apply</Tr></button>
       </form>
       {items.length === 0 ? (
-        <EmptyState icon={<CheckSquare />} title={tab === "mine" ? "Nothing assigned to you" : "No tasks match"} description={tab === "mine" ? "Tasks assigned to you across all projects appear here." : undefined} />
+        <EmptyState icon={<CheckSquare />} title={tab === "mine" ? t("Nothing assigned to you") : t("No tasks match")} description={tab === "mine" ? "Tasks assigned to you across all projects appear here." : undefined} />
       ) : view === "board" ? (
         <Suspense><TaskBoard tasks={items} /></Suspense>
       ) : (

@@ -6,6 +6,7 @@ import { UploadCloud, CheckCircle2, AlertCircle, Eye, EyeOff } from "lucide-reac
 import { cn } from "@/lib/cn";
 import type { ActionResult } from "@/lib/errors";
 import { requestUploadAction, completeUploadAction } from "@/server/actions/files";
+import { Tr, useI18n } from "@/lib/i18n/client";
 
 type Target = { projectId?: string; clientId?: string; phaseId?: string; taskId?: string; deliverableVersionId?: string; invoiceId?: string; expenseId?: string };
 type Item = { id: number; name: string; progress: number; state: "uploading" | "done" | "error"; error?: string };
@@ -19,7 +20,7 @@ function put(url: string, file: File, onProgress: (p: number) => void) {
     xhr.open("PUT", url);
     xhr.setRequestHeader("Content-Type", file.type);
     xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(Math.round((e.loaded / e.total) * 100));
-    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Storage rejected the upload (${xhr.status}).`)));
+    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error("Storage rejected the upload.")));
     xhr.onerror = () => reject(new Error("Network error during upload."));
     xhr.send(file);
   });
@@ -27,6 +28,7 @@ function put(url: string, file: File, onProgress: (p: number) => void) {
 
 /** Direct-to-storage uploader with progress. Quotas and types are enforced server-side before any byte is sent. */
 export function Uploader({ target, configured, defaultVisibility = "INTERNAL", allowVisibility = true, category, compact, request = requestUploadAction as RequestFn, complete = completeUploadAction as CompleteFn, onUploaded }: { target: Target; configured: boolean; defaultVisibility?: "INTERNAL" | "CLIENT_VISIBLE"; allowVisibility?: boolean; category?: string; compact?: boolean; request?: RequestFn; complete?: CompleteFn; onUploaded?: () => void }) {
+  const { t } = useI18n();
   const [items, setItems] = useState<Item[]>([]);
   const [drag, setDrag] = useState(false);
   const [visibility, setVisibility] = useState(defaultVisibility);
@@ -37,7 +39,7 @@ export function Uploader({ target, configured, defaultVisibility = "INTERNAL", a
     return (
       <div className="rounded-2xl border border-dashed border-line px-4 py-5 text-center text-sm text-muted">
         <UploadCloud className="mx-auto mb-2 size-5 text-subtle" />
-        File storage isn&apos;t configured on this platform yet, so uploads are disabled.
+        <Tr>File storage isn&apos;t configured on this platform yet, so uploads are disabled.</Tr>
       </div>
     );
 
@@ -54,7 +56,7 @@ export function Uploader({ target, configured, defaultVisibility = "INTERNAL", a
         if (!c.ok) throw new Error(c.error);
         set({ state: "done", progress: 100 });
       } catch (e) {
-        set({ state: "error", error: e instanceof Error ? e.message : "Upload failed." });
+        set({ state: "error", error: e instanceof Error ? e.message : t("Upload failed.") });
       }
     }
     onUploaded?.();
@@ -71,12 +73,12 @@ export function Uploader({ target, configured, defaultVisibility = "INTERNAL", a
       >
         <div className="flex items-center gap-3">
           <UploadCloud className="size-5 shrink-0 text-muted" />
-          <div className="text-sm"><span className="text-fg">Drop files here</span> <span className="text-muted">or</span> <button type="button" onClick={() => input.current?.click()} className="text-accent hover:underline">browse</button><div className="text-xs text-subtle">PDF, images, documents, videos, archives · up to 200 MB</div></div>
+          <div className="text-sm"><span className="text-fg"><Tr>Drop files here</Tr></span> <span className="text-muted"><Tr>or</Tr></span> <button type="button" onClick={() => input.current?.click()} className="text-accent hover:underline"><Tr>browse</Tr></button><div className="text-xs text-subtle"><Tr>PDF, images, documents, videos, archives · up to 200 MB</Tr></div></div>
         </div>
         {allowVisibility && (
-          <div className="flex rounded-lg border border-line p-0.5 text-xs" role="radiogroup" aria-label="Visibility of uploaded files">
-            <button type="button" role="radio" aria-checked={visibility === "INTERNAL"} onClick={() => setVisibility("INTERNAL")} className={cn("flex items-center gap-1 rounded-md px-2 py-1", visibility === "INTERNAL" ? "bg-white/[0.08] text-fg" : "text-muted")}><EyeOff className="size-3" />Internal</button>
-            <button type="button" role="radio" aria-checked={visibility === "CLIENT_VISIBLE"} onClick={() => setVisibility("CLIENT_VISIBLE")} className={cn("flex items-center gap-1 rounded-md px-2 py-1", visibility === "CLIENT_VISIBLE" ? "bg-accent-soft text-[#9db9ff]" : "text-muted")}><Eye className="size-3" />Visible to client</button>
+          <div className="flex rounded-lg border border-line p-0.5 text-xs" role="radiogroup" aria-label={t("Visibility of uploaded files")}>
+            <button type="button" role="radio" aria-checked={visibility === "INTERNAL"} onClick={() => setVisibility("INTERNAL")} className={cn("flex items-center gap-1 rounded-md px-2 py-1", visibility === "INTERNAL" ? "bg-white/[0.08] text-fg" : "text-muted")}><EyeOff className="size-3" /><Tr>Internal</Tr></button>
+            <button type="button" role="radio" aria-checked={visibility === "CLIENT_VISIBLE"} onClick={() => setVisibility("CLIENT_VISIBLE")} className={cn("flex items-center gap-1 rounded-md px-2 py-1", visibility === "CLIENT_VISIBLE" ? "bg-accent-soft text-[#9db9ff]" : "text-muted")}><Eye className="size-3" /><Tr>Visible to client</Tr></button>
           </div>
         )}
         <input ref={input} type="file" multiple hidden onChange={(e) => e.target.files && upload(e.target.files)} />
@@ -88,7 +90,7 @@ export function Uploader({ target, configured, defaultVisibility = "INTERNAL", a
               {it.state === "done" ? <CheckCircle2 className="size-3.5 text-success" /> : it.state === "error" ? <AlertCircle className="size-3.5 text-danger" /> : <span className="size-3.5 animate-spin rounded-full border-2 border-white/20 border-t-accent" />}
               <span className="min-w-0 flex-1 truncate">{it.name}</span>
               {it.state === "uploading" && <span className="num text-muted">{it.progress}%</span>}
-              {it.state === "error" && <span className="text-danger">{it.error}</span>}
+              {it.state === "error" && <span className="text-danger">{t(it.error ?? t("Upload failed."))}</span>}
             </li>
           ))}
         </ul>

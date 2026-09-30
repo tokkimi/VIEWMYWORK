@@ -6,6 +6,7 @@ import { ChevronsUpDown, Check, Plus } from "lucide-react";
 import Link from "next/link";
 import { switchWorkspaceAction } from "@/server/actions/workspace";
 import { Avatar } from "@/components/ui/primitives";
+import { Tr } from "@/lib/i18n/client";
 
 export function WorkspaceSwitcher({ workspaces, current }: { workspaces: { id: string; name: string }[]; current: { id: string; name: string; logoUrl?: string | null } }) {
   const [open, setOpen] = useState(false);
@@ -45,7 +46,7 @@ export function WorkspaceSwitcher({ workspaces, current }: { workspaces: { id: s
             </button>
           ))}
           <Link href="/onboarding?new=1" role="menuitem" className="mt-1 flex items-center gap-2 border-t border-line px-2 pb-1 pt-2 text-sm text-muted hover:text-fg">
-            <Plus className="size-3.5" /> New workspace
+            <Plus className="size-3.5" /> <Tr>New workspace</Tr>
           </Link>
         </div>
       )}

@@ -2,8 +2,9 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireWorkspace, can } from "@/lib/auth/context";
 import { GeneralForm } from "@/components/app/settings-forms";
+import { pageTitle } from "@/lib/i18n/server";
 
-export const metadata = { title: "Settings" };
+export const generateMetadata = pageTitle("Settings");
 
 export default async function GeneralSettings() {
   const ctx = await requireWorkspace();

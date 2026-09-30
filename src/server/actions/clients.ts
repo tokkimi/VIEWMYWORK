@@ -11,6 +11,7 @@ import { randomToken, sha256 } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { sendEmail } from "@/lib/email/send";
 import { emailTemplates } from "@/lib/email/templates";
+import { normalizeLocale, translate } from "@/lib/i18n/core";
 import { rateLimit } from "@/lib/rate-limit";
 
 const clientSchema = z.object({
@@ -45,7 +46,7 @@ export async function createClientAction(fd: FormData) {
     await assertWithinLimit(ctx.workspace.id, "clients");
     const input = clientSchema.parse(formToObject(fd));
     const client = await db.client.create({ data: { ...input, workspaceId: ctx.workspace.id } });
-    await emit({ workspaceId: ctx.workspace.id, type: "CLIENT_CREATED", actor: { id: ctx.user.id, name: ctx.user.name }, clientId: client.id, entityType: "CLIENT", entityId: client.id, summary: `Client ${client.firstName} ${client.lastName}${client.company ? ` (${client.company})` : ""} created` });
+    await emit({ workspaceId: ctx.workspace.id, type: "CLIENT_CREATED", actor: { id: ctx.user.id, name: ctx.user.name }, clientId: client.id, entityType: "CLIENT", entityId: client.id, summary: ["Client {name} created", { name: `${client.firstName} ${client.lastName}${client.company ? ` (${client.company})` : ""}` }] });
     return { id: client.id };
   }, "Client created.");
 }
@@ -108,9 +109,9 @@ export async function inviteClientToPortalAction(fd: FormData) {
     await db.invitation.create({ data: { workspaceId: ctx.workspace.id, kind: "CLIENT", email: i.email, clientId: client.id, tokenHash: sha256(token), invitedById: ctx.user.id, expiresAt: new Date(Date.now() + 14 * 86400_000) } });
     const project = i.projectId && isUuid(i.projectId) ? await db.project.findFirst({ where: { id: i.projectId, workspaceId: ctx.workspace.id } }) : null;
     const settings = await db.workspaceSetting.findUnique({ where: { workspaceId: ctx.workspace.id } });
-    const t = emailTemplates.clientInvitation({ brand: { name: ctx.workspace.name, logoUrl: settings?.portalLogoUrl ?? ctx.workspace.logoUrl }, clientName: client.firstName, projectName: project?.name, message: i.message, link: `${env.appUrl}/invite/${token}` });
+    const t = emailTemplates.clientInvitation({ brand: { name: ctx.workspace.name, logoUrl: settings?.portalLogoUrl ?? ctx.workspace.logoUrl }, clientName: client.firstName, projectName: project?.name, message: i.message, link: `${env.appUrl}/invite/${token}` }, normalizeLocale(client.preferredLanguage));
     const r = await sendEmail({ to: i.email, subject: t.subject, html: t.html, template: "client_invitation", workspaceId: ctx.workspace.id, entityType: "CLIENT", entityId: client.id, fromName: ctx.workspace.name, replyTo: ctx.user.email });
-    await emit({ workspaceId: ctx.workspace.id, type: "CLIENT_INVITED", actor: { id: ctx.user.id, name: ctx.user.name }, clientId: client.id, entityType: "CLIENT", entityId: client.id, summary: `Portal invitation sent to ${i.email}` });
+    await emit({ workspaceId: ctx.workspace.id, type: "CLIENT_INVITED", actor: { id: ctx.user.id, name: ctx.user.name }, clientId: client.id, entityType: "CLIENT", entityId: client.id, summary: ["Portal invitation sent to {email}", { email: i.email }] });
     // Link is returned so the professional can share it manually when email isn't configured.
     return { link: `${env.appUrl}/invite/${token}`, emailStatus: r.status };
   });
@@ -136,10 +137,11 @@ export async function sendClientEmailAction(fd: FormData) {
     const i = z.object({ clientId: zId, subject: z.string().trim().min(1, "Subject is required.").max(200), message: z.string().trim().min(1, "Message is required.").max(10000), sendCopy: z.string().optional() }).parse(formToObject(fd));
     const client = await getClient(ctx, i.clientId);
     const settings = await db.workspaceSetting.findUnique({ where: { workspaceId: ctx.workspace.id } });
-    const t = emailTemplates.directMessage({ brand: { name: ctx.workspace.name, logoUrl: settings?.portalLogoUrl ?? ctx.workspace.logoUrl }, subject: i.subject, message: i.message, link: `${env.appUrl}/portal`, linkLabel: "Open my portal" });
+    const locale = normalizeLocale(client.preferredLanguage);
+    const t = emailTemplates.directMessage({ brand: { name: ctx.workspace.name, logoUrl: settings?.portalLogoUrl ?? ctx.workspace.logoUrl }, subject: i.subject, message: i.message, link: `${env.appUrl}/portal`, linkLabel: translate(locale, "Open my portal") }, locale);
     const r = await sendEmail({ to: client.email, bcc: i.sendCopy ? [ctx.user.email] : undefined, subject: t.subject, html: t.html, template: "direct_message", workspaceId: ctx.workspace.id, entityType: "CLIENT", entityId: client.id, fromName: ctx.workspace.name, replyTo: ctx.user.email });
     if (r.status === "NOT_CONFIGURED") throw new AppError("Email delivery isn't configured on this platform yet. The message was not sent.", "CONFIG");
-    if (r.status === "FAILED") throw new AppError(`Email could not be delivered: ${r.error ?? "unknown error"}`);
+    if (r.status === "FAILED") throw new AppError(["Email could not be delivered: {error}", { error: r.error ?? "unknown error" }]);
     return null;
   }, "Email sent.");
 }

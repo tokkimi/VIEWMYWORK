@@ -4,10 +4,12 @@ import { requireSuperAdmin } from "@/lib/auth/context";
 import { PageHeader, Stat, Section } from "@/components/ui/primitives";
 import { BarChart } from "@/components/charts";
 import { formatBytes } from "@/lib/plans";
+import { pageTitle, getI18n } from "@/lib/i18n/server";
 
-export const metadata = { title: "Storage" };
+export const generateMetadata = pageTitle("Storage");
 
 export default async function AdminStorage() {
+  const { t } = await getI18n();
   await requireSuperAdmin();
   const now = new Date();
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1));
@@ -22,7 +24,7 @@ export default async function AdminStorage() {
   return (
     <>
       <PageHeader title="Storage" />
-      <div className="panel grid grid-cols-2 divide-x divide-line rounded-2xl sm:grid-cols-3"><Stat label="Total storage" value={formatBytes(total._sum.storageUsedBytes ?? 0n)} /><Stat label="Uploaded files" value={files} /><Stat label="Drive links" value="Not counted" /></div>
+      <div className="panel grid grid-cols-2 divide-x divide-line rounded-2xl sm:grid-cols-3"><Stat label="Total storage" value={formatBytes(total._sum.storageUsedBytes ?? 0n)} /><Stat label="Uploaded files" value={files} /><Stat label="Drive links" value={t("Not counted")} /></div>
       <div className="mt-10 grid gap-10 lg:grid-cols-2">
         <Section title="Storage growth" description="New uploads per month"><div className="panel rounded-2xl p-5"><BarChart data={growth} format={(v) => formatBytes(v)} /></div></Section>
         <Section title="Largest workspaces">

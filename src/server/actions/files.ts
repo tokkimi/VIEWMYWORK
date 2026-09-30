@@ -70,8 +70,8 @@ export async function completeUploadAction(fileId: string) {
       const visible = file.visibility === "CLIENT_VISIBLE";
       await emit({
         workspaceId: ctx.workspace.id, type: "FILE_UPLOADED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: file.projectId, clientId: file.clientId, entityType: "FILE", entityId: file.id,
-        summary: `Uploaded ${file.name}`, clientVisible: visible,
-        notify: visible && project ? { client: true, title: `New file in ${project.name}`, message: file.name, clientActionUrl: `/portal/projects/${project.id}/files`, actionLabel: "View files" } : undefined,
+        summary: ["Uploaded {name}", { name: file.name }], clientVisible: visible,
+        notify: visible && project ? { client: true, title: ["New file in {project}", { project: project.name }], message: ["{name}", { name: file.name }], clientActionUrl: `/portal/projects/${project.id}/files`, actionLabel: "View files" } : undefined,
       });
     }
     return { id: file.id };

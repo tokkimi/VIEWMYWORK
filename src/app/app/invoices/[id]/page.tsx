@@ -10,14 +10,16 @@ import { SendInvoiceDialog, RecordPaymentDialog, SendReminderButton, InvoiceMore
 import { CopyButton } from "@/components/ui/copy-button";
 import { clientDisplayName, invoiceParties, loadInvoice } from "@/server/services/invoices";
 import { deriveStatus, outstandingCents, isPayable, daysOverdue } from "@/lib/invoices/status";
-import { formatMoney } from "@/lib/money";
-import { fmtDate, fmtDateTime } from "@/lib/format";
 import { PAYMENT_METHOD } from "@/lib/labels";
 import { env } from "@/lib/env";
+import { normalizeLocale, storedText } from "@/lib/i18n/core";
+import { pageTitle, getI18n } from "@/lib/i18n/server";
+import { Tr } from "@/lib/i18n/client";
 
-export const metadata = { title: "Invoice" };
+export const generateMetadata = pageTitle("Invoice");
 
 export default async function InvoiceDetail({ params }: { params: Promise<{ id: string }> }) {
+  const { t, fmt } = await getI18n();
   const ctx = await requireWorkspace();
   requirePerm(ctx, "invoices", "view");
   const { id } = await params;
@@ -38,15 +40,15 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
   return (
     <>
       <PageHeader
-        eyebrow={<Link href="/app/invoices" className="hover:text-fg">Invoices</Link>}
-        title={inv.number ?? "Draft invoice"}
-        description={<>{clientDisplayName(inv.client)} · {formatMoney(inv.totalCents, inv.currency)}{status === "OVERDUE" && <span className="text-danger"> · {daysOverdue(inv)} days overdue</span>}</>}
+        eyebrow={<Link href="/app/invoices" className="hover:text-fg"><Tr>Invoices</Tr></Link>}
+        title={inv.number ?? t("Draft invoice")}
+        description={<>{clientDisplayName(inv.client)} · {fmt.money(inv.totalCents, inv.currency)}{status === "OVERDUE" && <span className="text-danger"> · {daysOverdue(inv)} <Tr>days overdue</Tr></span>}</>}
         actions={
           <>
-            {edit && inv.status === "DRAFT" && <ButtonLink href={`/app/invoices/${id}/edit`}><Pencil className="size-4" />Edit</ButtonLink>}
-            <ButtonLink href={`/api/invoices/${id}/pdf`} prefetch={false}><Download className="size-4" />PDF</ButtonLink>
-            {edit && isPayable(status) && outstanding > 0 && <RecordPaymentDialog invoiceId={id} outstanding={formatMoney(outstanding, inv.currency)} />}
-            {edit && inv.status !== "VOID" && <SendInvoiceDialog invoice={{ id, number: inv.number, status: inv.status }} defaultTo={inv.client.billingEmail || inv.client.email} workspaceName={ctx.workspace.name} userEmail={ctx.user.email} />}
+            {edit && inv.status === "DRAFT" && <ButtonLink href={`/app/invoices/${id}/edit`}><Pencil className="size-4" /><Tr>Edit</Tr></ButtonLink>}
+            <ButtonLink href={`/api/invoices/${id}/pdf`} prefetch={false}><Download className="size-4" /><Tr>PDF</Tr></ButtonLink>
+            {edit && isPayable(status) && outstanding > 0 && <RecordPaymentDialog invoiceId={id} outstanding={fmt.money(outstanding, inv.currency)} />}
+            {edit && inv.status !== "VOID" && <SendInvoiceDialog invoice={{ id, number: inv.number, status: inv.status }} defaultTo={inv.client.billingEmail || inv.client.email} workspaceName={ctx.workspace.name} userEmail={ctx.user.email} clientLocale={normalizeLocale(inv.client.preferredLanguage)} />}
           </>
         }
       />
@@ -56,21 +58,21 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
 
         <aside className="space-y-8">
           <div className="panel rounded-2xl p-5">
-            <div className="text-xs text-muted">Amount due</div>
-            <div className="num mt-1 text-3xl font-semibold tracking-tight">{formatMoney(outstanding, inv.currency)}</div>
-            <div className="mt-1 text-xs text-subtle">of {formatMoney(inv.totalCents, inv.currency)} · due {fmtDate(inv.dueDate)}</div>
+            <div className="text-xs text-muted"><Tr>Amount due</Tr></div>
+            <div className="num mt-1 text-3xl font-semibold tracking-tight">{fmt.money(outstanding, inv.currency)}</div>
+            <div className="mt-1 text-xs text-subtle"><Tr>of</Tr> {fmt.money(inv.totalCents, inv.currency)} <Tr>· due</Tr> {fmt.date(inv.dueDate)}</div>
             {inv.status !== "DRAFT" && inv.status !== "VOID" && (
               <div className="mt-4 space-y-2 border-t border-line pt-4 text-xs">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-muted">Client payment link</span>
+                  <span className="text-muted"><Tr>Client payment link</Tr></span>
                   <CopyButton value={publicLink} />
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted">Online payment</span>
-                  {paymentAccount?.chargesEnabled ? <Badge tone="success">Card enabled</Badge> : <Link href="/app/settings/payments" className="text-accent hover:underline">Connect Stripe</Link>}
+                  <span className="text-muted"><Tr>Online payment</Tr></span>
+                  {paymentAccount?.chargesEnabled ? <Badge tone="success"><Tr>Card enabled</Tr></Badge> : <Link href="/app/settings/payments" className="text-accent hover:underline"><Tr>Connect Stripe</Tr></Link>}
                 </div>
-                {inv.firstViewedAt && <div className="flex justify-between"><span className="text-muted">First viewed</span><span>{fmtDateTime(inv.firstViewedAt)}</span></div>}
-                {inv.sentAt && <div className="flex justify-between"><span className="text-muted">Last sent</span><span>{fmtDateTime(inv.sentAt)}</span></div>}
+                {inv.firstViewedAt && <div className="flex justify-between"><span className="text-muted"><Tr>First viewed</Tr></span><span>{fmt.dateTime(inv.firstViewedAt)}</span></div>}
+                {inv.sentAt && <div className="flex justify-between"><span className="text-muted"><Tr>Last sent</Tr></span><span>{fmt.dateTime(inv.sentAt)}</span></div>}
               </div>
             )}
             {edit && (
@@ -84,17 +86,17 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
 
           <Section title="Payment history">
             {payments.length === 0 ? (
-              <p className="panel rounded-2xl px-4 py-5 text-center text-sm text-subtle">No payments yet.</p>
+              <p className="panel rounded-2xl px-4 py-5 text-center text-sm text-subtle"><Tr>No payments yet.</Tr></p>
             ) : (
               <ul className="panel divide-y divide-line rounded-2xl text-sm">
                 {payments.map((p) => (
                   <li key={p.id} className="px-4 py-3">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="num font-medium">{formatMoney(p.amountCents, p.currency)}</span>
+                      <span className="num font-medium">{fmt.money(p.amountCents, p.currency)}</span>
                       <PaymentStatusBadge s={p.status} />
                     </div>
-                    <div className="mt-1 text-xs text-muted">{fmtDate(p.paidAt ?? p.createdAt)} · {PAYMENT_METHOD[p.method]}{p.reference ? ` · ${p.reference}` : ""}</div>
-                    {p.refundedCents > 0 && <div className="mt-0.5 text-xs text-warning">Refunded {formatMoney(p.refundedCents, p.currency)}</div>}
+                    <div className="mt-1 text-xs text-muted">{fmt.date(p.paidAt ?? p.createdAt)} · {t(PAYMENT_METHOD[p.method])}{p.reference ? ` · ${p.reference}` : ""}</div>
+                    {p.refundedCents > 0 && <div className="mt-0.5 text-xs text-warning"><Tr>Refunded</Tr> {fmt.money(p.refundedCents, p.currency)}</div>}
                   </li>
                 ))}
               </ul>
@@ -105,7 +107,7 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
             <Section title="Reminders">
               <ul className="panel divide-y divide-line rounded-2xl text-sm">
                 {reminders.map((r) => (
-                  <li key={r.id} className="flex justify-between px-4 py-2.5"><span className="text-muted">{r.kind === "AUTO" ? "Automatic" : "Manual"} → {r.sentTo}</span><span className="text-xs text-subtle">{fmtDate(r.createdAt)}</span></li>
+                  <li key={r.id} className="flex justify-between px-4 py-2.5"><span className="text-muted">{r.kind === "AUTO" ? t("Automatic") : t("Manual")} → {r.sentTo}</span><span className="text-xs text-subtle">{fmt.date(r.createdAt)}</span></li>
                 ))}
               </ul>
             </Section>
@@ -113,13 +115,13 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
 
           <Section title="Email delivery" description="Proof of delivery attempts for this invoice.">
             {emails.length === 0 ? (
-              <p className="panel rounded-2xl px-4 py-5 text-center text-sm text-subtle">No emails sent yet.</p>
+              <p className="panel rounded-2xl px-4 py-5 text-center text-sm text-subtle"><Tr>No emails sent yet.</Tr></p>
             ) : (
               <ul className="panel divide-y divide-line rounded-2xl text-sm">
                 {emails.map((e) => (
                   <li key={e.id} className="px-4 py-2.5">
-                    <div className="flex items-center justify-between gap-2"><span className="truncate">{e.recipient}</span><Badge tone={e.status === "SENT" ? "success" : e.status === "FAILED" ? "danger" : "warning"}>{e.status === "NOT_CONFIGURED" ? "Not sent" : e.status === "SENT" ? "Sent" : "Failed"}</Badge></div>
-                    <div className="mt-0.5 text-xs text-subtle">{e.template.replace(/_/g, " ")} · {fmtDateTime(e.createdAt)}{e.failureReason ? ` · ${e.failureReason}` : ""}</div>
+                    <div className="flex items-center justify-between gap-2"><span className="truncate">{e.recipient}</span><Badge tone={e.status === "SENT" ? "success" : e.status === "FAILED" ? "danger" : "warning"}>{e.status === "NOT_CONFIGURED" ? t("Not sent") : e.status === "SENT" ? t("Sent") : t("Failed")}</Badge></div>
+                    <div className="mt-0.5 text-xs text-subtle">{e.template.replace(/_/g, " ")} · {fmt.dateTime(e.createdAt)}{e.failureReason ? ` · ${e.failureReason}` : ""}</div>
                   </li>
                 ))}
               </ul>
@@ -130,13 +132,13 @@ export default async function InvoiceDetail({ params }: { params: Promise<{ id: 
             {activity.length === 0 ? <EmptyState title="No history yet" /> : (
               <ol className="space-y-3 border-l border-line pl-4 text-sm">
                 {activity.map((a) => (
-                  <li key={a.id}><div>{a.summary}</div><div className="text-xs text-subtle">{a.actorName} · {fmtDateTime(a.createdAt)}</div></li>
+                  <li key={a.id}><div>{storedText(fmt.locale, a.summary, a.metadata)}</div><div className="text-xs text-subtle">{a.actorName} · {fmt.dateTime(a.createdAt)}</div></li>
                 ))}
               </ol>
             )}
           </Section>
           {inv.status !== "DRAFT" && (
-            <a href={publicLink} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs text-muted hover:text-fg"><ExternalLink className="size-3.5" />Open client view</a>
+            <a href={publicLink} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs text-muted hover:text-fg"><ExternalLink className="size-3.5" /><Tr>Open client view</Tr></a>
           )}
         </aside>
       </div>

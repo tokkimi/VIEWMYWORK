@@ -2,8 +2,10 @@ import { db } from "@/lib/db";
 import { requireWorkspace, requirePerm } from "@/lib/auth/context";
 import { hasFeature } from "@/lib/plans";
 import { BrandingForm } from "@/components/app/settings-forms";
+import { pageTitle } from "@/lib/i18n/server";
+import { Tr } from "@/lib/i18n/client";
 
-export const metadata = { title: "Branding" };
+export const generateMetadata = pageTitle("Branding");
 
 export default async function Branding() {
   const ctx = await requireWorkspace();
@@ -11,7 +13,7 @@ export default async function Branding() {
   const [s, custom] = await Promise.all([db.workspaceSetting.findUnique({ where: { workspaceId: ctx.workspace.id } }), hasFeature(ctx.workspace.id, "custom_branding")]);
   return (
     <div className="space-y-6">
-      <p className="text-sm text-muted">Your logo appears in the client portal, emails and invoices. Custom domains and white-label portals are planned for a future release.</p>
+      <p className="text-sm text-muted"><Tr>Your logo appears in the client portal, emails and invoices. Custom domains and white-label portals are planned for a future release.</Tr></p>
       <BrandingForm logoUrl={ctx.workspace.logoUrl} portalLogoUrl={s?.portalLogoUrl ?? null} invoiceLogoUrl={s?.invoiceLogoUrl ?? null} canCustom={custom} />
     </div>
   );

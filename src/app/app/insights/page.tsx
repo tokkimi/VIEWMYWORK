@@ -4,21 +4,23 @@ import { requireWorkspace, projectScope, can } from "@/lib/auth/context";
 import { hasFeature } from "@/lib/plans";
 import { PageHeader, Section, Stat } from "@/components/ui/primitives";
 import { BarChart } from "@/components/charts";
-import { formatMoney } from "@/lib/money";
 import { outstandingCents } from "@/lib/invoices/status";
+import { pageTitle, getI18n } from "@/lib/i18n/server";
+import { Tr } from "@/lib/i18n/client";
 
-export const metadata = { title: "Insights" };
+export const generateMetadata = pageTitle("Insights");
 
 const key = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 
 export default async function Insights() {
+  const { t, fmt } = await getI18n();
   const ctx = await requireWorkspace();
   const allowed = await hasFeature(ctx.workspace.id, "advanced_stats");
   if (!allowed)
     return (
       <>
         <PageHeader title="Insights" />
-        <p className="panel rounded-2xl px-5 py-6 text-sm text-muted">Advanced statistics are available on higher plans. <Link href="/app/settings/billing" className="text-accent hover:underline">Upgrade</Link></p>
+        <p className="panel rounded-2xl px-5 py-6 text-sm text-muted"><Tr>Advanced statistics are available on higher plans.</Tr> <Link href="/app/settings/billing" className="text-accent hover:underline"><Tr>Upgrade</Tr></Link></p>
       </>
     );
   const now = new Date();
@@ -57,11 +59,11 @@ export default async function Insights() {
         <Section title="Tasks completed"><div className="panel rounded-2xl p-5"><BarChart data={series(tasksDone.map((t) => t.completedAt))} format={(v) => `${v} task${v === 1 ? "" : "s"}`} /></div></Section>
         {finance && (
           <>
-            <Section title="Payments received" description={cur}><div className="panel rounded-2xl p-5"><BarChart data={series(payments.map((p) => p.paidAt), payments.map((p) => p.amountCents - p.refundedCents))} format={(v) => formatMoney(v, cur)} /></div></Section>
+            <Section title="Payments received" description={cur}><div className="panel rounded-2xl p-5"><BarChart data={series(payments.map((p) => p.paidAt), payments.map((p) => p.amountCents - p.refundedCents))} format={(v) => fmt.money(v, cur)} /></div></Section>
             <Section title="Outstanding invoices">
               <div className="panel grid grid-cols-2 divide-x divide-line rounded-2xl">
-                <Stat label="Outstanding" value={formatMoney(outstanding, cur)} />
-                <Stat label="Of which overdue" value={formatMoney(overdue, cur)} tone={overdue ? "danger" : undefined} />
+                <Stat label="Outstanding" value={fmt.money(outstanding, cur)} />
+                <Stat label="Of which overdue" value={fmt.money(overdue, cur)} tone={overdue ? "danger" : undefined} />
               </div>
             </Section>
           </>

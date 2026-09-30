@@ -12,6 +12,8 @@ import { integrations, env } from "@/lib/env";
 import { consumeAuthToken, issueAuthToken, sendVerificationEmail } from "@/server/auth-tokens";
 import { sendEmail } from "@/lib/email/send";
 import { emailTemplates } from "@/lib/email/templates";
+import { adoptUserLocale, getLocale, setLocaleCookie } from "@/lib/i18n/server";
+import { normalizeLocale } from "@/lib/i18n/core";
 
 const password = z.string().min(10, "Use at least 10 characters.").max(200);
 
@@ -33,6 +35,7 @@ export async function signupAction(fd: FormData) {
         email: input.email,
         passwordHash: await hashPassword(input.password),
         emailVerifiedAt: autoVerify ? new Date() : null,
+        locale: await getLocale(),
         platformRole: process.env.SUPER_ADMIN_EMAIL?.trim().toLowerCase() === input.email ? "SUPER_ADMIN" : "USER",
       },
     });
@@ -55,6 +58,8 @@ export async function loginAction(fd: FormData) {
     if (!user || !ok) throw new AppError("Incorrect email or password.", "INVALID");
     if (user.status !== "ACTIVE") throw new AppError("This account is suspended. Contact support.", "FORBIDDEN");
     await createSession(user.id);
+    const locale = await adoptUserLocale(user.locale);
+    if (locale !== user.locale) await db.user.update({ where: { id: user.id }, data: { locale } });
     if (!user.emailVerifiedAt) return { redirect: "/verify-email" };
     const next = safeNext(input.next);
     if (next) return { redirect: next };
@@ -90,7 +95,7 @@ export async function forgotPasswordAction(fd: FormData) {
     const user = await db.user.findUnique({ where: { email } });
     if (user && user.status === "ACTIVE") {
       const token = await issueAuthToken(user.id, "PASSWORD_RESET", 60);
-      const t = emailTemplates.passwordReset(`${env.appUrl}/reset-password?token=${token}`);
+      const t = emailTemplates.passwordReset(`${env.appUrl}/reset-password?token=${token}`, normalizeLocale(user.locale));
       await sendEmail({ to: user.email, subject: t.subject, html: t.html, template: "password_reset" });
     }
     // Same response whether or not the account exists (prevents account enumeration).
@@ -118,8 +123,9 @@ export async function updateProfileAction(fd: FormData) {
   return runAction(async () => {
     const user = await getSessionUser();
     if (!user) throw new AppError("Please sign in again.", "FORBIDDEN");
-    const input = z.object({ name: z.string().trim().min(1).max(100), timezone: z.string().trim().max(64), locale: z.string().trim().max(10) }).parse(formToObject(fd));
+    const input = z.object({ name: z.string().trim().min(1).max(100), timezone: z.string().trim().max(64), locale: z.enum(["en", "fr"]) }).parse(formToObject(fd));
     await db.user.update({ where: { id: user.id }, data: input });
+    await setLocaleCookie(input.locale);
     return null;
   }, "Profile saved.");
 }

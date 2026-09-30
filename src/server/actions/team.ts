@@ -15,6 +15,7 @@ import { env } from "@/lib/env";
 import { emit } from "@/lib/events";
 import { sendEmail } from "@/lib/email/send";
 import { emailTemplates } from "@/lib/email/templates";
+import { getLocale } from "@/lib/i18n/server";
 import { rateLimit } from "@/lib/rate-limit";
 
 const ROLE = z.enum(["ADMIN", "PROJECT_MANAGER", "COLLABORATOR", "VIEWER"]);
@@ -51,9 +52,9 @@ export async function inviteMemberAction(fd: FormData) {
       data: { workspaceId: ctx.workspace.id, kind: "MEMBER", email: i.email, role: i.role, title: i.title, permissions: { ...perms, allProjects: Boolean(i.allProjects) }, projectIds: validProjects.map((p) => p.id), tokenHash: sha256(token), invitedById: ctx.user.id, expiresAt: new Date(Date.now() + 7 * 86400_000) },
     });
     const link = `${env.appUrl}/invite/${token}`;
-    const t = emailTemplates.collaboratorInvitation({ brand: { name: ctx.workspace.name, logoUrl: ctx.workspace.logoUrl }, inviter: ctx.user.name, role: i.title || ROLE_LABELS[i.role], link });
+    const t = emailTemplates.collaboratorInvitation({ brand: { name: ctx.workspace.name, logoUrl: ctx.workspace.logoUrl }, inviter: ctx.user.name, role: i.title || ROLE_LABELS[i.role], link }, await getLocale());
     const r = await sendEmail({ to: i.email, subject: t.subject, html: t.html, template: "collaborator_invitation", workspaceId: ctx.workspace.id, entityType: "INVITATION", entityId: inv.id, fromName: ctx.workspace.name });
-    await emit({ workspaceId: ctx.workspace.id, type: "COLLABORATOR_INVITED", actor: { id: ctx.user.id, name: ctx.user.name }, entityType: "INVITATION", entityId: inv.id, summary: `Invited ${i.email} as ${ROLE_LABELS[i.role]}` });
+    await emit({ workspaceId: ctx.workspace.id, type: "COLLABORATOR_INVITED", actor: { id: ctx.user.id, name: ctx.user.name }, entityType: "INVITATION", entityId: inv.id, summary: ["Invited {email} as {role}", { email: i.email, role: { t: ROLE_LABELS[i.role] } }] });
     return { link, emailStatus: r.status };
   });
 }
@@ -80,7 +81,7 @@ export async function updateMemberAction(fd: FormData) {
     const permissions = permsFromForm(fd);
     await db.workspaceMember.update({ where: { id: m.id }, data: { role: i.role, title: i.title ?? null, permissions, allProjects: Boolean(i.allProjects) } });
     await audit(ctx, "MEMBER_PERMISSIONS_CHANGED", "MEMBER", m.id, { role: i.role, permissions, allProjects: Boolean(i.allProjects) });
-    await emit({ workspaceId: ctx.workspace.id, type: "PERMISSION_CHANGED", actor: { id: ctx.user.id, name: ctx.user.name }, entityType: "MEMBER", entityId: m.id, summary: `Permissions updated`, notify: { team: { kind: "users", userIds: [m.userId] }, title: "Your permissions changed", message: `${ctx.user.name} updated your role to ${ROLE_LABELS[i.role]} in ${ctx.workspace.name}.`, actionUrl: "/app" } });
+    await emit({ workspaceId: ctx.workspace.id, type: "PERMISSION_CHANGED", actor: { id: ctx.user.id, name: ctx.user.name }, entityType: "MEMBER", entityId: m.id, summary: "Permissions updated", notify: { team: { kind: "users", userIds: [m.userId] }, title: "Your permissions changed", message: ["{user} updated your role to {role} in {workspace}.", { user: ctx.user.name, role: { t: ROLE_LABELS[i.role] }, workspace: ctx.workspace.name }], actionUrl: "/app" } });
     return null;
   }, "Member updated.");
 }
@@ -108,7 +109,7 @@ export async function addProjectMemberAction(fd: FormData) {
     if (!m) throw notFound("Member not found.");
     await db.projectMember.upsert({ where: { projectId_memberId: { projectId: i.projectId, memberId: m.id } }, create: { projectId: i.projectId, memberId: m.id, permissions: permsFromForm(fd) }, update: { permissions: permsFromForm(fd) } });
     const project = await db.project.findUniqueOrThrow({ where: { id: i.projectId } });
-    await emit({ workspaceId: ctx.workspace.id, type: "COLLABORATOR_ADDED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: i.projectId, entityType: "MEMBER", entityId: m.id, summary: `${m.user.name} added to the project`, notify: { team: { kind: "users", userIds: [m.userId] }, title: `You were added to ${project.name}`, message: `${ctx.user.name} added you to the project.`, actionUrl: `/app/projects/${i.projectId}`, actionLabel: "Open project", email: true } });
+    await emit({ workspaceId: ctx.workspace.id, type: "COLLABORATOR_ADDED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: i.projectId, entityType: "MEMBER", entityId: m.id, summary: ["{name} added to the project", { name: m.user.name }], notify: { team: { kind: "users", userIds: [m.userId] }, title: ["You were added to {project}", { project: project.name }], message: ["{user} added you to the project.", { user: ctx.user.name }], actionUrl: `/app/projects/${i.projectId}`, actionLabel: "Open project", email: true } });
     return null;
   }, "Collaborator added.");
 }
@@ -144,7 +145,7 @@ export async function acceptInvitationAction(token: string) {
     const user = await requireVerifiedUser();
     const inv = await db.invitation.findUnique({ where: { tokenHash: sha256(token) } });
     if (!inv || inv.revokedAt || inv.acceptedAt || inv.expiresAt < new Date()) throw new AppError("This invitation is invalid or has expired.");
-    if (inv.email.toLowerCase() !== user.email.toLowerCase()) throw new AppError(`This invitation was sent to ${inv.email}. Sign in with that address to accept it.`, "FORBIDDEN");
+    if (inv.email.toLowerCase() !== user.email.toLowerCase()) throw new AppError(["This invitation was sent to {email}. Sign in with that address to accept it.", { email: inv.email }], "FORBIDDEN");
     const jar = await cookies();
     if (inv.kind === "MEMBER") {
       const p = (inv.permissions ?? {}) as Record<string, unknown>;
@@ -159,7 +160,7 @@ export async function acceptInvitationAction(token: string) {
         for (const projectId of inv.projectIds) await tx.projectMember.upsert({ where: { projectId_memberId: { projectId, memberId: m.id } }, create: { projectId, memberId: m.id }, update: {} });
       });
       jar.set(WORKSPACE_COOKIE, inv.workspaceId, { httpOnly: true, sameSite: "lax", secure: env.isProd, path: "/" });
-      await emit({ workspaceId: inv.workspaceId, type: "COLLABORATOR_ADDED", actor: { id: user.id, name: user.name }, entityType: "MEMBER", entityId: user.id, summary: `${user.name} joined the workspace`, notify: { team: { kind: "workspace" }, title: `${user.name} joined your workspace`, message: `${user.email} accepted the invitation.`, actionUrl: "/app/team" } });
+      await emit({ workspaceId: inv.workspaceId, type: "COLLABORATOR_ADDED", actor: { id: user.id, name: user.name }, entityType: "MEMBER", entityId: user.id, summary: ["{name} joined the workspace", { name: user.name }], notify: { team: { kind: "workspace" }, title: ["{name} joined your workspace", { name: user.name }], message: ["{email} accepted the invitation.", { email: user.email }], actionUrl: "/app/team" } });
       return { redirect: "/app" };
     }
     if (!inv.clientId) throw new AppError("Invalid invitation.");

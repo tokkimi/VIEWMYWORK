@@ -6,10 +6,13 @@ import { ButtonLink } from "@/components/ui/button";
 import { AcceptInvitation } from "@/components/accept-invitation";
 import { logoutAction } from "@/server/actions/auth";
 import { ROLE_LABELS } from "@/lib/auth/permissions";
+import { Tr } from "@/lib/i18n/client";
+import { getI18n } from "@/lib/i18n/server";
 
 export const metadata = { title: "Invitation", robots: { index: false } };
 
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
+  const { t } = await getI18n();
   const { token } = await params;
   const inv = await db.invitation.findUnique({ where: { tokenHash: sha256(token) }, include: { workspace: { select: { name: true, logoUrl: true } } } });
   const user = await getSessionUser();
@@ -23,31 +26,31 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         <div className="glass w-full max-w-md rounded-2xl p-8 text-center">
           {!valid ? (
             <>
-              <h1 className="text-xl font-semibold">Invitation unavailable</h1>
-              <p className="mt-2 text-sm text-muted">This invitation is invalid, was already used, or has expired. Ask the sender for a new one.</p>
-              <ButtonLink href="/login" className="mt-6">Go to sign in</ButtonLink>
+              <h1 className="text-xl font-semibold"><Tr>Invitation unavailable</Tr></h1>
+              <p className="mt-2 text-sm text-muted"><Tr>This invitation is invalid, was already used, or has expired. Ask the sender for a new one.</Tr></p>
+              <ButtonLink href="/login" className="mt-6"><Tr>Go to sign in</Tr></ButtonLink>
             </>
           ) : (
             <>
               <div className="eyebrow">{inv.workspace.name}</div>
-              <h1 className="mt-3 text-xl font-semibold">{inv.kind === "CLIENT" ? "Your project portal is ready" : `Join ${inv.workspace.name}`}</h1>
+              <h1 className="mt-3 text-xl font-semibold">{inv.kind === "CLIENT" ? t("Your project portal is ready") : t("Join {workspace}", { workspace: inv.workspace.name })}</h1>
               <p className="mt-2 text-sm text-muted">
-                {inv.kind === "CLIENT" ? "Follow progress, review deliverables, access files and pay invoices in one place." : `You're invited as ${inv.title || (inv.role ? ROLE_LABELS[inv.role] : "a collaborator")}.`}
+                {inv.kind === "CLIENT" ? t("Follow progress, review deliverables, access files and pay invoices in one place.") : t("You're invited as {role}.", { role: inv.title || (inv.role ? t(ROLE_LABELS[inv.role]) : t("a collaborator")) })}
               </p>
-              <p className="mt-4 text-xs text-subtle">Invitation for {inv.email}</p>
+              <p className="mt-4 text-xs text-subtle"><Tr>Invitation for</Tr> {inv.email}</p>
               <div className="mt-6">
                 {!user ? (
                   <div className="space-y-2">
-                    <ButtonLink href={`/signup?email=${encodeURIComponent(inv.email)}&next=${encodeURIComponent(next)}`} variant="primary" className="w-full">Create account & accept</ButtonLink>
-                    <ButtonLink href={`/login?email=${encodeURIComponent(inv.email)}&next=${encodeURIComponent(next)}`} variant="ghost" className="w-full">I already have an account</ButtonLink>
+                    <ButtonLink href={`/signup?email=${encodeURIComponent(inv.email)}&next=${encodeURIComponent(next)}`} variant="primary" className="w-full"><Tr>Create account & accept</Tr></ButtonLink>
+                    <ButtonLink href={`/login?email=${encodeURIComponent(inv.email)}&next=${encodeURIComponent(next)}`} variant="ghost" className="w-full"><Tr>I already have an account</Tr></ButtonLink>
                   </div>
                 ) : user.email.toLowerCase() !== inv.email.toLowerCase() ? (
                   <div className="space-y-3 text-sm">
-                    <p className="text-warning">You&apos;re signed in as {user.email}. Sign in with {inv.email} to accept.</p>
-                    <form action={logoutAction}><button className="text-muted underline">Sign out</button></form>
+                    <p className="text-warning">{t("You're signed in as {email}. Sign in with {invited} to accept.", { email: user.email, invited: inv.email })}</p>
+                    <form action={logoutAction}><button className="text-muted underline"><Tr>Sign out</Tr></button></form>
                   </div>
                 ) : !user.emailVerifiedAt ? (
-                  <ButtonLink href="/verify-email" variant="primary" className="w-full">Verify your email first</ButtonLink>
+                  <ButtonLink href="/verify-email" variant="primary" className="w-full"><Tr>Verify your email first</Tr></ButtonLink>
                 ) : (
                   <AcceptInvitation token={token} />
                 )}

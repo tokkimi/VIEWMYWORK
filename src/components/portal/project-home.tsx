@@ -3,28 +3,30 @@ import { Check, Circle, Eye, CreditCard, Upload, MessageSquare, ChevronRight, Fi
 import type { TaskStatus } from "@prisma/client";
 import { ProgressBar, Badge } from "@/components/ui/primitives";
 import { InvoiceStatusBadge, DeliverableStatusBadge } from "@/components/status";
-import { formatMoney } from "@/lib/money";
-import { fmtDate, fmtShortDate, daysBetween } from "@/lib/format";
+import { daysBetween } from "@/lib/format";
 import { deriveStatus, outstandingCents } from "@/lib/invoices/status";
 import type { WaitingItem } from "@/server/queries/portal";
 import type { portalProjectHome } from "@/server/queries/portal";
 import { cn } from "@/lib/cn";
+import { Tr } from "@/lib/i18n/client";
+import { getI18n } from "@/lib/i18n/server";
 
 type Home = Awaited<ReturnType<typeof portalProjectHome>>;
 
 const kindIcon = { REVIEW: Eye, PAY: CreditCard, UPLOAD: Upload, INFO: MessageSquare };
 
-export function WaitingForYou({ items, preview }: { items: WaitingItem[]; preview?: boolean }) {
+export async function WaitingForYou({ items, preview }: { items: WaitingItem[]; preview?: boolean }) {
+  const { t, fmt, p } = await getI18n();
   if (!items.length)
     return (
       <div className="flex items-center gap-3 rounded-2xl border border-line px-4 py-4 text-sm text-muted">
         <span className="flex size-7 items-center justify-center rounded-full bg-success-soft text-success"><Check className="size-4" /></span>
-        Nothing needs your attention right now.
+        <Tr>Nothing needs your attention right now.</Tr>
       </div>
     );
   return (
     <section aria-labelledby="waiting-title" className="rounded-2xl border border-accent/30 bg-accent-soft/40 p-4 sm:p-5">
-      <h2 id="waiting-title" className="text-[15px] font-semibold">{items.length} item{items.length > 1 ? "s" : ""} need{items.length > 1 ? "" : "s"} your attention</h2>
+      <h2 id="waiting-title" className="text-[15px] font-semibold">{p(items.length, "{n} item needs your attention", "{n} items need your attention")}</h2>
       <ul className="mt-3 space-y-2">
         {items.map((it) => {
           const Icon = kindIcon[it.kind];
@@ -35,7 +37,7 @@ export function WaitingForYou({ items, preview }: { items: WaitingItem[]; previe
               <Wrapper href={it.href} className="flex min-h-14 items-center gap-3 rounded-xl border border-line bg-surface/80 px-3.5 py-3 transition-colors hover:border-line-strong">
                 <Icon className="size-4 shrink-0 text-muted" />
                 <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{it.title}</span><span className="block truncate text-xs text-muted">{it.subtitle}</span></span>
-                <span className={cn("shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium", it.kind === "PAY" ? "bg-accent text-white" : "bg-white/[0.08]")}>{it.kind === "PAY" && cents ? `Pay ${formatMoney(Number(cents), cur)}` : it.cta}</span>
+                <span className={cn("shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium", it.kind === "PAY" ? "bg-accent text-white" : "bg-white/[0.08]")}>{it.kind === "PAY" && cents ? t("Pay {amount}", { amount: fmt.money(Number(cents), cur) }) : it.cta}</span>
               </Wrapper>
             </li>
           );
@@ -45,11 +47,12 @@ export function WaitingForYou({ items, preview }: { items: WaitingItem[]; previe
   );
 }
 
-export function ClientTimeline({ phases, expandable = true }: { phases: Home["phases"]; expandable?: boolean }) {
-  if (!phases.length) return <p className="text-sm text-subtle">The project plan will appear here.</p>;
+export async function ClientTimeline({ phases, expandable = true }: { phases: Home["phases"]; expandable?: boolean }) {
+  const { t, fmt } = await getI18n();
+  if (!phases.length) return <p className="text-sm text-subtle"><Tr>The project plan will appear here.</Tr></p>;
   const currentIdx = phases.findIndex((p) => p.status !== "COMPLETED");
   return (
-    <ol className="relative space-y-1" aria-label="Project timeline">
+    <ol className="relative space-y-1" aria-label={t("Project timeline")}>
       {phases.map((p, i) => {
         const done = p.status === "COMPLETED";
         const current = i === currentIdx;
@@ -62,7 +65,7 @@ export function ClientTimeline({ phases, expandable = true }: { phases: Home["ph
             <div className="min-w-0 flex-1 pb-4">
               <div className="flex items-center justify-between gap-2">
                 <span className={cn("text-sm", done ? "text-muted" : current ? "font-medium text-fg" : "text-subtle")}>{p.title}</span>
-                <span className="num shrink-0 text-xs text-subtle">{done ? "Done" : current ? `${p.progress}%` : p.deadline ? fmtShortDate(p.deadline) : ""}</span>
+                <span className="num shrink-0 text-xs text-subtle">{done ? t("Done") : current ? `${p.progress}%` : p.deadline ? fmt.short(p.deadline) : ""}</span>
               </div>
               {current && <ProgressBar value={p.progress} size="sm" className="mt-2" label={`${p.title} progress`} />}
             </div>
@@ -75,7 +78,7 @@ export function ClientTimeline({ phases, expandable = true }: { phases: Home["ph
               <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">{Body}</summary>
               <div className="mb-4 ml-10 space-y-2 rounded-xl border border-line p-3 text-sm">
                 {p.description && <p className="text-muted">{p.description}</p>}
-                {p.milestones.map((m) => <div key={m.id} className="flex items-center justify-between gap-2 text-xs"><span className={m.completedAt ? "text-success" : "text-muted"}>◆ {m.title}</span><span className="text-subtle">{m.completedAt ? "Reached" : m.dueDate ? fmtShortDate(m.dueDate) : ""}</span></div>)}
+                {p.milestones.map((m) => <div key={m.id} className="flex items-center justify-between gap-2 text-xs"><span className={m.completedAt ? "text-success" : "text-muted"}>◆ {m.title}</span><span className="text-subtle">{m.completedAt ? t("Reached") : m.dueDate ? fmt.short(m.dueDate) : ""}</span></div>)}
                 {p.tasks.map((t) => <div key={t.id} className="flex items-center gap-2"><TaskDot s={t.status} /><span className={cn("text-[13px]", t.status === "COMPLETED" && "text-muted")}>{t.title}</span></div>)}
               </div>
             </details>
@@ -86,10 +89,11 @@ export function ClientTimeline({ phases, expandable = true }: { phases: Home["ph
   );
 }
 
-function TaskDot({ s }: { s: TaskStatus }) {
-  if (s === "COMPLETED") return <Check className="size-3.5 text-accent" aria-label="Completed" />;
-  if (s === "IN_PROGRESS" || s === "IN_REVIEW") return <span className="size-2 rounded-full bg-accent" aria-label="In progress" />;
-  return <span className="size-2 rounded-full border border-white/20" aria-label="Upcoming" />;
+async function TaskDot({ s }: { s: TaskStatus }) {
+  const { t } = await getI18n();
+  if (s === "COMPLETED") return <Check className="size-3.5 text-accent" aria-label={t("Completed")} />;
+  if (s === "IN_PROGRESS" || s === "IN_REVIEW") return <span className="size-2 rounded-full bg-accent" aria-label={t("In progress")} />;
+  return <span className="size-2 rounded-full border border-white/20" aria-label={t("Upcoming")} />;
 }
 
 function MaybeLink({ preview, ...props }: { preview?: boolean; href: string; className?: string; children: React.ReactNode }) {
@@ -97,28 +101,29 @@ function MaybeLink({ preview, ...props }: { preview?: boolean; href: string; cla
 }
 
 /** The 5-second view: progress, current stage, what's waiting, latest update, timeline, files, invoices. */
-export function PortalProjectHome({ project, home, waiting, base, preview }: { project: { id: string; name: string; progress: number; status: string; targetDate: Date | null; completedAt: Date | null }; home: Home; waiting: WaitingItem[]; base: string; preview?: boolean }) {
+export async function PortalProjectHome({ project, home, waiting, base, preview }: { project: { id: string; name: string; progress: number; status: string; targetDate: Date | null; completedAt: Date | null }; home: Home; waiting: WaitingItem[]; base: string; preview?: boolean }) {
+  const { t, fmt, p } = await getI18n();
   const latest = home.updates[0];
   const left = project.targetDate ? daysBetween(new Date(), project.targetDate) : null;
   return (
     <div className="space-y-8 sm:space-y-10">
-      <section aria-label="Progress">
+      <section aria-label={t("Progress")}>
         {project.status === "COMPLETED" ? (
-          <div className="flex items-center gap-2 text-sm text-success"><Check className="size-4" />Project completed {fmtDate(project.completedAt)}</div>
+          <div className="flex items-center gap-2 text-sm text-success"><Check className="size-4" /><Tr>Project completed</Tr> {fmt.date(project.completedAt)}</div>
         ) : null}
         <div className="mt-2 flex items-end justify-between gap-4">
           <div>
             <div className="num text-6xl font-semibold tracking-tight sm:text-7xl">{project.progress}<span className="text-3xl text-muted sm:text-4xl">%</span></div>
-            <div className="mt-1 text-sm text-muted">complete</div>
+            <div className="mt-1 text-sm text-muted"><Tr>complete</Tr></div>
           </div>
           <div className="text-right text-sm">
-            {home.current && <div><span className="text-muted">Current stage</span><div className="text-base font-medium">{home.current.title}</div></div>}
+            {home.current && <div><span className="text-muted"><Tr>Current stage</Tr></span><div className="text-base font-medium">{home.current.title}</div></div>}
           </div>
         </div>
         <ProgressBar value={project.progress} size="lg" className="mt-4" label="Project progress" />
         <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted">
-          {home.nextMilestone && <span>Next milestone: <span className="text-fg">{home.nextMilestone.title}</span>{home.nextMilestone.dueDate ? ` · ${fmtShortDate(home.nextMilestone.dueDate)}` : ""}</span>}
-          {project.targetDate && project.status !== "COMPLETED" && <span>Target {fmtDate(project.targetDate)}{left !== null && left >= 0 ? ` · ${left} days left` : ""}</span>}
+          {home.nextMilestone && <span><Tr>Next milestone:</Tr> <span className="text-fg">{home.nextMilestone.title}</span>{home.nextMilestone.dueDate ? ` · ${fmt.short(home.nextMilestone.dueDate)}` : ""}</span>}
+          {project.targetDate && project.status !== "COMPLETED" && <span><Tr>Target</Tr> {fmt.date(project.targetDate)}{left !== null && left >= 0 ? ` · ${p(left, "{n} day left", "{n} days left")}` : ""}</span>}
         </div>
       </section>
 
@@ -128,30 +133,30 @@ export function PortalProjectHome({ project, home, waiting, base, preview }: { p
         <div className="space-y-8">
           {home.happening.length > 0 && (
             <section>
-              <h2 className="mb-3 text-[13px] font-semibold">What&apos;s happening now</h2>
+              <h2 className="mb-3 text-[13px] font-semibold"><Tr>What&apos;s happening now</Tr></h2>
               <ul className="space-y-2">{home.happening.map((t) => <li key={t.id} className="flex items-center gap-2.5 text-sm"><span className="size-2 rounded-full bg-accent" />{t.title}</li>)}</ul>
             </section>
           )}
           <section>
-            <h2 className="mb-3 text-[13px] font-semibold">Latest update</h2>
+            <h2 className="mb-3 text-[13px] font-semibold"><Tr>Latest update</Tr></h2>
             {latest ? (
               <article className="glass rounded-2xl p-5">
-                <div className="text-xs text-subtle">{fmtDate(latest.publishedAt, { month: "long", day: "numeric" })} · {latest.authorName}</div>
+                <div className="text-xs text-subtle">{fmt.date(latest.publishedAt, { month: "long", day: "numeric" })} · {latest.authorName}</div>
                 {latest.title && <h3 className="mt-2 font-medium">{latest.title}</h3>}
                 <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-muted">{latest.body}</p>
-                {latest.nextSteps && <p className="mt-4 text-sm"><span className="text-subtle">Next: </span>{latest.nextSteps}</p>}
+                {latest.nextSteps && <p className="mt-4 text-sm"><span className="text-subtle"><Tr>Next:</Tr> </span>{latest.nextSteps}</p>}
               </article>
-            ) : <p className="text-sm text-subtle">No updates yet.</p>}
+            ) : <p className="text-sm text-subtle"><Tr>No updates yet.</Tr></p>}
           </section>
           <section>
-            <div className="mb-3 flex items-center justify-between"><h2 className="text-[13px] font-semibold">Timeline</h2><MaybeLink preview={preview} href={`${base}/projects/${project.id}/plan`} className="text-xs text-muted hover:text-fg">Full plan</MaybeLink></div>
+            <div className="mb-3 flex items-center justify-between"><h2 className="text-[13px] font-semibold"><Tr>Timeline</Tr></h2><MaybeLink preview={preview} href={`${base}/projects/${project.id}/plan`} className="text-xs text-muted hover:text-fg"><Tr>Full plan</Tr></MaybeLink></div>
             <ClientTimeline phases={home.phases} />
           </section>
         </div>
         <div className="space-y-8">
           {home.deliverables.length > 0 && (
             <section>
-              <h2 className="mb-3 text-[13px] font-semibold">Deliverables</h2>
+              <h2 className="mb-3 text-[13px] font-semibold"><Tr>Deliverables</Tr></h2>
               <ul className="panel divide-y divide-line rounded-2xl">
                 {home.deliverables.slice(0, 5).map((d) => (
                   <li key={d.id}><MaybeLink preview={preview} href={`${base}/projects/${project.id}/deliverables/${d.id}`} className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-white/[0.02]"><span className="min-w-0 flex-1 truncate">{d.title} <span className="text-subtle">V{d.currentVersion}</span></span><DeliverableStatusBadge s={d.status} /><ChevronRight className="size-4 text-subtle" /></MaybeLink></li>
@@ -160,8 +165,8 @@ export function PortalProjectHome({ project, home, waiting, base, preview }: { p
             </section>
           )}
           <section>
-            <div className="mb-3 flex items-center justify-between"><h2 className="text-[13px] font-semibold">Latest files</h2><MaybeLink preview={preview} href={`${base}/projects/${project.id}/files`} className="text-xs text-muted hover:text-fg">All files</MaybeLink></div>
-            {home.files.length === 0 ? <p className="text-sm text-subtle">No files shared yet.</p> : (
+            <div className="mb-3 flex items-center justify-between"><h2 className="text-[13px] font-semibold"><Tr>Latest files</Tr></h2><MaybeLink preview={preview} href={`${base}/projects/${project.id}/files`} className="text-xs text-muted hover:text-fg"><Tr>All files</Tr></MaybeLink></div>
+            {home.files.length === 0 ? <p className="text-sm text-subtle"><Tr>No files shared yet.</Tr></p> : (
               <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2">
                 {home.files.slice(0, 6).map((f) => (
                   <li key={f.id}>
@@ -178,16 +183,16 @@ export function PortalProjectHome({ project, home, waiting, base, preview }: { p
             )}
           </section>
           <section>
-            <div className="mb-3 flex items-center justify-between"><h2 className="text-[13px] font-semibold">Invoices</h2><MaybeLink preview={preview} href={`${base}/invoices`} className="text-xs text-muted hover:text-fg">All invoices</MaybeLink></div>
-            {home.invoices.length === 0 ? <p className="text-sm text-subtle">No invoices yet.</p> : (
+            <div className="mb-3 flex items-center justify-between"><h2 className="text-[13px] font-semibold"><Tr>Invoices</Tr></h2><MaybeLink preview={preview} href={`${base}/invoices`} className="text-xs text-muted hover:text-fg"><Tr>All invoices</Tr></MaybeLink></div>
+            {home.invoices.length === 0 ? <p className="text-sm text-subtle"><Tr>No invoices yet.</Tr></p> : (
               <ul className="panel divide-y divide-line rounded-2xl">
                 {home.invoices.map((i) => (
-                  <li key={i.id}><MaybeLink preview={preview} href={`${base}/invoices/${i.id}`} className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-white/[0.02]"><span className="num min-w-0 flex-1 truncate">{i.number}</span><span className="num">{formatMoney(outstandingCents(i) || i.totalCents, i.currency)}</span><InvoiceStatusBadge s={deriveStatus(i)} /></MaybeLink></li>
+                  <li key={i.id}><MaybeLink preview={preview} href={`${base}/invoices/${i.id}`} className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-white/[0.02]"><span className="num min-w-0 flex-1 truncate">{i.number}</span><span className="num">{fmt.money(outstandingCents(i) || i.totalCents, i.currency)}</span><InvoiceStatusBadge s={deriveStatus(i)} /></MaybeLink></li>
                 ))}
               </ul>
             )}
           </section>
-          {preview && <Badge tone="accent">Preview — this is exactly what your client sees</Badge>}
+          {preview && <Badge tone="accent"><Tr>Preview — this is exactly what your client sees</Tr></Badge>}
         </div>
       </div>
     </div>

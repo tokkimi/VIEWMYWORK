@@ -45,13 +45,13 @@ export async function postMessageAction(fd: FormData) {
       const members = await db.workspaceMember.findMany({ where: { workspaceId: ctx.workspace.id, status: "ACTIVE" }, include: { user: { select: { id: true, name: true } } } });
       const hit = members.filter((m) => mentions.some((x) => m.user.name.toLowerCase().split(" ")[0] === x || m.user.name.toLowerCase().replace(/\s+/g, ".") === x)).map((m) => m.user.id);
       if (hit.length)
-        await emit({ workspaceId: ctx.workspace.id, type: "MENTION_RECEIVED", actor, projectId: project.id, entityType: "MESSAGE", entityId: msg.id, summary: "Mentioned a teammate", notify: { team: { kind: "users", userIds: hit }, title: `${ctx.user.name} mentioned you`, message: excerpt, actionUrl: `/app/projects/${project.id}/messages`, actionLabel: "Open conversation", email: true } });
+        await emit({ workspaceId: ctx.workspace.id, type: "MENTION_RECEIVED", actor, projectId: project.id, entityType: "MESSAGE", entityId: msg.id, summary: "Mentioned a teammate", notify: { team: { kind: "users", userIds: hit }, title: ["{user} mentioned you", { user: ctx.user.name }], message: excerpt, actionUrl: `/app/projects/${project.id}/messages`, actionLabel: "Open conversation", email: true } });
     }
     await emit({
       workspaceId: ctx.workspace.id, type: "MESSAGE_POSTED", actor, projectId: project.id, clientId: project.clientId, entityType: "MESSAGE", entityId: msg.id,
       summary: i.visibility === "CLIENT_VISIBLE" ? "Sent a message to the client" : "Added an internal note", clientVisible: i.visibility === "CLIENT_VISIBLE",
       notify: i.visibility === "CLIENT_VISIBLE"
-        ? { client: true, title: `New message — ${project.name}`, message: `${ctx.user.name}: ${excerpt}`, clientActionUrl: `/portal/projects/${project.id}/messages`, actionLabel: "Reply", email: true }
+        ? { client: true, title: ["New message — {project}", { project: project.name }], message: `${ctx.user.name}: ${excerpt}`, clientActionUrl: `/portal/projects/${project.id}/messages`, actionLabel: "Reply", email: true }
         : undefined,
     });
     return null;

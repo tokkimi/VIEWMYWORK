@@ -1,7 +1,6 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type PDFImage } from "pdf-lib";
 import type { InvoiceLineItem, InvoiceStatus } from "@prisma/client";
-import { formatMoneyExact } from "@/lib/money";
-import { fmtDate } from "@/lib/format";
+import { makeFmt, makeT, normalizeLocale } from "@/lib/i18n/core";
 import { formatQuantity, formatRate } from "./calc";
 import { INVOICE_STATUS_LABEL } from "./status";
 import type { ClientSnapshot, SellerSnapshot } from "@/server/services/invoices";
@@ -72,7 +71,11 @@ async function loadLogo(pdf: PDFDocument, url?: string | null): Promise<PDFImage
 
 export async function renderInvoicePdf(inv: PdfInput): Promise<Buffer> {
   const pdf = await PDFDocument.create();
-  pdf.setTitle(`Invoice ${inv.number ?? "draft"}`);
+  const lang = normalizeLocale(inv.locale);
+  const t = makeT(lang);
+  const fmt = makeFmt(lang);
+  const up = (k: string) => t(k).toUpperCase();
+  pdf.setTitle(t("Invoice {number}", { number: inv.number ?? t("Draft") }));
   pdf.setAuthor(clean(inv.seller.legalName || inv.seller.name));
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -83,7 +86,7 @@ export async function renderInvoicePdf(inv: PdfInput): Promise<Buffer> {
   const W = 595.28;
   const H = 841.89;
   const M = 48;
-  const money = (c: number) => clean(formatMoneyExact(c, inv.currency, inv.locale ?? "en"));
+  const money = (c: number) => clean(fmt.moneyExact(c, inv.currency));
 
   let page: PDFPage = pdf.addPage([W, H]);
   let y = H - M;
@@ -102,17 +105,17 @@ export async function renderInvoicePdf(inv: PdfInput): Promise<Buffer> {
     const w = Math.min(160, (logo.width / logo.height) * h);
     page.drawImage(logo, { x: M, y: y - h, width: w, height: h });
   } else text(inv.seller.name, M, y - 20, { size: 16, font: bold });
-  text("INVOICE", W - M, y - 12, { size: 20, font: bold, align: "right" });
-  text(inv.number ?? "DRAFT", W - M, y - 30, { size: 10, color: muted, align: "right" });
+  text(up("Invoice"), W - M, y - 12, { size: 20, font: bold, align: "right" });
+  text(inv.number ?? up("Draft"), W - M, y - 30, { size: 10, color: muted, align: "right" });
   y -= 70;
 
   // Parties
   const col2 = W / 2 + 10;
-  text("FROM", M, y, { size: 7.5, font: bold, color: muted });
-  text("BILL TO", col2, y, { size: 7.5, font: bold, color: muted });
+  text(up("From"), M, y, { size: 7.5, font: bold, color: muted });
+  text(up("Bill to"), col2, y, { size: 7.5, font: bold, color: muted });
   y -= 15;
-  const sellerLines = [inv.seller.legalName || inv.seller.name, ...(inv.seller.address ?? "").split("\n"), inv.seller.country, inv.seller.email, inv.seller.phone, inv.seller.vatNumber ? `VAT: ${inv.seller.vatNumber}` : null, inv.seller.registration ? `Reg: ${inv.seller.registration}` : null].filter(Boolean) as string[];
-  const clientLines = [inv.client.company, inv.client.name, ...(inv.client.address ?? "").split("\n"), inv.client.country, inv.client.email, inv.client.vatNumber ? `VAT: ${inv.client.vatNumber}` : null, inv.client.registration ? `Reg: ${inv.client.registration}` : null].filter(Boolean) as string[];
+  const sellerLines = [inv.seller.legalName || inv.seller.name, ...(inv.seller.address ?? "").split("\n"), inv.seller.country, inv.seller.email, inv.seller.phone, inv.seller.vatNumber ? `${t("VAT")}: ${inv.seller.vatNumber}` : null, inv.seller.registration ? `${t("Reg.")}: ${inv.seller.registration}` : null].filter(Boolean) as string[];
+  const clientLines = [inv.client.company, inv.client.name, ...(inv.client.address ?? "").split("\n"), inv.client.country, inv.client.email, inv.client.vatNumber ? `${t("VAT")}: ${inv.client.vatNumber}` : null, inv.client.registration ? `${t("Reg.")}: ${inv.client.registration}` : null].filter(Boolean) as string[];
   const rows = Math.max(sellerLines.length, clientLines.length);
   for (let i = 0; i < rows; i++) {
     if (sellerLines[i]) text(sellerLines[i], M, y, { font: i === 0 ? bold : regular });
@@ -123,27 +126,27 @@ export async function renderInvoicePdf(inv: PdfInput): Promise<Buffer> {
 
   // Meta
   const meta: [string, string][] = [
-    ["Issue date", fmtDate(inv.issueDate)],
-    ["Due date", fmtDate(inv.dueDate)],
-    ["Status", INVOICE_STATUS_LABEL[inv.status]],
+    [t("Issue date"), fmt.date(inv.issueDate)],
+    [t("Due date"), fmt.date(inv.dueDate)],
+    [t("Status"), t(INVOICE_STATUS_LABEL[inv.status])],
   ];
-  if (inv.projectName) meta.push(["Project", inv.projectName]);
+  if (inv.projectName) meta.push([t("Project"), inv.projectName]);
   page.drawRectangle({ x: M, y: y - 38, width: W - 2 * M, height: 44, color: rgb(0.97, 0.975, 0.98) });
   const mw = (W - 2 * M) / meta.length;
   meta.forEach(([k, v], i) => {
     text(k.toUpperCase(), M + 12 + i * mw, y - 12, { size: 7, font: bold, color: muted });
-    text(v, M + 12 + i * mw, y - 27, { size: 9.5, font: bold, color: k === "Status" && inv.status === "PAID" ? rgb(0.15, 0.6, 0.4) : ink });
+    text(v, M + 12 + i * mw, y - 27, { size: 9.5, font: bold, color: k === t("Status") && inv.status === "PAID" ? rgb(0.15, 0.6, 0.4) : ink });
   });
   y -= 64;
 
   // Line items
   const cx = { desc: M, qty: W - M - 250, unit: W - M - 170, tax: W - M - 90, total: W - M };
   const header = () => {
-    text("DESCRIPTION", cx.desc, y, { size: 7.5, font: bold, color: muted });
-    text("QTY", cx.qty, y, { size: 7.5, font: bold, color: muted, align: "right" });
-    text("UNIT PRICE", cx.unit, y, { size: 7.5, font: bold, color: muted, align: "right" });
-    text("TAX", cx.tax, y, { size: 7.5, font: bold, color: muted, align: "right" });
-    text("AMOUNT", cx.total, y, { size: 7.5, font: bold, color: muted, align: "right" });
+    text(up("Description"), cx.desc, y, { size: 7.5, font: bold, color: muted });
+    text(up("Qty"), cx.qty, y, { size: 7.5, font: bold, color: muted, align: "right" });
+    text(up("Unit price"), cx.unit, y, { size: 7.5, font: bold, color: muted, align: "right" });
+    text(up("Tax"), cx.tax, y, { size: 7.5, font: bold, color: muted, align: "right" });
+    text(up("Amount"), cx.total, y, { size: 7.5, font: bold, color: muted, align: "right" });
     y -= 8;
     page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 0.8, color: line });
     y -= 16;
@@ -161,7 +164,7 @@ export async function renderInvoicePdf(inv: PdfInput): Promise<Buffer> {
     text(money(l.unitPriceCents), cx.unit, y, { align: "right" });
     text(l.taxRateBps ? formatRate(l.taxRateBps) : "—", cx.tax, y, { align: "right", color: muted });
     text(money(l.lineSubtotal), cx.total, y, { align: "right" });
-    if (l.discountBps) text(`Discount ${formatRate(l.discountBps)}`, cx.desc, y - descLines.length * 12, { size: 8, color: muted });
+    if (l.discountBps) text(`${t("Discount")} ${formatRate(l.discountBps)}`, cx.desc, y - descLines.length * 12, { size: 8, color: muted });
     y -= Math.max(1, descLines.length + (l.discountBps ? 1 : 0)) * 12 + 8;
     page.drawLine({ start: { x: M, y: y + 4 }, end: { x: W - M, y: y + 4 }, thickness: 0.4, color: line });
   }
@@ -174,19 +177,19 @@ export async function renderInvoicePdf(inv: PdfInput): Promise<Buffer> {
     text(v, W - M, y, { font: strong ? bold : regular, align: "right", size: strong ? 11 : 9.5 });
     y -= strong ? 20 : 15;
   };
-  if (inv.discountCents) totalRow("Discount", `- ${money(inv.discountCents)}`);
-  totalRow("Subtotal", money(inv.subtotalCents));
-  totalRow("Tax", money(inv.taxCents));
+  if (inv.discountCents) totalRow(t("Discount"), `- ${money(inv.discountCents)}`);
+  totalRow(t("Subtotal"), money(inv.subtotalCents));
+  totalRow(t("Tax"), money(inv.taxCents));
   page.drawLine({ start: { x: tx, y: y + 8 }, end: { x: W - M, y: y + 8 }, thickness: 0.8, color: line });
   y -= 4;
-  totalRow("Total", money(inv.totalCents), true);
+  totalRow(t("Total"), money(inv.totalCents), true);
   if (inv.paidCents > 0) {
-    totalRow("Paid", `- ${money(inv.paidCents)}`);
-    totalRow("Amount due", money(Math.max(0, inv.totalCents - inv.paidCents)), true);
+    totalRow(t("Paid"), `- ${money(inv.paidCents)}`);
+    totalRow(t("Amount due"), money(Math.max(0, inv.totalCents - inv.paidCents)), true);
   }
   if (inv.status === "PAID") {
     page.drawRectangle({ x: M, y: y + 12, width: 60, height: 20, borderColor: rgb(0.15, 0.6, 0.4), borderWidth: 1.2 });
-    text("PAID", M + 16, y + 18, { font: bold, size: 10, color: rgb(0.15, 0.6, 0.4) });
+    text(up("Paid"), M + 16, y + 18, { font: bold, size: 10, color: rgb(0.15, 0.6, 0.4) });
   }
 
   // Notes & payment info
@@ -205,8 +208,8 @@ export async function renderInvoicePdf(inv: PdfInput): Promise<Buffer> {
     }
     y -= 10;
   };
-  block("Payment information", [inv.terms, inv.seller.bankDetails].filter(Boolean).join("\n\n") || null);
-  block("Notes", inv.notes);
+  block(t("Payment information"), [inv.terms, inv.seller.bankDetails].filter(Boolean).join("\n\n") || null);
+  block(t("Notes"), inv.notes);
 
   // Footer on every page
   for (const p of pdf.getPages()) {

@@ -71,7 +71,7 @@ export async function resolveTarget(ctx: WorkspaceCtx, t: UploadTarget) {
 export async function assertQuota(workspaceId: string, addBytes: number) {
   const q = await storageQuota(workspaceId);
   if (q.limit !== null && q.used + BigInt(addBytes) > q.limit)
-    throw new AppError(`Storage is full (${formatBytes(q.used)} of ${formatBytes(q.limit)} used). Delete files or upgrade your plan.`, "LIMIT");
+    throw new AppError(["Storage is full ({used} of {limit} used). Delete files or upgrade your plan.", { used: formatBytes(q.used), limit: formatBytes(q.limit) }], "LIMIT");
 }
 
 /** Atomically adjusts storage usage and warns admins when crossing 90%. */
@@ -81,7 +81,7 @@ export async function adjustStorage(workspaceId: string, delta: number) {
   if (delta > 0 && before.limit !== null) {
     const after = before.used + BigInt(delta);
     if (before.used * 10n < before.limit * 9n && after * 10n >= before.limit * 9n)
-      await notifyWorkspaceAdmins(workspaceId, "STORAGE_ALMOST_FULL", "Storage almost full", `You've used ${formatBytes(after)} of ${formatBytes(before.limit)}. Upgrade your plan or remove files to keep uploading.`, "/app/settings/storage");
+      await notifyWorkspaceAdmins(workspaceId, "STORAGE_ALMOST_FULL", "Storage almost full", ["You've used {used} of {limit}. Upgrade your plan or remove files to keep uploading.", { used: formatBytes(after), limit: formatBytes(before.limit) }], "/app/settings/storage");
   }
 }
 

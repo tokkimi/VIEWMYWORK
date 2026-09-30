@@ -28,7 +28,7 @@ export async function hasFeature(workspaceId: string, key: FeatureKey) {
 }
 
 export async function requireFeature(workspaceId: string, key: FeatureKey) {
-  if (!(await hasFeature(workspaceId, key))) throw new AppError(`${FEATURE_KEYS[key]} is not included in your current plan.`, "LIMIT");
+  if (!(await hasFeature(workspaceId, key))) throw new AppError(["{feature} is not included in your current plan.", { feature: { t: FEATURE_KEYS[key] } }], "LIMIT");
 }
 
 /** Blocks writes when the subscription is inactive (trial expired / canceled). Reads stay available. */
@@ -55,7 +55,7 @@ export async function assertWithinLimit(workspaceId: string, limit: Limit) {
   }
   if (count >= max) {
     const label = limit === "projects" ? "active projects" : limit;
-    throw new AppError(`Your ${p.plan.name} plan includes up to ${max} ${label}. Upgrade in Settings → Billing to add more.`, "LIMIT");
+    throw new AppError(["Your {plan} plan includes up to {max} {label}. Upgrade in Settings → Billing to add more.", { plan: p.plan.name, max, label: { t: label } }], "LIMIT");
   }
 }
 

@@ -2,8 +2,10 @@ import Link from "next/link";
 import { Check, Circle } from "lucide-react";
 import type { TaskStatus } from "@prisma/client";
 import { ProgressBar, Avatar } from "@/components/ui/primitives";
-import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { getI18n } from "@/lib/i18n/server";
+import { storedText } from "@/lib/i18n/core";
+import { Tr } from "@/lib/i18n/client";
 
 export function ProjectRow({ href, name, client, progress, phase, due, attention }: { href: string; name: string; client: string; progress: number; phase?: string | null; due?: string | null; attention?: string | null }) {
   return (
@@ -13,7 +15,7 @@ export function ProjectRow({ href, name, client, progress, phase, due, attention
         <div className="truncate text-xs text-muted">{client}{phase ? ` · ${phase}` : ""}</div>
       </div>
       <div className="col-span-2 flex items-center gap-3 sm:col-span-1">
-        <ProgressBar value={progress} size="sm" label={`${name} progress`} />
+        <ProgressBar value={progress} size="sm" label={`${name} — ${progress}%`} />
         <span className="num w-9 shrink-0 text-right text-xs text-muted">{progress}%</span>
       </div>
       <div className="row-start-1 flex flex-col items-end text-right sm:col-start-3 sm:row-start-auto">
@@ -23,16 +25,17 @@ export function ProjectRow({ href, name, client, progress, phase, due, attention
   );
 }
 
-export function ActivityFeed({ items, empty = "No activity yet." }: { items: { id: string; actorName: string; summary: string; createdAt: Date; projectName?: string | null }[]; empty?: string }) {
-  if (!items.length) return <p className="px-4 py-8 text-center text-sm text-subtle">{empty}</p>;
+export async function ActivityFeed({ items, empty = "No activity yet." }: { items: { id: string; actorName: string; summary: string; metadata?: unknown; createdAt: Date; projectName?: string | null }[]; empty?: string }) {
+  const { t, fmt, locale } = await getI18n();
+  if (!items.length) return <p className="px-4 py-8 text-center text-sm text-subtle">{t(empty)}</p>;
   return (
     <ol className="divide-y divide-line">
       {items.map((a) => (
         <li key={a.id} className="flex gap-3 px-4 py-3">
           <Avatar name={a.actorName} size={24} />
           <div className="min-w-0 flex-1 text-[13px]">
-            <span className="text-fg">{a.actorName}</span> <span className="text-muted">— {a.summary}</span>
-            <div className="mt-0.5 text-[11px] text-subtle">{relativeTime(a.createdAt)}{a.projectName ? ` · ${a.projectName}` : ""}</div>
+            <span className="text-fg">{a.actorName === "System" ? t("System") : a.actorName}</span> <span className="text-muted">— {storedText(locale, a.summary, a.metadata)}</span>
+            <div className="mt-0.5 text-[11px] text-subtle">{fmt.rel(a.createdAt)}{a.projectName ? ` · ${a.projectName}` : ""}</div>
           </div>
         </li>
       ))}
@@ -41,11 +44,12 @@ export function ActivityFeed({ items, empty = "No activity yet." }: { items: { i
 }
 
 /** Horizontal phase timeline — the product's visual signature. */
-export function PhaseTimeline({ phases, compact }: { phases: { id: string; title: string; status: TaskStatus; progress: number }[]; compact?: boolean }) {
+export async function PhaseTimeline({ phases, compact }: { phases: { id: string; title: string; status: TaskStatus; progress: number }[]; compact?: boolean }) {
+  const { t } = await getI18n();
   if (!phases.length) return null;
   const currentIdx = phases.findIndex((p) => p.status !== "COMPLETED");
   return (
-    <ol className={cn("flex w-full items-start", compact ? "gap-1" : "gap-1.5")} aria-label="Project timeline">
+    <ol className={cn("flex w-full items-start", compact ? "gap-1" : "gap-1.5")} aria-label={t("Timeline")}>
       {phases.map((p, i) => {
         const done = p.status === "COMPLETED";
         const current = i === currentIdx;

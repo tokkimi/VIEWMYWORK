@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getWorkspaceCtx, can } from "@/lib/auth/context";
 import { hasFeature } from "@/lib/plans";
+import { getLocale } from "@/lib/i18n/server";
+import { translate } from "@/lib/i18n/core";
 import { accountingData, periodRange, toCsv, toPdf, type Period } from "@/server/services/exports";
 
 export async function GET(req: NextRequest) {
@@ -17,8 +19,9 @@ export async function GET(req: NextRequest) {
   const data = await accountingData(ctx.workspace.id, start, end);
   const label = `${start.toISOString().slice(0, 10)}_${new Date(end.getTime() - 86400_000).toISOString().slice(0, 10)}`;
   if (sp.get("format") === "pdf") {
-    const pdf = await toPdf(data, `Accounting export ${label.replace("_", " → ")}`, ctx.workspace.name);
+    const locale = await getLocale();
+    const pdf = await toPdf(data, `${translate(locale, "Accounting export")} ${label.replace("_", " → ")}`, ctx.workspace.name, locale);
     return new Response(new Uint8Array(pdf), { headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="accounting_${label}.pdf"`, "Cache-Control": "no-store" } });
   }
-  return new Response(toCsv(data), { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="accounting_${label}.csv"`, "Cache-Control": "no-store" } });
+  return new Response(toCsv(data, await getLocale()), { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="accounting_${label}.csv"`, "Cache-Control": "no-store" } });
 }

@@ -4,8 +4,10 @@ import { FileGrid } from "@/components/app/files";
 import { EmptyState } from "@/components/ui/primitives";
 import { toFileDTO } from "@/lib/file-dto";
 import { Files } from "lucide-react";
+import { pageTitle } from "@/lib/i18n/server";
+import { Tr } from "@/lib/i18n/client";
 
-export const metadata = { title: "Files" };
+export const generateMetadata = pageTitle("Files");
 
 export default async function PortalFiles() {
   const ctx = await requirePortal();
@@ -22,7 +24,7 @@ export default async function PortalFiles() {
   });
   return (
     <>
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight">Files</h1>
+      <h1 className="mb-6 text-2xl font-semibold tracking-tight"><Tr>Files</Tr></h1>
       {files.length === 0 ? <EmptyState icon={<Files />} title="No files yet" description="Documents and deliverables shared with you will appear here." /> : <FileGrid files={files.map(toFileDTO)} showVisibility={false} />}
     </>
   );

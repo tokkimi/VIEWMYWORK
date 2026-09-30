@@ -9,16 +9,17 @@ import { AddMeetingDialog } from "@/components/app/calendar-forms";
 import { DeleteEventButton } from "@/components/app/project-small-actions";
 import { inputClass } from "@/components/ui/form";
 import { cn } from "@/lib/cn";
-import { formatMoney } from "@/lib/money";
-import { fmtDate } from "@/lib/format";
+import { pageTitle, getI18n } from "@/lib/i18n/server";
+import { Tr } from "@/lib/i18n/client";
 
-export const metadata = { title: "Calendar" };
+export const generateMetadata = pageTitle("Calendar");
 
 type Ev = { id: string; date: Date; title: string; sub: string; kind: "task" | "milestone" | "project" | "meeting" | "invoice"; href: string; late?: boolean; deletable?: boolean };
 const KIND_DOT: Record<Ev["kind"], string> = { task: "bg-white/50", milestone: "bg-accent", project: "bg-accent", meeting: "bg-success", invoice: "bg-warning" };
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 export default async function Calendar({ searchParams }: { searchParams: Promise<{ view?: string; date?: string; project?: string; client?: string; member?: string; invoices?: string }> }) {
+  const { t, fmt } = await getI18n();
   const ctx = await requireWorkspace();
   const sp = await searchParams;
   const view = sp.view === "week" || sp.view === "agenda" ? sp.view : "month";
@@ -54,9 +55,9 @@ export default async function Calendar({ searchParams }: { searchParams: Promise
   const events: Ev[] = [
     ...tasks.map((t) => ({ id: t.id, date: t.deadline!, title: t.title, sub: t.project.name, kind: "task" as const, href: `/app/projects/${t.projectId}/tasks?task=${t.id}`, late: t.status !== "COMPLETED" && t.deadline! < now })),
     ...milestones.map((ms) => ({ id: ms.id, date: ms.dueDate!, title: `◆ ${ms.title}`, sub: ms.phase.project.name, kind: "milestone" as const, href: `/app/projects/${ms.phase.project.id}/specification` })),
-    ...projects.map((p) => ({ id: p.id, date: p.targetDate!, title: `${p.name} — target`, sub: "Project deadline", kind: "project" as const, href: `/app/projects/${p.id}` })),
-    ...meetings.map((e) => ({ id: e.id, date: e.startsAt, title: `${e.startsAt.toISOString().slice(11, 16)} ${e.title}`, sub: e.project?.name ?? e.location ?? "Meeting", kind: "meeting" as const, href: e.projectId ? `/app/projects/${e.projectId}` : "/app/calendar", deletable: e.createdById === ctx.user.id || ctx.isAdmin })),
-    ...invoices.map((i) => ({ id: i.id, date: i.dueDate, title: `${i.number} due`, sub: `${i.client.company || i.client.lastName} · ${formatMoney(i.totalCents - i.paidCents, i.currency)}`, kind: "invoice" as const, href: `/app/invoices/${i.id}` })),
+    ...projects.map((p) => ({ id: p.id, date: p.targetDate!, title: `${p.name} — ${t("target")}`, sub: t("Project deadline"), kind: "project" as const, href: `/app/projects/${p.id}` })),
+    ...meetings.map((e) => ({ id: e.id, date: e.startsAt, title: `${e.startsAt.toISOString().slice(11, 16)} ${e.title}`, sub: e.project?.name ?? e.location ?? t("Meeting"), kind: "meeting" as const, href: e.projectId ? `/app/projects/${e.projectId}` : "/app/calendar", deletable: e.createdById === ctx.user.id || ctx.isAdmin })),
+    ...invoices.map((i) => ({ id: i.id, date: i.dueDate, title: t("{number} due", { number: i.number }), sub: `${i.client.company || i.client.lastName} · ${fmt.money(i.totalCents - i.paidCents, i.currency)}`, kind: "invoice" as const, href: `/app/invoices/${i.id}` })),
   ].sort((a, b) => a.date.getTime() - b.date.getTime());
   const byDay = new Map<string, Ev[]>();
   for (const e of events) byDay.set(iso(e.date), [...(byDay.get(iso(e.date)) ?? []), e]);
@@ -67,7 +68,7 @@ export default async function Calendar({ searchParams }: { searchParams: Promise
     return `/app/calendar?${p}`;
   };
   const step = view === "month" ? (d: number) => iso(new Date(Date.UTC(y, m + d, 1))) : view === "week" ? (d: number) => iso(new Date(start.getTime() + d * 7 * 86400_000)) : (d: number) => iso(new Date(start.getTime() + d * 30 * 86400_000));
-  const title = view === "month" ? new Intl.DateTimeFormat("en", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m, 1))) : `${fmtDate(start)} – ${fmtDate(new Date(end.getTime() - 86400_000))}`;
+  const title = view === "month" ? fmt.date(new Date(Date.UTC(y, m, 1)), { month: "long", year: "numeric" }) : `${fmt.date(start)} – ${fmt.date(new Date(end.getTime() - 86400_000))}`;
   const days = Array.from({ length: Math.round((end.getTime() - start.getTime()) / 86400_000) }, (_, i) => new Date(start.getTime() + i * 86400_000));
 
   return (
@@ -76,19 +77,19 @@ export default async function Calendar({ searchParams }: { searchParams: Promise
       <Suspense><LinkTabs exact tabs={[{ href: qs({ view: "month" }), label: "Month" }, { href: qs({ view: "week" }), label: "Week" }, { href: qs({ view: "agenda" }), label: "Agenda" }]} /></Suspense>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Link href={qs({ date: step(-1) })} aria-label="Previous" className="rounded-lg border border-line p-1.5 text-muted hover:text-fg"><ChevronLeft className="size-4" /></Link>
-          <Link href={qs({ date: iso(new Date()) })} className="rounded-lg border border-line px-3 py-1 text-sm text-muted hover:text-fg">Today</Link>
-          <Link href={qs({ date: step(1) })} aria-label="Next" className="rounded-lg border border-line p-1.5 text-muted hover:text-fg"><ChevronRight className="size-4" /></Link>
+          <Link href={qs({ date: step(-1) })} aria-label={t("Previous")} className="rounded-lg border border-line p-1.5 text-muted hover:text-fg"><ChevronLeft className="size-4" /></Link>
+          <Link href={qs({ date: iso(new Date()) })} className="rounded-lg border border-line px-3 py-1 text-sm text-muted hover:text-fg"><Tr>Today</Tr></Link>
+          <Link href={qs({ date: step(1) })} aria-label={t("Next")} className="rounded-lg border border-line p-1.5 text-muted hover:text-fg"><ChevronRight className="size-4" /></Link>
           <h2 className="ml-2 text-lg font-medium">{title}</h2>
         </div>
-        <form className="flex flex-wrap gap-2" aria-label="Filters">
+        <form className="flex flex-wrap gap-2" aria-label={t("Filters")}>
           <input type="hidden" name="view" value={view} />
           {sp.date && <input type="hidden" name="date" value={sp.date} />}
-          <select name="project" defaultValue={sp.project ?? ""} aria-label="Project" className={`${inputClass} w-auto`}><option value="">All projects</option>{allProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
-          {clients.length > 0 && <select name="client" defaultValue={sp.client ?? ""} aria-label="Client" className={`${inputClass} w-auto`}><option value="">All clients</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.company || `${c.firstName} ${c.lastName}`}</option>)}</select>}
-          <select name="member" defaultValue={sp.member ?? ""} aria-label="Team member" className={`${inputClass} w-auto`}><option value="">Everyone</option>{members.map((mm) => <option key={mm.user.id} value={mm.user.id}>{mm.user.name}</option>)}</select>
-          {can(ctx, "invoices", "view") && <select name="invoices" defaultValue={sp.invoices ?? "1"} aria-label="Invoices" className={`${inputClass} w-auto`}><option value="1">With invoices</option><option value="0">Hide invoices</option></select>}
-          <button className="h-9 rounded-[10px] border border-line px-3 text-sm text-muted hover:text-fg">Apply</button>
+          <select name="project" defaultValue={sp.project ?? ""} aria-label={t("Project")} className={`${inputClass} w-auto`}><option value="">{t("All projects")}</option>{allProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+          {clients.length > 0 && <select name="client" defaultValue={sp.client ?? ""} aria-label={t("Client")} className={`${inputClass} w-auto`}><option value="">{t("All clients")}</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.company || `${c.firstName} ${c.lastName}`}</option>)}</select>}
+          <select name="member" defaultValue={sp.member ?? ""} aria-label={t("Team member")} className={`${inputClass} w-auto`}><option value="">{t("Everyone")}</option>{members.map((mm) => <option key={mm.user.id} value={mm.user.id}>{mm.user.name}</option>)}</select>
+          {can(ctx, "invoices", "view") && <select name="invoices" defaultValue={sp.invoices ?? "1"} aria-label={t("Invoices")} className={`${inputClass} w-auto`}><option value="1">{t("With invoices")}</option><option value="0">{t("Hide invoices")}</option></select>}
+          <button className="h-9 rounded-[10px] border border-line px-3 text-sm text-muted hover:text-fg"><Tr>Apply</Tr></button>
         </form>
       </div>
 
@@ -97,7 +98,7 @@ export default async function Calendar({ searchParams }: { searchParams: Promise
           <ol className="space-y-6">
             {[...byDay.entries()].map(([day, evs]) => (
               <li key={day}>
-                <div className="eyebrow mb-2">{fmtDate(day, { weekday: "long", month: "long", day: "numeric" })}</div>
+                <div className="eyebrow mb-2">{fmt.date(day, { weekday: "long", month: "long", day: "numeric" })}</div>
                 <ul className="panel divide-y divide-line rounded-2xl">{evs.map((e) => <EventRow key={e.kind + e.id} e={e} />)}</ul>
               </li>
             ))}
@@ -106,7 +107,7 @@ export default async function Calendar({ searchParams }: { searchParams: Promise
       ) : (
         <div className="panel overflow-x-auto rounded-2xl">
           <div className="grid min-w-[760px] grid-cols-7">
-            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => <div key={d} className="border-b border-line px-2 py-2 text-[11px] uppercase tracking-wide text-subtle">{d}</div>)}
+            {Array.from({ length: 7 }, (_, i) => fmt.date(new Date(Date.UTC(2024, 0, 1 + i)), { weekday: "short" })).map((d) => <div key={d} className="border-b border-line px-2 py-2 text-[11px] uppercase tracking-wide text-subtle">{d}</div>)}
             {days.map((d) => {
               const evs = byDay.get(iso(d)) ?? [];
               const out = view === "month" && d.getUTCMonth() !== m;
@@ -118,7 +119,7 @@ export default async function Calendar({ searchParams }: { searchParams: Promise
                     {evs.slice(0, view === "week" ? 20 : 4).map((e) => (
                       <li key={e.kind + e.id}><Link href={e.href} title={`${e.title} — ${e.sub}`} className="flex items-center gap-1.5 truncate rounded px-1 py-0.5 text-[11.5px] hover:bg-white/[0.05]"><span className={cn("size-1.5 shrink-0 rounded-full", KIND_DOT[e.kind], e.late && "bg-danger")} /><span className={cn("truncate", e.late && "text-danger")}>{e.title}</span></Link></li>
                     ))}
-                    {evs.length > (view === "week" ? 20 : 4) && <li className="px-1 text-[11px] text-subtle">+{evs.length - 4} more</li>}
+                    {evs.length > (view === "week" ? 20 : 4) && <li className="px-1 text-[11px] text-subtle">+{evs.length - 4} <Tr>more</Tr></li>}
                   </ul>
                 </div>
               );
@@ -127,7 +128,7 @@ export default async function Calendar({ searchParams }: { searchParams: Promise
         </div>
       )}
       <div className="mt-4 flex flex-wrap gap-4 text-xs text-subtle">
-        {(["task", "milestone", "meeting", "invoice"] as const).map((k) => <span key={k} className="flex items-center gap-1.5"><span className={cn("size-2 rounded-full", KIND_DOT[k])} />{k === "task" ? "Task deadline" : k === "milestone" ? "Milestone / project deadline" : k === "meeting" ? "Meeting" : "Invoice due"}</span>)}
+        {(["task", "milestone", "meeting", "invoice"] as const).map((k) => <span key={k} className="flex items-center gap-1.5"><span className={cn("size-2 rounded-full", KIND_DOT[k])} />{k === "task" ? t("Task deadline") : k === "milestone" ? t("Milestone / project deadline") : k === "meeting" ? t("Meeting") : t("Invoice due")}</span>)}
       </div>
     </>
   );

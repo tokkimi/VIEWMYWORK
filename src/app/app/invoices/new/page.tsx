@@ -7,8 +7,10 @@ import { formatInvoiceNumber } from "@/lib/invoices/numbering";
 import { centsToInput } from "@/lib/money";
 import { clientDisplayName } from "@/server/services/invoices";
 import { Users } from "lucide-react";
+import { pageTitle } from "@/lib/i18n/server";
+import { Tr } from "@/lib/i18n/client";
 
-export const metadata = { title: "New invoice" };
+export const generateMetadata = pageTitle("New invoice");
 
 export default async function NewInvoice({ searchParams }: { searchParams: Promise<{ clientId?: string; projectId?: string }> }) {
   const ctx = await requireWorkspace();
@@ -23,7 +25,7 @@ export default async function NewInvoice({ searchParams }: { searchParams: Promi
     return (
       <>
         <PageHeader title="New invoice" />
-        <EmptyState icon={<Users />} title="Add a client first" description="Invoices are issued to a client." action={<ButtonLink href="/app/clients/new" variant="primary">Add client</ButtonLink>} />
+        <EmptyState icon={<Users />} title="Add a client first" description="Invoices are issued to a client." action={<ButtonLink href="/app/clients/new" variant="primary"><Tr>Add client</Tr></ButtonLink>} />
       </>
     );
   const project = projects.find((p) => p.id === sp.projectId);

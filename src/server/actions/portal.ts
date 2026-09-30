@@ -41,8 +41,8 @@ export async function decideDeliverableAction(fd: FormData) {
     const approved = i.decision === "APPROVED";
     await emit({
       workspaceId: ctx.workspace.id, type: approved ? "CLIENT_APPROVED_DELIVERABLE" : "CLIENT_REQUESTED_CHANGES", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: d.projectId, clientId: ctx.client.id, entityType: "DELIVERABLE", entityId: d.id,
-      summary: approved ? `Approved ${d.title} V${i.version}` : `Requested changes to ${d.title} V${i.version}`, clientVisible: true,
-      notify: { team: { kind: "project" }, title: approved ? `${d.title} V${i.version} approved` : `Changes requested on ${d.title} V${i.version}`, message: approved ? `${ctx.user.name} approved ${d.title}.${i.comment ? `\n\n“${i.comment}”` : ""}` : `${ctx.user.name}: “${i.comment}”`, actionUrl: `/app/projects/${d.projectId}/deliverables#${d.id}`, actionLabel: approved ? "Open deliverable" : "View request", email: true },
+      summary: [approved ? "Approved {name} V{v}" : "Requested changes to {name} V{v}", { name: d.title, v: i.version }], clientVisible: true,
+      notify: { team: { kind: "project" }, title: [approved ? "{name} V{v} approved" : "Changes requested on {name} V{v}", { name: d.title, v: i.version }], message: approved ? [i.comment ? "{user} approved {name}.\n\n“{comment}”" : "{user} approved {name}.", { user: ctx.user.name, name: d.title, comment: i.comment }] : `${ctx.user.name}: “${i.comment}”`, actionUrl: `/app/projects/${d.projectId}/deliverables#${d.id}`, actionLabel: approved ? "Open deliverable" : "View request", email: true },
     });
     return null;
   }, "Thank you — your decision was recorded.");
@@ -53,7 +53,7 @@ export async function markDeliverableViewed(deliverableId: string) {
     const { ctx, d } = await loadReviewable(deliverableId);
     const already = await db.activityLog.findFirst({ where: { workspaceId: ctx.workspace.id, action: "CLIENT_VIEWED_DELIVERABLE", entityId: d.id, actorId: ctx.user.id, metadata: { path: ["version"], equals: d.currentVersion } } });
     if (already) return;
-    await emit({ workspaceId: ctx.workspace.id, type: "CLIENT_VIEWED_DELIVERABLE", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: d.projectId, clientId: ctx.client.id, entityType: "DELIVERABLE", entityId: d.id, summary: `Viewed ${d.title} V${d.currentVersion}`, metadata: { version: d.currentVersion }, notify: { team: { kind: "project" }, title: "Client viewed a deliverable", message: `${ctx.user.name} opened ${d.title} V${d.currentVersion}.`, actionUrl: `/app/projects/${d.projectId}/deliverables#${d.id}` } });
+    await emit({ workspaceId: ctx.workspace.id, type: "CLIENT_VIEWED_DELIVERABLE", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: d.projectId, clientId: ctx.client.id, entityType: "DELIVERABLE", entityId: d.id, summary: ["Viewed {name} V{v}", { name: d.title, v: d.currentVersion }], metadata: { version: d.currentVersion }, notify: { team: { kind: "project" }, title: "Client viewed a deliverable", message: ["{user} opened {name} V{v}.", { user: ctx.user.name, name: d.title, v: d.currentVersion }], actionUrl: `/app/projects/${d.projectId}/deliverables#${d.id}` } });
   } catch {
     // Viewing tracking is best-effort.
   }
@@ -72,7 +72,7 @@ export async function postPortalMessageAction(fd: FormData) {
     await db.clientWait.updateMany({ where: { projectId: project.id, reason: "INFORMATION", resolvedAt: null, entityType: null }, data: { resolvedAt: new Date() } });
     await emit({
       workspaceId: ctx.workspace.id, type: "CLIENT_COMMENTED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: project.id, clientId: ctx.client.id, entityType: "MESSAGE", entityId: msg.id, summary: "Client sent a message", clientVisible: true,
-      notify: { team: { kind: "project", capability: ["messages", "view"] }, title: `${ctx.user.name} commented on ${project.name}`, message: i.body.slice(0, 400), actionUrl: `/app/projects/${project.id}/messages`, actionLabel: "Reply", email: true },
+      notify: { team: { kind: "project", capability: ["messages", "view"] }, title: ["{user} commented on {project}", { user: ctx.user.name, project: project.name }], message: i.body.slice(0, 400), actionUrl: `/app/projects/${project.id}/messages`, actionLabel: "Reply", email: true },
     });
     return null;
   });
@@ -111,8 +111,8 @@ export async function completePortalUploadAction(fileId: string) {
     await db.clientWait.updateMany({ where: { projectId: file.projectId, reason: "DOCUMENT", resolvedAt: null, entityType: null }, data: { resolvedAt: new Date() } });
     const project = await db.project.findUniqueOrThrow({ where: { id: file.projectId } });
     await emit({
-      workspaceId: ctx.workspace.id, type: "CLIENT_UPLOADED_FILE", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: project.id, clientId: ctx.client.id, entityType: "FILE", entityId: file.id, summary: `Uploaded ${file.name}`, clientVisible: true,
-      notify: { team: { kind: "project", capability: ["files", "view"] }, title: `${ctx.user.name} uploaded a file`, message: `${file.name} — ${project.name}`, actionUrl: `/app/projects/${project.id}/files`, actionLabel: "View file", email: true },
+      workspaceId: ctx.workspace.id, type: "CLIENT_UPLOADED_FILE", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: project.id, clientId: ctx.client.id, entityType: "FILE", entityId: file.id, summary: ["Uploaded {name}", { name: file.name }], clientVisible: true,
+      notify: { team: { kind: "project", capability: ["files", "view"] }, title: ["{user} uploaded a file", { user: ctx.user.name }], message: `${file.name} — ${project.name}`, actionUrl: `/app/projects/${project.id}/files`, actionLabel: "View file", email: true },
     });
     return { id: file.id };
   });

@@ -27,7 +27,7 @@ export async function safeFetch(url: string, opts: { maxBytes?: number; timeoutM
   let current = url;
   for (let hop = 0; hop < 4; hop++) {
     await assertPublicUrl(current);
-    const res = await fetch(current, { method: opts.method ?? "GET", redirect: "manual", signal: AbortSignal.timeout(opts.timeoutMs ?? 6000), headers: { "User-Agent": "ViewMyWork-Preview/1.0 (+https://viewmywork.app)", Accept: "text/html,*/*;q=0.5" } });
+    const res = await fetch(current, { method: opts.method ?? "GET", redirect: "manual", signal: AbortSignal.timeout(opts.timeoutMs ?? 6000), headers: { "User-Agent": "FollowMyFuture-Preview/1.0 (+https://followmyfuture.com)", Accept: "text/html,*/*;q=0.5" } });
     if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
       current = new URL(res.headers.get("location")!, current).toString();
       continue;

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n/client";
 
 async function markRead(body: object) {
   await fetch("/api/notifications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -9,7 +10,8 @@ async function markRead(body: object) {
 
 export function MarkAllRead() {
   const router = useRouter();
-  return <Button size="sm" variant="ghost" onClick={async () => { await markRead({ all: true }); router.refresh(); }}>Mark all as read</Button>;
+  const { t } = useI18n();
+  return <Button size="sm" variant="ghost" onClick={async () => { await markRead({ all: true }); router.refresh(); }}>{t("Mark all as read")}</Button>;
 }
 
 export function NotificationLink({ id, href, unread, children }: { id: string; href: string | null; unread: boolean; children: React.ReactNode }) {

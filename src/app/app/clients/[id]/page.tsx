@@ -15,14 +15,16 @@ import { FileGrid } from "@/components/app/files";
 import { toFileDTO } from "@/lib/file-dto";
 import { Uploader } from "@/components/app/uploader";
 import { MessageThread } from "@/components/app/messages";
-import { formatMoney } from "@/lib/money";
-import { fmtDate, fmtShortDate } from "@/lib/format";
 import { deriveStatus, outstandingCents } from "@/lib/invoices/status";
 import { integrations } from "@/lib/env";
+import { PROJECT_STATUS } from "@/lib/labels";
+import { pageTitle, getI18n } from "@/lib/i18n/server";
+import { Tr } from "@/lib/i18n/client";
 
-export const metadata = { title: "Client" };
+export const generateMetadata = pageTitle("Client");
 
 export default async function ClientProfile({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
+  const { t, fmt } = await getI18n();
   const ctx = await requireWorkspace();
   requirePerm(ctx, "clients", "view");
   const { id } = await params;
@@ -48,15 +50,15 @@ export default async function ClientProfile({ params, searchParams }: { params: 
   return (
     <>
       <PageHeader
-        eyebrow={<Link href="/app/clients" className="hover:text-fg">Clients</Link>}
-        title={<span className="flex items-center gap-3"><Avatar name={name} src={client.avatarUrl} size={36} />{name}{client.archivedAt && <Badge>Archived</Badge>}</span>}
+        eyebrow={<Link href="/app/clients" className="hover:text-fg"><Tr>Clients</Tr></Link>}
+        title={<span className="flex items-center gap-3"><Avatar name={name} src={client.avatarUrl} size={36} />{name}{client.archivedAt && <Badge><Tr>Archived</Tr></Badge>}</span>}
         description={client.company ? `${client.firstName} ${client.lastName} · ${client.email}` : client.email}
         actions={
           <>
             {canEdit && <EditClientDialog v={client} />}
-            {can(ctx, "projects", "manage") && <ButtonLink href={`/app/projects/new?clientId=${id}`}><Plus className="size-4" />New project</ButtonLink>}
+            {can(ctx, "projects", "manage") && <ButtonLink href={`/app/projects/new?clientId=${id}`}><Plus className="size-4" /><Tr>New project</Tr></ButtonLink>}
             {can(ctx, "messages", "send") && <SendEmailDialog clientId={id} to={client.email} userEmail={ctx.user.email} />}
-            {can(ctx, "invoices", "edit") && <ButtonLink href={`/app/invoices/new?clientId=${id}`}><Receipt className="size-4" />Create invoice</ButtonLink>}
+            {can(ctx, "invoices", "edit") && <ButtonLink href={`/app/invoices/new?clientId=${id}`}><Receipt className="size-4" /><Tr>Create invoice</Tr></ButtonLink>}
             {canEdit && <InviteToPortalDialog clientId={id} email={client.email} />}
           </>
         }
@@ -78,8 +80,8 @@ export default async function ClientProfile({ params, searchParams }: { params: 
 
       {tab === "overview" && <Overview />}
       {tab === "projects" && (
-        projects.length === 0 ? <EmptyState icon={<FolderKanban />} title="No projects yet" action={can(ctx, "projects", "manage") ? <ButtonLink href={`/app/projects/new?clientId=${id}`} variant="primary">New project</ButtonLink> : undefined} /> : (
-          <ListCard>{projects.map((p) => <ProjectRow key={p.id} href={`/app/projects/${p.id}`} name={p.name} client={p.status === "COMPLETED" ? "Completed" : p.archivedAt ? "Archived" : p.status.toLowerCase().replace("_", " ")} progress={p.progress} phase={p.phases.find((x) => x.status !== "COMPLETED")?.title} due={p.targetDate ? `Due ${fmtShortDate(p.targetDate)}` : null} />)}</ListCard>
+        projects.length === 0 ? <EmptyState icon={<FolderKanban />} title="No projects yet" action={can(ctx, "projects", "manage") ? <ButtonLink href={`/app/projects/new?clientId=${id}`} variant="primary"><Tr>New project</Tr></ButtonLink> : undefined} /> : (
+          <ListCard>{projects.map((p) => <ProjectRow key={p.id} href={`/app/projects/${p.id}`} name={p.name} client={p.archivedAt ? t("Archived") : t(PROJECT_STATUS[p.status].label)} progress={p.progress} phase={p.phases.find((x) => x.status !== "COMPLETED")?.title} due={p.targetDate ? t("Due {date}", { date: fmt.short(p.targetDate) }) : null} />)}</ListCard>
         )
       )}
       {tab === "messages" && <Messages />}
@@ -91,6 +93,7 @@ export default async function ClientProfile({ params, searchParams }: { params: 
   );
 
   async function Overview() {
+    const { t, fmt } = await getI18n();
     const [approvals, waits, files] = await Promise.all([
       db.deliverable.findMany({ where: { projectId: { in: projectIds }, status: "WAITING_FOR_CLIENT" }, take: 5 }),
       db.clientWait.findMany({ where: { projectId: { in: projectIds }, resolvedAt: null }, take: 5 }),
@@ -100,18 +103,18 @@ export default async function ClientProfile({ params, searchParams }: { params: 
       <div className="grid gap-10 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div className="space-y-10">
           <Section title="Active projects">
-            {active.length === 0 ? <p className="panel rounded-2xl px-4 py-6 text-center text-sm text-subtle">No active projects.</p> : <ListCard>{active.map((p) => <ProjectRow key={p.id} href={`/app/projects/${p.id}`} name={p.name} client={p.type ?? "Project"} progress={p.progress} phase={p.phases.find((x) => x.status !== "COMPLETED")?.title} due={p.targetDate ? `Due ${fmtShortDate(p.targetDate)}` : null} />)}</ListCard>}
+            {active.length === 0 ? <p className="panel rounded-2xl px-4 py-6 text-center text-sm text-subtle"><Tr>No active projects.</Tr></p> : <ListCard>{active.map((p) => <ProjectRow key={p.id} href={`/app/projects/${p.id}`} name={p.name} client={t(p.type ?? t("Project"))} progress={p.progress} phase={p.phases.find((x) => x.status !== "COMPLETED")?.title} due={p.targetDate ? t("Due {date}", { date: fmt.short(p.targetDate) }) : null} />)}</ListCard>}
           </Section>
           <Section title="Pending approvals & requests">
-            {approvals.length + waits.length === 0 ? <p className="panel rounded-2xl px-4 py-6 text-center text-sm text-subtle">Nothing pending.</p> : (
+            {approvals.length + waits.length === 0 ? <p className="panel rounded-2xl px-4 py-6 text-center text-sm text-subtle"><Tr>Nothing pending.</Tr></p> : (
               <ListCard>
                 {approvals.map((d) => <Link key={d.id} href={`/app/projects/${d.projectId}/deliverables#${d.id}`} className="flex items-center justify-between px-4 py-3 text-sm hover:bg-white/[0.02]"><span>{d.title}</span><DeliverableStatusBadge s={d.status} /></Link>)}
-                {waits.map((w) => <div key={w.id} className="flex items-center justify-between px-4 py-3 text-sm"><span>{w.label}</span><span className="text-xs text-warning">since {fmtShortDate(w.startedAt)}</span></div>)}
+                {waits.map((w) => <div key={w.id} className="flex items-center justify-between px-4 py-3 text-sm"><span>{w.label}</span><span className="text-xs text-warning"><Tr>since</Tr> {fmt.short(w.startedAt)}</span></div>)}
               </ListCard>
             )}
           </Section>
           <Section title="Recent files">
-            {files.length === 0 ? <p className="panel rounded-2xl px-4 py-6 text-center text-sm text-subtle">No files yet.</p> : <FileGrid files={files.map(toFileDTO)} />}
+            {files.length === 0 ? <p className="panel rounded-2xl px-4 py-6 text-center text-sm text-subtle"><Tr>No files yet.</Tr></p> : <FileGrid files={files.map(toFileDTO)} />}
           </Section>
           <Section title="Recent activity"><div className="panel rounded-2xl"><ActivityFeed items={activity} /></div></Section>
         </div>
@@ -129,10 +132,10 @@ export default async function ClientProfile({ params, searchParams }: { params: 
                 { k: "VAT", v: client!.vatNumber },
               ]} />
             </div>
-            {client!.notes && <p className="mt-3 whitespace-pre-line rounded-xl border border-line p-3 text-xs text-muted"><span className="eyebrow mb-1 block">Internal notes</span>{client!.notes}</p>}
+            {client!.notes && <p className="mt-3 whitespace-pre-line rounded-xl border border-line p-3 text-xs text-muted"><span className="eyebrow mb-1 block"><Tr>Internal notes</Tr></span>{client!.notes}</p>}
           </Section>
           <Section title="Contacts" action={canEdit ? <AddContactDialog clientId={id} /> : undefined}>
-            {client!.contacts.length === 0 ? <p className="text-sm text-subtle">No secondary contacts.</p> : (
+            {client!.contacts.length === 0 ? <p className="text-sm text-subtle"><Tr>No secondary contacts.</Tr></p> : (
               <ListCard>{client!.contacts.map((c) => (
                 <div key={c.id} className="flex items-center gap-3 px-4 py-3 text-sm">
                   <Avatar name={c.name} size={26} />
@@ -144,10 +147,10 @@ export default async function ClientProfile({ params, searchParams }: { params: 
             )}
           </Section>
           <Section title="Portal access">
-            {client!.portalAccess.length === 0 ? <p className="text-sm text-subtle">Nobody has access yet. Invite your client to their portal.</p> : (
+            {client!.portalAccess.length === 0 ? <p className="text-sm text-subtle"><Tr>Nobody has access yet. Invite your client to their portal.</Tr></p> : (
               <ListCard>{client!.portalAccess.map((a) => (
                 <div key={a.id} className="flex items-center gap-3 px-4 py-3 text-sm">
-                  <div className="min-w-0 flex-1"><div className="truncate">{a.user.name}</div><div className="truncate text-xs text-muted">{a.user.email}{a.user.lastActiveAt ? ` · last seen ${fmtShortDate(a.user.lastActiveAt)}` : ""}</div></div>
+                  <div className="min-w-0 flex-1"><div className="truncate">{a.user.name}</div><div className="truncate text-xs text-muted">{a.user.email}{a.user.lastActiveAt ? ` · ${t("last seen {date}", { date: fmt.short(a.user.lastActiveAt) })}` : ""}</div></div>
                   {canEdit && <RevokeAccessButton id={a.id} />}
                 </div>
               ))}</ListCard>
@@ -155,7 +158,7 @@ export default async function ClientProfile({ params, searchParams }: { params: 
           </Section>
           {canInv && unpaid.length > 0 && (
             <Section title="Unpaid invoices">
-              <ListCard>{unpaid.map((i) => <Link key={i.id} href={`/app/invoices/${i.id}`} className="flex items-center justify-between gap-3 px-4 py-3 text-sm hover:bg-white/[0.02]"><span className="num">{i.number}</span><span className="num">{formatMoney(outstandingCents(i), i.currency)}</span><InvoiceStatusBadge s={deriveStatus(i)} /></Link>)}</ListCard>
+              <ListCard>{unpaid.map((i) => <Link key={i.id} href={`/app/invoices/${i.id}`} className="flex items-center justify-between gap-3 px-4 py-3 text-sm hover:bg-white/[0.02]"><span className="num">{i.number}</span><span className="num">{fmt.money(outstandingCents(i), i.currency)}</span><InvoiceStatusBadge s={deriveStatus(i)} /></Link>)}</ListCard>
             </Section>
           )}
           {canEdit && <ArchiveClientButton id={id} archived={Boolean(client!.archivedAt)} />}
@@ -181,22 +184,23 @@ export default async function ClientProfile({ params, searchParams }: { params: 
   }
 
   async function Invoices() {
+    const { t, fmt } = await getI18n();
     const paid = invoices.reduce((a, i) => a + (i.currency === client!.currency ? i.paidCents : 0), 0);
     const out = unpaid.reduce((a, i) => a + (i.currency === client!.currency ? outstandingCents(i) : 0), 0);
     return (
       <div className="space-y-6">
         <div className="panel grid grid-cols-2 divide-x divide-line rounded-2xl sm:grid-cols-3">
           <Stat label="Invoices" value={invoices.length} />
-          <Stat label="Paid" value={formatMoney(paid, client!.currency)} />
-          <Stat label="Outstanding" value={formatMoney(out, client!.currency)} tone={out ? "warning" : undefined} />
+          <Stat label="Paid" value={fmt.money(paid, client!.currency)} />
+          <Stat label="Outstanding" value={fmt.money(out, client!.currency)} tone={out ? "warning" : undefined} />
         </div>
-        {invoices.length === 0 ? <EmptyState icon={<Receipt />} title="No invoices yet" description="Create your first invoice and send it directly to your client." action={can(ctx, "invoices", "edit") ? <ButtonLink href={`/app/invoices/new?clientId=${id}`} variant="primary">Create invoice</ButtonLink> : undefined} /> : (
+        {invoices.length === 0 ? <EmptyState icon={<Receipt />} title="No invoices yet" description="Create your first invoice and send it directly to your client." action={can(ctx, "invoices", "edit") ? <ButtonLink href={`/app/invoices/new?clientId=${id}`} variant="primary"><Tr>Create invoice</Tr></ButtonLink> : undefined} /> : (
           <ListCard>{invoices.map((i) => (
             <Link key={i.id} href={`/app/invoices/${i.id}`} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 px-4 py-3 text-sm hover:bg-white/[0.02] sm:grid-cols-[120px_1fr_100px_110px_110px]">
-              <span className="num font-medium">{i.number ?? "Draft"}</span>
+              <span className="num font-medium">{i.number ?? t("Draft")}</span>
               <span className="hidden truncate text-muted sm:block">{i.project?.name ?? "—"}</span>
-              <span className="hidden text-muted sm:block">{fmtDate(i.dueDate)}</span>
-              <span className="num text-right">{formatMoney(i.totalCents, i.currency)}</span>
+              <span className="hidden text-muted sm:block">{fmt.date(i.dueDate)}</span>
+              <span className="num text-right">{fmt.money(i.totalCents, i.currency)}</span>
               <span className="text-right"><InvoiceStatusBadge s={deriveStatus(i)} /></span>
             </Link>
           ))}</ListCard>
@@ -206,6 +210,7 @@ export default async function ClientProfile({ params, searchParams }: { params: 
   }
 
   async function Finance() {
+    const { t, fmt } = await getI18n();
     const [expenses, payments] = await Promise.all([
       db.expense.aggregate({ where: { workspaceId: ctx.workspace.id, projectId: { in: projectIds }, currency: client!.currency }, _sum: { amountCents: true } }),
       db.payment.aggregate({ where: { workspaceId: ctx.workspace.id, clientId: id, status: { in: ["SUCCEEDED", "PARTIALLY_REFUNDED"] }, currency: client!.currency }, _sum: { amountCents: true, refundedCents: true } }),
@@ -215,10 +220,10 @@ export default async function ClientProfile({ params, searchParams }: { params: 
     const exp = expenses._sum.amountCents ?? 0;
     return (
       <div className="panel grid grid-cols-2 divide-x divide-line rounded-2xl sm:grid-cols-4">
-        <Stat label="Total budgets" value={formatMoney(budget, client!.currency)} />
-        <Stat label="Revenue collected" value={formatMoney(revenue, client!.currency)} />
-        <Stat label="Expenses" value={formatMoney(exp, client!.currency)} />
-        <Stat label="Estimated margin" value={formatMoney(revenue - exp, client!.currency)} tone={revenue - exp < 0 ? "danger" : undefined} hint={`in ${client!.currency}`} />
+        <Stat label="Total budgets" value={fmt.money(budget, client!.currency)} />
+        <Stat label="Revenue collected" value={fmt.money(revenue, client!.currency)} />
+        <Stat label="Expenses" value={fmt.money(exp, client!.currency)} />
+        <Stat label="Estimated margin" value={fmt.money(revenue - exp, client!.currency)} tone={revenue - exp < 0 ? "danger" : undefined} hint={t("in {currency}", { currency: client!.currency })} />
       </div>
     );
   }

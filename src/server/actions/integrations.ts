@@ -56,7 +56,7 @@ export async function linkDriveFileAction(fd: FormData) {
     const existing = await db.file.findFirst({ where: { workspaceId: ctx.workspace.id, projectId: i.projectId, source: "GOOGLE_DRIVE", externalId: meta.id, deletedAt: null } });
     if (existing) throw new AppError("This Drive file is already linked to the project.", "CONFLICT");
     const f = await db.file.create({ data: { workspaceId: ctx.workspace.id, projectId: project.id, clientId: project.clientId, source: "GOOGLE_DRIVE", name: meta.name, mimeType: meta.mimeType, sizeBytes: 0n, status: "READY", externalId: meta.id, externalUrl: meta.webViewLink, visibility: i.clientVisible ? "CLIENT_VISIBLE" : "INTERNAL", category: meta.mimeType.includes("folder") ? "OTHER" : "DOCUMENT", uploadedById: ctx.user.id } });
-    await emit({ workspaceId: ctx.workspace.id, type: "FILE_UPLOADED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: project.id, clientId: project.clientId, entityType: "FILE", entityId: f.id, summary: `Linked Google Drive file ${meta.name}`, clientVisible: i.clientVisible });
+    await emit({ workspaceId: ctx.workspace.id, type: "FILE_UPLOADED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: project.id, clientId: project.clientId, entityType: "FILE", entityId: f.id, summary: ["Linked Google Drive file {name}", { name: meta.name }], clientVisible: i.clientVisible });
     return null;
   }, "Drive file linked.");
 }

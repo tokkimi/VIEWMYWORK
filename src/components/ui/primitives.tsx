@@ -1,6 +1,7 @@
 import type { ReactNode, ComponentProps } from "react";
 import { cn } from "@/lib/cn";
 import { initials } from "@/lib/format";
+import { Tx } from "@/lib/i18n/client";
 
 export function Card({ className, children, ...p }: ComponentProps<"div">) {
   return (
@@ -15,8 +16,8 @@ export function Section({ title, action, children, className, description }: { t
     <section className={cn("min-w-0", className)}>
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
-          <h2 className="text-[13px] font-semibold tracking-tight text-fg">{title}</h2>
-          {description && <p className="mt-0.5 text-xs text-muted">{description}</p>}
+          <h2 className="text-[13px] font-semibold tracking-tight text-fg"><Tx>{title}</Tx></h2>
+          {description && <p className="mt-0.5 text-xs text-muted"><Tx>{description}</Tx></p>}
         </div>
         {action}
       </div>
@@ -29,9 +30,9 @@ export function PageHeader({ title, description, actions, eyebrow }: { title: Re
   return (
     <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        {eyebrow && <div className="eyebrow mb-2">{eyebrow}</div>}
-        <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-[28px]">{title}</h1>
-        {description && <p className="mt-1.5 text-sm text-muted">{description}</p>}
+        {eyebrow && <div className="eyebrow mb-2"><Tx>{eyebrow}</Tx></div>}
+        <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-[28px]"><Tx>{title}</Tx></h1>
+        {description && <p className="mt-1.5 text-sm text-muted"><Tx>{description}</Tx></p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
@@ -51,7 +52,7 @@ export function Badge({ tone = "neutral", children, className, dot }: { tone?: T
   return (
     <span className={cn("inline-flex h-[22px] items-center gap-1.5 whitespace-nowrap rounded-full px-2 text-[11.5px] font-medium", tones[tone], className)}>
       {dot && <span className="size-1.5 rounded-full bg-current" />}
-      {children}
+      <Tx>{children}</Tx>
     </span>
   );
 }
@@ -79,8 +80,8 @@ export function EmptyState({ icon, title, description, action, className }: { ic
   return (
     <div className={cn("flex flex-col items-center justify-center rounded-2xl border border-dashed border-line px-6 py-14 text-center", className)}>
       {icon && <div className="mb-4 flex size-11 items-center justify-center rounded-xl border border-line bg-white/[0.03] text-muted [&_svg]:size-5">{icon}</div>}
-      <h3 className="text-[15px] font-medium">{title}</h3>
-      {description && <p className="mt-1.5 max-w-sm text-sm text-muted">{description}</p>}
+      <h3 className="text-[15px] font-medium"><Tx>{title}</Tx></h3>
+      {description && <p className="mt-1.5 max-w-sm text-sm text-muted"><Tx>{description}</Tx></p>}
       {action && <div className="mt-5">{action}</div>}
     </div>
   );
@@ -93,9 +94,9 @@ export function Skeleton({ className }: { className?: string }) {
 export function Stat({ label, value, hint, tone }: { label: string; value: ReactNode; hint?: ReactNode; tone?: "danger" | "warning" | "accent" }) {
   return (
     <div className="min-w-0 px-4 py-3.5">
-      <div className="truncate text-xs text-muted">{label}</div>
+      <div className="truncate text-xs text-muted"><Tx>{label}</Tx></div>
       <div className={cn("num mt-1 truncate text-xl font-semibold tracking-tight", tone === "danger" && "text-danger", tone === "warning" && "text-warning", tone === "accent" && "text-accent")}>{value}</div>
-      {hint && <div className="mt-0.5 truncate text-[11px] text-subtle">{hint}</div>}
+      {hint && <div className="mt-0.5 truncate text-[11px] text-subtle"><Tx>{hint}</Tx></div>}
     </div>
   );
 }
@@ -105,7 +106,7 @@ export function KeyValue({ items }: { items: { k: string; v: ReactNode }[] }) {
     <dl className="divide-y divide-line text-sm">
       {items.map((i) => (
         <div key={i.k} className="flex items-start justify-between gap-4 py-2.5">
-          <dt className="shrink-0 text-muted">{i.k}</dt>
+          <dt className="shrink-0 text-muted"><Tx>{i.k}</Tx></dt>
           <dd className="min-w-0 break-words text-right">{i.v ?? "—"}</dd>
         </div>
       ))}

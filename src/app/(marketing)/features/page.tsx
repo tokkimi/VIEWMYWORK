@@ -1,8 +1,8 @@
-import type { Metadata } from "next";
 import { ButtonLink } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
+import { getI18n, pageTitle } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Features" };
+export const generateMetadata = pageTitle("Features");
 
 const blocks = [
   { t: "Specification builder", d: "Structure every project as phases, milestones, tasks, subtasks and deliverables. Reorder by drag and drop, set weights, deadlines, dependencies, checklists, estimates and costs. Start from a template or from scratch." },
@@ -15,17 +15,18 @@ const blocks = [
   { t: "Team & permissions", d: "Invite developers, designers and freelancers with granular per-project permissions: tasks, files, client details, finance, invoices and messages." },
 ];
 
-export default function Features() {
+export default async function Features() {
+  const { t } = await getI18n();
   return (
     <div className="mx-auto max-w-5xl px-5 py-20">
-      <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">How it works</h1>
-      <p className="mt-4 max-w-2xl text-muted">Specification → Execution → Progress → Documents → Deliverables → Client approval → Invoice → Payment. One product, one client experience.</p>
+      <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">{t("How it works")}</h1>
+      <p className="mt-4 max-w-2xl text-muted">{t("Specification → Execution → Progress → Documents → Deliverables → Client approval → Invoice → Payment. One product, one client experience.")}</p>
       <div className="mt-14 grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-2">
         {blocks.map((b, i) => (
           <div key={b.t} className="bg-bg p-7">
             <div className="num text-xs text-subtle">{String(i + 1).padStart(2, "0")}</div>
-            <h2 className="mt-3 text-lg font-medium">{b.t}</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted">{b.d}</p>
+            <h2 className="mt-3 text-lg font-medium">{t(b.t)}</h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted">{t(b.d)}</p>
           </div>
         ))}
       </div>

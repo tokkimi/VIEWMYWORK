@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Monitor, Tablet, Smartphone, ExternalLink, Globe } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { buttonClass } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n/client";
 
 export type PreviewDTO = { id: string; label: string; url: string; type: string; embeddable: boolean | null; pageTitle: string | null; imageUrl: string | null };
 
@@ -15,6 +16,7 @@ const devices = [
 
 /** Device-framed live preview. When a site forbids framing we never show a broken iframe — we show a clean fallback card. */
 export function PreviewFrame({ p }: { p: PreviewDTO }) {
+  const { t } = useI18n();
   const [device, setDevice] = useState<(typeof devices)[number]["k"]>(p.type === "MOBILE_APP" ? "mobile" : "desktop");
   const d = devices.find((x) => x.k === device)!;
   const domain = (() => { try { return new URL(p.url).hostname; } catch { return p.url; } })();
@@ -35,7 +37,7 @@ export function PreviewFrame({ p }: { p: PreviewDTO }) {
             <div className="truncate text-sm font-medium">{p.pageTitle || p.label}</div>
             <div className="truncate text-xs text-muted">{domain}</div>
           </div>
-          <a href={p.url} target="_blank" rel="noreferrer noopener" className={buttonClass("primary", "sm")}><ExternalLink className="size-3.5" />Open preview</a>
+          <a href={p.url} target="_blank" rel="noreferrer noopener" className={buttonClass("primary", "sm")}><ExternalLink className="size-3.5" />{t("Open preview")}</a>
         </div>
       </div>
     );
@@ -43,12 +45,12 @@ export function PreviewFrame({ p }: { p: PreviewDTO }) {
   return (
     <div>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex rounded-lg border border-line p-0.5" role="radiogroup" aria-label="Device">
+        <div className="flex rounded-lg border border-line p-0.5" role="radiogroup" aria-label={t("Device")}>
           {devices.map((x) => (
-            <button key={x.k} role="radio" aria-checked={device === x.k} aria-label={x.label} onClick={() => setDevice(x.k)} className={cn("rounded-md p-1.5", device === x.k ? "bg-white/[0.08] text-fg" : "text-muted")}><x.icon className="size-4" /></button>
+            <button key={x.k} role="radio" aria-checked={device === x.k} aria-label={t(x.label)} onClick={() => setDevice(x.k)} className={cn("rounded-md p-1.5", device === x.k ? "bg-white/[0.08] text-fg" : "text-muted")}><x.icon className="size-4" /></button>
           ))}
         </div>
-        <a href={p.url} target="_blank" rel="noreferrer noopener" className="flex items-center gap-1.5 text-xs text-muted hover:text-fg"><ExternalLink className="size-3.5" />Open in new tab</a>
+        <a href={p.url} target="_blank" rel="noreferrer noopener" className="flex items-center gap-1.5 text-xs text-muted hover:text-fg"><ExternalLink className="size-3.5" />{t("Open in new tab")}</a>
       </div>
       <div className="flex justify-center overflow-x-auto rounded-2xl border border-line bg-white/[0.015] p-4 sm:p-6">
         <div className={cn("overflow-hidden border border-line-strong bg-surface shadow-2xl transition-all duration-300", device === "mobile" ? "rounded-[36px] p-2.5" : device === "tablet" ? "rounded-[24px] p-2.5" : "rounded-xl")} style={{ width: d.w, maxWidth: "100%" }}>

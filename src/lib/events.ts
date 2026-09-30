@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { resolvePermissions, hasLevel, type Capability } from "@/lib/auth/permissions";
 import { sendEmail } from "@/lib/email/send";
 import { emailTemplates } from "@/lib/email/templates";
+import { normalizeLocale, renderMsg, withSourceMsg, type Locale, type Msg } from "@/lib/i18n/core";
 
 export type Category = "PROJECT" | "CLIENT" | "BILLING" | "TEAM" | "SYSTEM";
 export type Topic = "APPROVALS" | "TASKS" | "DEADLINES" | "UPDATES" | "FILES" | "COMMENTS" | "MENTIONS" | "INVOICES" | "PAYMENTS" | "TEAM" | "SYSTEM";
@@ -49,6 +50,8 @@ export const EVENT_DEFS = {
   CLIENT_REQUESTED_CHANGES: { category: "CLIENT", topic: "APPROVALS" },
   CLIENT_APPROVED_DELIVERABLE: { category: "CLIENT", topic: "APPROVALS" },
   CLIENT_SUBMITTED_INFO: { category: "CLIENT", topic: "COMMENTS" },
+  CLIENT_CHANGE_REQUEST: { category: "CLIENT", topic: "APPROVALS" },
+  CHANGE_REQUEST_UPDATED: { category: "PROJECT", topic: "UPDATES" },
   CLIENT_CREATED: { category: "CLIENT", topic: "UPDATES" },
   CLIENT_INVITED: { category: "CLIENT", topic: "TEAM" },
   INVOICE_CREATED: { category: "BILLING", topic: "INVOICES" },
@@ -88,17 +91,18 @@ export type EventInput = {
   clientId?: string | null;
   entityType: string;
   entityId?: string | null;
-  summary: string;
+  /** English source text (with optional {vars}); rendered in each reader's language. */
+  summary: Msg;
   clientVisible?: boolean;
-  metadata?: Prisma.InputJsonValue;
+  metadata?: Record<string, Prisma.InputJsonValue>;
   notify?: {
     team?: TeamAudience;
     client?: boolean; // portal users of clientId (requires clientVisible content)
-    title: string;
-    message: string;
+    title: Msg;
+    message: Msg;
     actionUrl?: string; // team action URL
     clientActionUrl?: string;
-    actionLabel?: string;
+    actionLabel?: Msg;
     email?: boolean; // important events only
   };
 };
@@ -119,9 +123,10 @@ export async function emit(e: EventInput) {
       action: e.type,
       entityType: e.entityType,
       entityId: e.entityId ?? null,
-      summary: e.summary,
+      summary: renderMsg("en", e.summary),
       clientVisible: e.clientVisible ?? false,
-      metadata: e.metadata,
+      // The source message is kept so the summary can be shown in the reader's language.
+      metadata: withSourceMsg(e.summary, e.metadata) as Prisma.InputJsonValue | undefined,
     },
   });
   if (!e.notify) return;
@@ -170,26 +175,28 @@ async function dispatch(e: EventInput, category: Category, topic: Topic) {
   const ids = [...recipients.keys()];
   const [prefs, users, ws] = await Promise.all([
     db.notificationPreference.findMany({ where: { userId: { in: ids }, topic } }),
-    db.user.findMany({ where: { id: { in: ids }, status: "ACTIVE" }, select: { id: true, email: true } }),
+    db.user.findMany({ where: { id: { in: ids }, status: "ACTIVE" }, select: { id: true, email: true, locale: true } }),
     db.workspace.findUnique({ where: { id: e.workspaceId }, include: { settings: true } }),
   ]);
   const prefBy = new Map(prefs.map((p) => [p.userId, p]));
-  const emails: { to: string; audience: "TEAM" | "CLIENT" }[] = [];
+  const emails: { to: string; audience: "TEAM" | "CLIENT"; locale: Locale }[] = [];
   const rows: Prisma.NotificationCreateManyInput[] = [];
   for (const u of users) {
     const audience = recipients.get(u.id)!;
     const p = prefBy.get(u.id);
+    const locale = normalizeLocale(u.locale);
     const actionUrl = audience === "CLIENT" ? n.clientActionUrl ?? "/portal" : n.actionUrl;
+    // Notifications are written in each recipient's own language.
     if (p?.inApp !== false)
-      rows.push({ workspaceId: e.workspaceId, userId: u.id, audience, category, type: e.type, title: n.title, message: n.message, entityType: e.entityType, entityId: e.entityId ?? null, actionUrl, actionLabel: n.actionLabel ?? null });
-    if (n.email && p?.email !== false) emails.push({ to: u.email, audience });
+      rows.push({ workspaceId: e.workspaceId, userId: u.id, audience, category, type: e.type, title: renderMsg(locale, n.title), message: renderMsg(locale, n.message), entityType: e.entityType, entityId: e.entityId ?? null, actionUrl, actionLabel: n.actionLabel ? renderMsg(locale, n.actionLabel) : null });
+    if (n.email && p?.email !== false) emails.push({ to: u.email, audience, locale });
   }
   if (rows.length) await db.notification.createMany({ data: rows });
   if (!emails.length || !ws) return;
   const brand = { name: ws.name, logoUrl: ws.settings?.portalLogoUrl ?? ws.logoUrl };
   const job = async () => {
     for (const m of emails) {
-      const tpl = emailTemplates.notification({ brand, title: n.title, message: n.message, actionUrl: m.audience === "CLIENT" ? n.clientActionUrl ?? "/portal" : n.actionUrl, actionLabel: n.actionLabel });
+      const tpl = emailTemplates.notification({ brand, title: renderMsg(m.locale, n.title), message: renderMsg(m.locale, n.message), actionUrl: m.audience === "CLIENT" ? n.clientActionUrl ?? "/portal" : n.actionUrl, actionLabel: n.actionLabel ? renderMsg(m.locale, n.actionLabel) : null }, m.locale);
       await sendEmail({ to: m.to, subject: tpl.subject, html: tpl.html, template: `notification:${e.type}`, workspaceId: e.workspaceId, entityType: e.entityType, entityId: e.entityId ?? undefined, fromName: ws.name });
     }
   };
@@ -206,6 +213,7 @@ export function runAfter(job: () => Promise<void>) {
 }
 
 /** Platform-level system notification to all admins of a workspace. */
-export async function notifyWorkspaceAdmins(workspaceId: string, type: EventType, title: string, message: string, actionUrl?: string) {
+export async function notifyWorkspaceAdmins(workspaceId: string, type: EventType, title: Msg, message: Msg, actionUrl?: string) {
   await emit({ workspaceId, type, entityType: "WORKSPACE", entityId: workspaceId, summary: title, notify: { team: { kind: "workspace" }, title, message, actionUrl, email: true } });
 }
+

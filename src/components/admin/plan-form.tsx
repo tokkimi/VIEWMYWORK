@@ -8,17 +8,19 @@ import { CurrencySelect } from "@/components/app/entity-fields";
 import { useActionButton } from "@/components/app/invoice-actions";
 import { savePlanAction, syncPlanStripeAction } from "@/server/actions/admin";
 import { centsToInput } from "@/lib/money";
+import { Tr, useI18n } from "@/lib/i18n/client";
 
 type P = { id: string; code: string; name: string; description: string | null; monthlyPriceCents: number; annualPriceCents: number | null; currency: string; storageLimitMb: number | null; activeProjectLimit: number | null; clientLimit: number | null; collaboratorLimit: number | null; trialDays: number; sortOrder: number; isActive: boolean; isPublic: boolean; highlight: boolean; features: string[] };
 
 export function PlanDialog({ plan, featureKeys }: { plan?: P; featureKeys: Record<string, string> }) {
+  const { t } = useI18n();
   return (
-    <Dialog size="lg" title={plan ? `Edit ${plan.name}` : "New plan"} description="Changing prices never affects existing subscriptions — they keep the price they signed up with." trigger={(open) => (plan ? <Button size="sm" onClick={open}><Pencil className="size-3.5" />Edit</Button> : <Button variant="primary" onClick={open}><Plus className="size-4" />New plan</Button>)}>
+    <Dialog size="lg" title={plan ? t("Edit {name}", { name: plan.name }) : t("New plan")} description="Changing prices never affects existing subscriptions — they keep the price they signed up with." trigger={(open) => (plan ? <Button size="sm" onClick={open}><Pencil className="size-3.5" /><Tr>Edit</Tr></Button> : <Button variant="primary" onClick={open}><Plus className="size-4" /><Tr>New plan</Tr></Button>)}>
       {(close) => (
         <Form action={savePlanAction} onSuccess={close} className="space-y-6">
           {plan && <input type="hidden" name="id" value={plan.id} />}
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Code" name="code"><Input name="code" defaultValue={plan?.code} required placeholder="PRO" /></Field>
+            <Field label="Code" name="code"><Input name="code" defaultValue={plan?.code} required placeholder={t("PRO")} /></Field>
             <Field label="Name" name="name" className="sm:col-span-2"><Input name="name" defaultValue={plan?.name} required /></Field>
             <Field label="Description" name="description" optional className="sm:col-span-3"><Textarea name="description" rows={2} defaultValue={plan?.description ?? ""} /></Field>
             <Field label="Monthly price" name="monthlyPrice"><Input name="monthlyPrice" inputMode="decimal" defaultValue={plan ? centsToInput(plan.monthlyPriceCents) : ""} required /></Field>
@@ -26,7 +28,7 @@ export function PlanDialog({ plan, featureKeys }: { plan?: P; featureKeys: Recor
             <Field label="Currency" name="currency"><CurrencySelect value={plan?.currency ?? "EUR"} /></Field>
           </div>
           <div>
-            <div className="mb-2 text-[13px] font-medium">Limits <span className="font-normal text-subtle">(empty = unlimited)</span></div>
+            <div className="mb-2 text-[13px] font-medium"><Tr>Limits</Tr> <span className="font-normal text-subtle">(empty = unlimited)</span></div>
             <div className="grid gap-4 sm:grid-cols-4">
               <Field label="Storage (MB)" name="storageLimitMb"><Input name="storageLimitMb" type="number" min={0} defaultValue={plan?.storageLimitMb ?? ""} /></Field>
               <Field label="Active projects" name="activeProjectLimit"><Input name="activeProjectLimit" type="number" min={0} defaultValue={plan?.activeProjectLimit ?? ""} /></Field>
@@ -35,7 +37,7 @@ export function PlanDialog({ plan, featureKeys }: { plan?: P; featureKeys: Recor
             </div>
           </div>
           <div>
-            <div className="mb-2 text-[13px] font-medium">Features</div>
+            <div className="mb-2 text-[13px] font-medium"><Tr>Features</Tr></div>
             <div className="grid gap-2 sm:grid-cols-2">
               {Object.entries(featureKeys).map(([k, label]) => <Checkbox key={k} name={`feature_${k}`} label={label} defaultChecked={plan?.features.includes(k)} />)}
             </div>
@@ -49,7 +51,7 @@ export function PlanDialog({ plan, featureKeys }: { plan?: P; featureKeys: Recor
             <Checkbox name="isPublic" label="Public" description="Shown on the pricing page." defaultChecked={plan?.isPublic ?? true} />
             <Checkbox name="highlight" label="Highlighted" defaultChecked={plan?.highlight} />
           </div>
-          <div className="flex justify-end gap-2"><Button onClick={close}>Cancel</Button><Submit>Save plan</Submit></div>
+          <div className="flex justify-end gap-2"><Button onClick={close}><Tr>Cancel</Tr></Button><Submit><Tr>Save plan</Tr></Submit></div>
         </Form>
       )}
     </Dialog>
@@ -58,5 +60,5 @@ export function PlanDialog({ plan, featureKeys }: { plan?: P; featureKeys: Recor
 
 export function SyncStripeButton({ id }: { id: string }) {
   const { pending, run } = useActionButton();
-  return <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => syncPlanStripeAction(id))}><RefreshCw className="size-3.5" />Sync Stripe</Button>;
+  return <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => syncPlanStripeAction(id))}><RefreshCw className="size-3.5" /><Tr>Sync Stripe</Tr></Button>;
 }

@@ -8,10 +8,13 @@ import { toFileDTO } from "@/lib/file-dto";
 import { integrations } from "@/lib/env";
 import { storageQuota, formatBytes } from "@/lib/plans";
 import { inputClass } from "@/components/ui/form";
+import { pageTitle, getI18n } from "@/lib/i18n/server";
+import { Tr } from "@/lib/i18n/client";
 
-export const metadata = { title: "Files" };
+export const generateMetadata = pageTitle("Files");
 
 export default async function Files({ searchParams }: { searchParams: Promise<{ project?: string; q?: string }> }) {
+  const { t } = await getI18n();
   const ctx = await requireWorkspace();
   const sp = await searchParams;
   const scope = projectScope(ctx);
@@ -35,15 +38,15 @@ export default async function Files({ searchParams }: { searchParams: Promise<{ 
     <>
       <PageHeader
         title="Files"
-        description={quota.limit ? `${formatBytes(quota.used)} of ${formatBytes(quota.limit)} used` : `${formatBytes(quota.used)} used`}
-        actions={quota.limit ? <div className="w-40"><ProgressBar value={pct} size="sm" label="Storage used" /></div> : undefined}
+        description={quota.limit ? t("{used} of {limit} used", { used: formatBytes(quota.used), limit: formatBytes(quota.limit) }) : t("{used} used", { used: formatBytes(quota.used) })}
+        actions={quota.limit ? <div className="w-40"><ProgressBar value={pct} size="sm" label={t("Storage used")} /></div> : undefined}
       />
       <div className="space-y-6">
         {can(ctx, "files", "upload") && <Uploader target={sp.project ? { projectId: sp.project } : {}} configured={integrations.storage()} />}
-        <form className="flex flex-wrap gap-2" aria-label="Filter">
-          <input name="q" defaultValue={sp.q} placeholder="Search files…" aria-label="Search files" className={`${inputClass} w-56`} />
-          <select name="project" defaultValue={sp.project ?? ""} aria-label="Project" className={`${inputClass} w-auto`}><option value="">All files</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
-          <button className="h-9 rounded-[10px] border border-line px-3 text-sm text-muted hover:text-fg">Apply</button>
+        <form className="flex flex-wrap gap-2" aria-label={t("Filter")}>
+          <input name="q" defaultValue={sp.q} placeholder={t("Search files…")} aria-label={t("Search files")} className={`${inputClass} w-56`} />
+          <select name="project" defaultValue={sp.project ?? ""} aria-label={t("Project")} className={`${inputClass} w-auto`}><option value="">{t("All files")}</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+          <button className="h-9 rounded-[10px] border border-line px-3 text-sm text-muted hover:text-fg"><Tr>Apply</Tr></button>
         </form>
         {files.length === 0 ? <EmptyState icon={<FolderOpen />} title="No files yet" description="Upload documents, images and deliverables — or link them from Google Drive." /> : <FileGrid files={files.map(toFileDTO)} canManage={can(ctx, "files", "upload")} />}
       </div>

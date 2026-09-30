@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
+import { useI18n } from "@/lib/i18n/client";
 
 export function CopyButton({ value, label = "Copy link" }: { value: string; label?: string }) {
   const [done, setDone] = useState(false);
+  const { t } = useI18n();
   return (
     <button
       type="button"
@@ -16,7 +18,7 @@ export function CopyButton({ value, label = "Copy link" }: { value: string; labe
       className="inline-flex items-center gap-1.5 text-xs text-accent hover:underline"
     >
       {done ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-      {done ? "Copied" : label}
+      {done ? t("Copied") : t(label)}
     </button>
   );
 }

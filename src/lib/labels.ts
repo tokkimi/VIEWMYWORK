@@ -64,6 +64,24 @@ export const PAYMENT_METHOD: Record<PaymentMethod, string> = {
   OTHER: "Other",
 };
 
+/** Subjects a client can pick when requesting a change. */
+export const CHANGE_SUBJECTS = {
+  DESIGN: "Design & visuals",
+  CONTENT: "Text & content",
+  FEATURE: "Feature or behaviour",
+  BUG: "Something is broken",
+  MEDIA: "Images & media",
+  OTHER: "Other",
+} as const;
+export type ChangeSubject = keyof typeof CHANGE_SUBJECTS;
+
+export const CHANGE_REQUEST_STATUS: Record<"OPEN" | "IN_PROGRESS" | "DONE" | "DECLINED", { label: string; tone: Tone }> = {
+  OPEN: { label: "New", tone: "warning" },
+  IN_PROGRESS: { label: "In progress", tone: "accent" },
+  DONE: { label: "Done", tone: "success" },
+  DECLINED: { label: "Declined", tone: "neutral" },
+};
+
 export const EXPENSE_CATEGORIES = { SOFTWARE: "Software", FREELANCER: "Freelancer", TRAVEL: "Travel", MATERIAL: "Material", ADVERTISING: "Advertising", OTHER: "Other" } as const;
 
 export const PROJECT_TYPES = ["Website", "Mobile Application", "Branding", "Marketing", "Consulting", "Architecture", "Event", "Custom"] as const;

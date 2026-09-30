@@ -6,6 +6,7 @@ import type { ActionResult } from "@/lib/errors";
 import { cn } from "@/lib/cn";
 import { useToast } from "./toast";
 import { buttonClass } from "./button";
+import { Tx, useI18n } from "@/lib/i18n/client";
 
 const FormCtx = createContext<{ errors: Record<string, string>; pending: boolean }>({ errors: {}, pending: false });
 
@@ -28,6 +29,7 @@ export function Form({ action, onSuccess, successMessage, redirectTo, resetOnSuc
   const [pending, start] = useTransition();
   const router = useRouter();
   const toast = useToast();
+  const { t } = useI18n();
   const ref = useRef<HTMLFormElement>(null);
 
   return (
@@ -48,7 +50,7 @@ export function Form({ action, onSuccess, successMessage, redirectTo, resetOnSuc
               return;
             }
             setErrors({});
-            if (successMessage || res.message) toast.success(res.message ?? successMessage!);
+            if (successMessage || res.message) toast.success(res.message ?? t(successMessage!));
             if (resetOnSuccess) ref.current?.reset();
             onSuccess?.(res.data);
             const to = typeof redirectTo === "function" ? redirectTo(res.data) : redirectTo;
@@ -72,10 +74,11 @@ export function useFormState() {
 
 export function Submit({ children, variant = "primary", size = "md", className, pendingLabel }: { children: ReactNode; variant?: "primary" | "secondary" | "danger" | "outline" | "ghost"; size?: "sm" | "md" | "lg"; className?: string; pendingLabel?: string }) {
   const { pending } = useFormState();
+  const { t } = useI18n();
   return (
     <button type="submit" aria-busy={pending} className={buttonClass(variant, size, className)}>
       {pending && <span aria-hidden className="size-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />}
-      {pending && pendingLabel ? pendingLabel : children}
+      {pending && pendingLabel ? t(pendingLabel) : <Tx>{children}</Tx>}
     </button>
   );
 }
@@ -91,14 +94,15 @@ export function FieldError({ name }: { name: string }) {
 }
 
 export function Field({ label, name, hint, children, className, optional }: { label: string; name: string; hint?: string; children: ReactNode; className?: string; optional?: boolean }) {
+  const { t } = useI18n();
   return (
     <div className={cn("min-w-0", className)}>
       <label htmlFor={name} className="mb-1.5 flex items-baseline justify-between text-[13px] font-medium text-fg/90">
-        <span>{label}</span>
-        {optional && <span className="text-[11px] font-normal text-subtle">Optional</span>}
+        <span>{t(label)}</span>
+        {optional && <span className="text-[11px] font-normal text-subtle">{t("Optional")}</span>}
       </label>
       {children}
-      {hint && <p className="mt-1.5 text-xs text-muted">{hint}</p>}
+      {hint && <p className="mt-1.5 text-xs text-muted">{t(hint)}</p>}
       <FieldError name={name} />
     </div>
   );
@@ -130,12 +134,13 @@ export function Select({ className, name, children, ...props }: ComponentProps<"
 }
 
 export function Checkbox({ label, name, defaultChecked, description, value }: { label: string; name: string; defaultChecked?: boolean; description?: string; value?: string }) {
+  const { t } = useI18n();
   return (
     <label className="flex cursor-pointer items-start gap-3 text-sm">
       <input type="checkbox" name={name} value={value ?? "on"} defaultChecked={defaultChecked} className="mt-0.5 size-4 shrink-0 rounded border-line-strong bg-transparent accent-[#4d7cfe]" />
       <span>
-        <span className="text-fg">{label}</span>
-        {description && <span className="mt-0.5 block text-xs text-muted">{description}</span>}
+        <span className="text-fg">{t(label)}</span>
+        {description && <span className="mt-0.5 block text-xs text-muted">{t(description)}</span>}
       </span>
     </label>
   );

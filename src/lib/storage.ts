@@ -31,7 +31,7 @@ const ALL_ALLOWED = new Set(Object.values(ALLOWED).flat());
 
 export function validateUpload(mimeType: string, size: number) {
   if (!ALL_ALLOWED.has(mimeType)) throw new AppError("This file type is not supported.", "INVALID");
-  if (size <= 0 || size > MAX_UPLOAD_BYTES) throw new AppError(`Files must be smaller than ${MAX_UPLOAD_BYTES / 1024 / 1024} MB.`, "INVALID");
+  if (size <= 0 || size > MAX_UPLOAD_BYTES) throw new AppError(["Files must be smaller than {n} MB.", { n: MAX_UPLOAD_BYTES / 1024 / 1024 }], "INVALID");
 }
 
 export function kindOf(mimeType: string): "PDF" | "IMAGE" | "VIDEO" | "DOCUMENT" | "SPREADSHEET" | "PRESENTATION" | "ARCHIVE" | "OTHER" {

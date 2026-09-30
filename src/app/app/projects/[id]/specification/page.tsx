@@ -5,12 +5,14 @@ import { SpecBuilder, type SpecPhase } from "@/components/app/spec-builder";
 import { TaskPanelLoader } from "@/components/app/task-panel-loader";
 import { Section } from "@/components/ui/primitives";
 import { ProgressModeControl, ScopeChangeDialog, DecideScopeChange, SaveTemplateDialog } from "@/components/app/project-forms";
-import { formatMoney } from "@/lib/money";
-import { fmtDate, fmtDateTime } from "@/lib/format";
 import { Badge } from "@/components/ui/primitives";
 import { projectProgress } from "@/lib/progress";
+import { Tr } from "@/lib/i18n/client";
+import { storedText } from "@/lib/i18n/core";
+import { getI18n } from "@/lib/i18n/server";
 
 export default async function Specification({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ task?: string }> }) {
+  const { t, fmt } = await getI18n();
   const { id } = await params;
   const { task } = await searchParams;
   const { ctx, project, perms } = await loadProject(id);
@@ -44,12 +46,12 @@ export default async function Specification({ params, searchParams }: { params: 
           </Section>
         )}
         <Section title="Scope changes" action={canManage ? <ScopeChangeDialog projectId={id} /> : undefined}>
-          {scopeChanges.length === 0 ? <p className="text-sm text-subtle">No scope changes recorded.</p> : (
+          {scopeChanges.length === 0 ? <p className="text-sm text-subtle"><Tr>No scope changes recorded.</Tr></p> : (
             <ul className="space-y-2">
               {scopeChanges.map((s) => (
                 <li key={s.id} className="panel rounded-xl p-3 text-sm">
                   <div className="flex items-start justify-between gap-2"><span className="whitespace-pre-line">{s.description}</span><Badge tone={s.status === "APPROVED" ? "success" : s.status === "REJECTED" ? "neutral" : "warning"}>{s.status.toLowerCase()}</Badge></div>
-                  <div className="mt-1 text-xs text-subtle">{s.requestedBy} · {fmtDate(s.requestedAt)}{s.additionalCostCents ? ` · +${formatMoney(s.additionalCostCents, project.currency)}` : ""}{s.additionalDays ? ` · +${s.additionalDays}d` : ""}</div>
+                  <div className="mt-1 text-xs text-subtle">{s.requestedBy} · {fmt.date(s.requestedAt)}{s.additionalCostCents ? ` · +${fmt.money(s.additionalCostCents, project.currency)}` : ""}{s.additionalDays ? ` · +${s.additionalDays}d` : ""}</div>
                   {s.status === "PROPOSED" && canManage && <div className="mt-2"><DecideScopeChange id={s.id} canExtend={Boolean(project.targetDate && s.additionalDays)} /></div>}
                 </li>
               ))}
@@ -57,9 +59,9 @@ export default async function Specification({ params, searchParams }: { params: 
           )}
         </Section>
         <Section title="Specification history">
-          {history.length === 0 ? <p className="text-sm text-subtle">No changes yet.</p> : (
+          {history.length === 0 ? <p className="text-sm text-subtle"><Tr>No changes yet.</Tr></p> : (
             <ol className="space-y-2.5 border-l border-line pl-4 text-[13px]">
-              {history.map((h) => <li key={h.id}><div>{h.change}</div><div className="text-[11px] text-subtle">{h.actorName} · {fmtDateTime(h.createdAt)}</div></li>)}
+              {history.map((h) => <li key={h.id}><div>{storedText(fmt.locale, h.change, h.metadata)}</div><div className="text-[11px] text-subtle">{h.actorName} · {fmt.dateTime(h.createdAt)}</div></li>)}
             </ol>
           )}
         </Section>

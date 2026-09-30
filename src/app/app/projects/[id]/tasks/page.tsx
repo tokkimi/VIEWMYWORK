@@ -8,8 +8,10 @@ import { LinkTabs } from "@/components/ui/tabs";
 import { listTasks } from "@/server/queries/tasks";
 import { TaskList, TaskBoard, ViewToggle, NewTaskDialog, type TaskItem } from "@/components/app/task-views";
 import { TaskPanelLoader } from "@/components/app/task-panel-loader";
+import { getI18n } from "@/lib/i18n/server";
 
 export default async function ProjectTasks({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ view?: string; tab?: string; task?: string; new?: string }> }) {
+  const { t } = await getI18n();
   const { id } = await params;
   const sp = await searchParams;
   const { ctx, perms } = await loadProject(id);
@@ -25,7 +27,7 @@ export default async function ProjectTasks({ params, searchParams }: { params: P
     <>
       <div className="mb-4 flex items-center justify-between gap-3">
         <Suspense><ViewToggle view={view} /></Suspense>
-        {hasLevel(perms, "tasks", "edit") && <NewTaskDialog projects={[{ id, name: "This project" }]} members={members.map((m) => ({ id: m.user.id, name: m.user.name }))} defaultProjectId={id} openInitially={sp.new === "1"} />}
+        {hasLevel(perms, "tasks", "edit") && <NewTaskDialog projects={[{ id, name: t("This project") }]} members={members.map((m) => ({ id: m.user.id, name: m.user.name }))} defaultProjectId={id} openInitially={sp.new === "1"} />}
       </div>
       {view === "list" && (
         <Suspense>

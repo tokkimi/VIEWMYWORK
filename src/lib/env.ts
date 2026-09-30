@@ -7,7 +7,7 @@ export const env = {
   isProd: process.env.NODE_ENV === "production",
   email: {
     resendKey: process.env.RESEND_API_KEY || "",
-    from: process.env.EMAIL_FROM || "ViewMyWork <notifications@viewmywork.app>",
+    from: process.env.EMAIL_FROM || "FollowMyFuture <notifications@followmyfuture.com>",
   },
   stripe: {
     secretKey: process.env.STRIPE_SECRET_KEY || "",

@@ -5,12 +5,14 @@ import { requireSuperAdmin } from "@/lib/auth/context";
 import { PageHeader, Badge, Table, th, td } from "@/components/ui/primitives";
 import { Pagination } from "@/components/ui/pagination";
 import { inputClass } from "@/components/ui/form";
-import { fmtDate, relativeTime } from "@/lib/format";
+import { pageTitle, getI18n } from "@/lib/i18n/server";
+import { Tr } from "@/lib/i18n/client";
 
-export const metadata = { title: "Users" };
+export const generateMetadata = pageTitle("Users");
 const PER = 50;
 
 export default async function AdminUsers({ searchParams }: { searchParams: Promise<{ q?: string; f?: string; page?: string }> }) {
+  const { t, fmt } = await getI18n();
   await requireSuperAdmin();
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
@@ -30,27 +32,27 @@ export default async function AdminUsers({ searchParams }: { searchParams: Promi
   ]);
   return (
     <>
-      <PageHeader title="Users" description={`${total} users`} />
+      <PageHeader title="Users" description={t("{n} users", { n: total })} />
       <form className="mb-5 flex flex-wrap gap-2">
-        <input name="q" defaultValue={sp.q} placeholder="Search name or email…" aria-label="Search users" className={`${inputClass} w-64`} />
-        <select name="f" defaultValue={f} aria-label="Filter" className={`${inputClass} w-auto`}>
-          <option value="">All</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="verified">Verified</option><option value="unverified">Unverified</option><option value="trial">Trial</option><option value="paying">Paying</option><option value="cancelled">Cancelled</option>
+        <input name="q" defaultValue={sp.q} placeholder={t("Search name or email…")} aria-label={t("Search users")} className={`${inputClass} w-64`} />
+        <select name="f" defaultValue={f} aria-label={t("Filter")} className={`${inputClass} w-auto`}>
+          <option value="">{t("All")}</option><option value="active">{t("Active")}</option><option value="suspended">{t("Suspended")}</option><option value="verified">{t("Verified")}</option><option value="unverified">{t("Unverified")}</option><option value="trial">{t("Trial")}</option><option value="paying">{t("Paying")}</option><option value="cancelled">{t("Cancelled")}</option>
         </select>
-        <button className="h-9 rounded-[10px] border border-line px-3 text-sm text-muted hover:text-fg">Apply</button>
+        <button className="h-9 rounded-[10px] border border-line px-3 text-sm text-muted hover:text-fg"><Tr>Apply</Tr></button>
       </form>
       <Table>
-        <thead><tr><th className={th}>User</th><th className={th}>Workspace</th><th className={th}>Plan</th><th className={th}>Created</th><th className={th}>Last activity</th><th className={th}>Status</th></tr></thead>
+        <thead><tr><th className={th}><Tr>User</Tr></th><th className={th}><Tr>Workspace</Tr></th><th className={th}><Tr>Plan</Tr></th><th className={th}><Tr>Created</Tr></th><th className={th}><Tr>Last activity</Tr></th><th className={th}><Tr>Status</Tr></th></tr></thead>
         <tbody>
           {users.map((u) => {
             const w = u.memberships[0]?.workspace;
             return (
               <tr key={u.id} className="hover:bg-white/[0.02]">
                 <td className={td}><Link href={`/admin/users/${u.id}`} className="hover:underline"><div>{u.name}</div><div className="text-xs text-muted">{u.email}</div></Link></td>
-                <td className={`${td} text-muted`}>{w?.name ?? (u._count.clientAccess ? "Client portal user" : "—")}</td>
+                <td className={`${td} text-muted`}>{w?.name ?? (u._count.clientAccess ? t("Client portal user") : "—")}</td>
                 <td className={td}>{w?.subscription ? <span className="text-xs">{w.subscription.plan.name} · <span className="text-muted">{w.subscription.status.toLowerCase()}</span></span> : "—"}</td>
-                <td className={`${td} text-muted`}>{fmtDate(u.createdAt)}</td>
-                <td className={`${td} text-muted`}>{u.lastActiveAt ? relativeTime(u.lastActiveAt) : "—"}</td>
-                <td className={td}><div className="flex gap-1">{u.status === "SUSPENDED" ? <Badge tone="danger">Suspended</Badge> : <Badge tone="success">Active</Badge>}{!u.emailVerifiedAt && <Badge tone="warning">Unverified</Badge>}{u.platformRole === "SUPER_ADMIN" && <Badge tone="accent">Admin</Badge>}</div></td>
+                <td className={`${td} text-muted`}>{fmt.date(u.createdAt)}</td>
+                <td className={`${td} text-muted`}>{u.lastActiveAt ? fmt.rel(u.lastActiveAt) : "—"}</td>
+                <td className={td}><div className="flex gap-1">{u.status === "SUSPENDED" ? <Badge tone="danger"><Tr>Suspended</Tr></Badge> : <Badge tone="success"><Tr>Active</Tr></Badge>}{!u.emailVerifiedAt && <Badge tone="warning"><Tr>Unverified</Tr></Badge>}{u.platformRole === "SUPER_ADMIN" && <Badge tone="accent"><Tr>Admin</Tr></Badge>}</div></td>
               </tr>
             );
           })}

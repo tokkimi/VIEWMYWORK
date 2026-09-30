@@ -1,11 +1,12 @@
 import type { Prisma } from "@prisma/client";
 import { db, type Tx } from "@/lib/db";
+import { renderMsg, translate, withSourceMsg, type Locale, type Msg } from "@/lib/i18n/core";
 import { notFound, forbidden, AppError } from "@/lib/errors";
 import { getProjectAccess, isUuid, projectScope, type WorkspaceCtx } from "@/lib/auth/context";
 import { hasLevel } from "@/lib/auth/permissions";
 
-export async function logSpec(tx: Tx, projectId: string, ctx: WorkspaceCtx | null, change: string, metadata?: Prisma.InputJsonValue) {
-  await tx.specHistory.create({ data: { projectId, actorId: ctx?.user.id ?? null, actorName: ctx?.user.name ?? "System", change, metadata } });
+export async function logSpec(tx: Tx, projectId: string, ctx: WorkspaceCtx | null, change: Msg, metadata?: Record<string, Prisma.InputJsonValue>) {
+  await tx.specHistory.create({ data: { projectId, actorId: ctx?.user.id ?? null, actorName: ctx?.user.name ?? "System", change: renderMsg("en", change), metadata: withSourceMsg(change, metadata) as Prisma.InputJsonValue | undefined } });
 }
 
 export async function loadPhase(ctx: WorkspaceCtx, id: string, level: "view" | "edit" | "manage" = "edit") {
@@ -33,17 +34,19 @@ export async function assertAssignable(workspaceId: string, userId: string | nul
 }
 
 /** Copies a template's structure into a project — a deep copy, never a live reference. */
-export async function applyTemplate(tx: Tx, workspaceId: string, projectId: string, templateId: string) {
+export async function applyTemplate(tx: Tx, workspaceId: string, projectId: string, templateId: string, locale: Locale = "en") {
   const tpl = await tx.projectTemplate.findFirst({
     where: { id: templateId, OR: [{ workspaceId: null }, { workspaceId }] },
     include: { phases: { orderBy: { position: "asc" }, include: { tasks: { orderBy: { position: "asc" } } } } },
   });
   if (!tpl) throw notFound("Template not found.");
+  // Built-in templates are written in English; they are copied in the creator's language.
+  const tr = (s: string) => (tpl.workspaceId === null ? translate(locale, s) : s);
   for (const ph of tpl.phases) {
-    const phase = await tx.phase.create({ data: { projectId, title: ph.title, weight: ph.weight, position: ph.position } });
+    const phase = await tx.phase.create({ data: { projectId, title: tr(ph.title), weight: ph.weight, position: ph.position } });
     if (ph.tasks.length)
       await tx.task.createMany({
-        data: ph.tasks.map((t) => ({ workspaceId, projectId, phaseId: phase.id, title: t.title, description: t.description, weight: t.weight, position: t.position, visibility: t.visibility, requiresApproval: t.requiresApproval })),
+        data: ph.tasks.map((t) => ({ workspaceId, projectId, phaseId: phase.id, title: tr(t.title), description: t.description, weight: t.weight, position: t.position, visibility: t.visibility, requiresApproval: t.requiresApproval })),
       });
   }
   return tpl;

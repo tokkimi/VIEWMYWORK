@@ -5,12 +5,13 @@ import { integrations } from "@/lib/env";
 import { getWorkspacePlan, storageQuota, formatBytes, FEATURE_KEYS, type FeatureKey } from "@/lib/plans";
 import { PlanPicker } from "@/components/app/settings-forms";
 import { KeyValue, Badge } from "@/components/ui/primitives";
-import { formatMoney } from "@/lib/money";
-import { fmtDate } from "@/lib/format";
+import { pageTitle, getI18n } from "@/lib/i18n/server";
+import { Tr } from "@/lib/i18n/client";
 
-export const metadata = { title: "Billing" };
+export const generateMetadata = pageTitle("Billing");
 
 export default async function Billing({ searchParams }: { searchParams: Promise<{ success?: string; changed?: string }> }) {
+  const { t, fmt } = await getI18n();
   const ctx = await requireWorkspace();
   if (ctx.member.role !== "OWNER") redirect("/app/settings");
   const sp = await searchParams;
@@ -29,16 +30,16 @@ export default async function Billing({ searchParams }: { searchParams: Promise<
 
   return (
     <div className="space-y-10">
-      {sp.success && <p className="rounded-xl bg-success-soft px-4 py-3 text-sm text-success">Thanks! Your subscription is being activated — it can take a few seconds to appear.</p>}
-      {sp.changed && <p className="rounded-xl bg-success-soft px-4 py-3 text-sm text-success">Plan change requested. It will be reflected here as soon as Stripe confirms it.</p>}
+      {sp.success && <p className="rounded-xl bg-success-soft px-4 py-3 text-sm text-success"><Tr>Thanks! Your subscription is being activated — it can take a few seconds to appear.</Tr></p>}
+      {sp.changed && <p className="rounded-xl bg-success-soft px-4 py-3 text-sm text-success"><Tr>Plan change requested. It will be reflected here as soon as Stripe confirms it.</Tr></p>}
       <section>
-        <h2 className="mb-3 text-[13px] font-semibold">Current subscription</h2>
+        <h2 className="mb-3 text-[13px] font-semibold"><Tr>Current subscription</Tr></h2>
         <div className="panel rounded-2xl px-5">
           <KeyValue items={[
             { k: "Plan", v: <span className="flex items-center justify-end gap-2">{p?.plan.name ?? "—"} <Badge tone={statusTone}>{p?.trialExpired ? "Trial ended" : sub?.status.toLowerCase().replace("_", " ")}</Badge></span> },
-            { k: "Price", v: sub ? `${formatMoney(sub.priceCents, sub.currency)} / ${sub.interval}` : "—" },
-            ...(sub?.status === "TRIALING" && sub.trialEndsAt ? [{ k: "Trial ends", v: fmtDate(sub.trialEndsAt) }] : []),
-            ...(sub?.currentPeriodEnd ? [{ k: sub.cancelAtPeriodEnd ? "Ends on" : "Renews on", v: fmtDate(sub.currentPeriodEnd) }] : []),
+            { k: "Price", v: sub ? `${fmt.money(sub.priceCents, sub.currency)} / ${t(sub.interval)}` : "—" },
+            ...(sub?.status === "TRIALING" && sub.trialEndsAt ? [{ k: "Trial ends", v: fmt.date(sub.trialEndsAt) }] : []),
+            ...(sub?.currentPeriodEnd ? [{ k: sub.cancelAtPeriodEnd ? t("Ends on") : t("Renews on"), v: fmt.date(sub.currentPeriodEnd) }] : []),
             { k: "Active projects", v: lim(projects, p?.plan.activeProjectLimit) },
             { k: "Clients", v: lim(clients, p?.plan.clientLimit) },
             { k: "Collaborators", v: lim(members, p?.plan.collaboratorLimit) },
@@ -48,7 +49,7 @@ export default async function Billing({ searchParams }: { searchParams: Promise<
         </div>
       </section>
       <section>
-        <h2 className="mb-3 text-[13px] font-semibold">Change plan</h2>
+        <h2 className="mb-3 text-[13px] font-semibold"><Tr>Change plan</Tr></h2>
         <PlanPicker
           plans={plans.map((pl) => ({ code: pl.code, name: pl.name, description: pl.description, monthly: pl.monthlyPriceCents, annual: pl.annualPriceCents, currency: pl.currency, highlight: pl.highlight, features: pl.features.filter((f) => f.enabled).map((f) => f.key) }))}
           currentCode={p?.plan.code ?? ""}
@@ -58,9 +59,9 @@ export default async function Billing({ searchParams }: { searchParams: Promise<
       </section>
       {payments.length > 0 && (
         <section>
-          <h2 className="mb-3 text-[13px] font-semibold">Subscription payments</h2>
+          <h2 className="mb-3 text-[13px] font-semibold"><Tr>Subscription payments</Tr></h2>
           <ul className="panel divide-y divide-line rounded-2xl text-sm">
-            {payments.map((pp) => <li key={pp.id} className="flex items-center justify-between px-4 py-2.5"><span className="text-muted">{fmtDate(pp.paidAt ?? pp.createdAt)}</span><span className="num">{formatMoney(pp.amountCents, pp.currency)}</span><Badge tone={pp.status === "PAID" ? "success" : "danger"}>{pp.status.toLowerCase()}</Badge></li>)}
+            {payments.map((pp) => <li key={pp.id} className="flex items-center justify-between px-4 py-2.5"><span className="text-muted">{fmt.date(pp.paidAt ?? pp.createdAt)}</span><span className="num">{fmt.money(pp.amountCents, pp.currency)}</span><Badge tone={pp.status === "PAID" ? "success" : "danger"}>{pp.status.toLowerCase()}</Badge></li>)}
           </ul>
         </section>
       )}

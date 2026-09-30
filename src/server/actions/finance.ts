@@ -6,7 +6,7 @@ import { runAction, notFound } from "@/lib/errors";
 import { requireWorkspace, requirePerm, requireProjectPerm, isUuid } from "@/lib/auth/context";
 import { formToObject, zOptStr, zCurrency, zMoney, zOptMoney } from "@/lib/validation";
 import { emit } from "@/lib/events";
-import { formatMoney } from "@/lib/money";
+
 
 const expenseSchema = z.object({
   name: z.string().trim().min(1, "Name is required.").max(160),
@@ -38,7 +38,7 @@ export async function saveExpenseAction(fd: FormData) {
       return { id };
     }
     const e = await db.expense.create({ data: { ...data, workspaceId: ctx.workspace.id, createdById: ctx.user.id } });
-    await emit({ workspaceId: ctx.workspace.id, type: "EXPENSE_CREATED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: e.projectId, entityType: "EXPENSE", entityId: e.id, summary: `Expense “${e.name}” (${formatMoney(e.amountCents, e.currency)}) recorded` });
+    await emit({ workspaceId: ctx.workspace.id, type: "EXPENSE_CREATED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: e.projectId, entityType: "EXPENSE", entityId: e.id, summary: ["Expense “{name}” ({amount}) recorded", { name: e.name, amount: { money: e.amountCents, currency: e.currency } }] });
     return { id: e.id };
   }, "Expense saved.");
 }

@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { emit } from "@/lib/events";
-import { formatMoney } from "@/lib/money";
-import { fmtDate } from "@/lib/format";
+import { makeFmt, normalizeLocale } from "@/lib/i18n/core";
 import { outstandingCents, daysOverdue } from "@/lib/invoices/status";
 import { sendEmail } from "@/lib/email/send";
 import { emailTemplates } from "@/lib/email/templates";
@@ -13,19 +12,23 @@ import { clientDisplayName } from "./invoices";
 /** Shared post-payment pipeline (manual + webhook): activity, notifications, receipt. */
 export async function afterPayment(workspaceId: string, invoiceId: string, amountCents: number, actor: { id: string; name: string } | null, source: "manual" | "stripe") {
   const inv = await db.invoice.findUniqueOrThrow({ where: { id: invoiceId }, include: { client: true, workspace: { include: { settings: true } } } });
-  const amount = formatMoney(amountCents, inv.currency);
+  const amount = { money: amountCents, currency: inv.currency };
   const who = clientDisplayName(inv.client);
+  const remaining = { money: outstandingCents(inv), currency: inv.currency };
   if (inv.status === "PAID") await db.clientWait.updateMany({ where: { entityType: "INVOICE", entityId: invoiceId, resolvedAt: null }, data: { resolvedAt: new Date() } });
   await emit({
     workspaceId, type: "PAYMENT_RECEIVED", actor, projectId: inv.projectId, clientId: inv.clientId, entityType: "INVOICE", entityId: invoiceId,
-    summary: `Payment of ${amount} received for ${inv.number}${source === "manual" ? " (recorded manually)" : ""}`, clientVisible: true,
+    summary: [source === "manual" ? "Payment of {amount} received for {number} (recorded manually)" : "Payment of {amount} received for {number}", { amount, number: inv.number }], clientVisible: true,
     notify: {
       team: { kind: "workspace", capability: ["invoices", "view"] }, client: true,
-      title: `Payment received — ${amount}`, message: `${who} paid ${amount} for invoice ${inv.number}.${inv.status === "PAID" ? " The invoice is now fully paid." : ` Remaining: ${formatMoney(outstandingCents(inv), inv.currency)}.`}`,
+      title: ["Payment received — {amount}", { amount }],
+      message: inv.status === "PAID" ? ["{who} paid {amount} for invoice {number}. The invoice is now fully paid.", { who, amount, number: inv.number }] : ["{who} paid {amount} for invoice {number}. Remaining: {remaining}.", { who, amount, number: inv.number, remaining }],
       actionUrl: `/app/invoices/${invoiceId}`, clientActionUrl: `/portal/invoices/${invoiceId}`, actionLabel: "Open invoice", email: true,
     },
   });
-  const t = emailTemplates.paymentConfirmation({ brand: { name: inv.workspace.name, logoUrl: inv.workspace.settings?.invoiceLogoUrl ?? inv.workspace.logoUrl }, number: inv.number!, amount, date: fmtDate(new Date()), remaining: inv.status === "PAID" ? null : formatMoney(outstandingCents(inv), inv.currency), link: `${env.appUrl}/i/${inv.publicToken}` });
+  const locale = normalizeLocale(inv.client.preferredLanguage);
+  const fmt = makeFmt(locale);
+  const t = emailTemplates.paymentConfirmation({ brand: { name: inv.workspace.name, logoUrl: inv.workspace.settings?.invoiceLogoUrl ?? inv.workspace.logoUrl }, number: inv.number!, amount: fmt.money(amountCents, inv.currency), date: fmt.date(new Date()), remaining: inv.status === "PAID" ? null : fmt.money(outstandingCents(inv), inv.currency), link: `${env.appUrl}/i/${inv.publicToken}` }, locale);
   await sendEmail({ to: inv.client.billingEmail || inv.client.email, subject: t.subject, html: t.html, template: "payment_confirmation", workspaceId, entityType: "INVOICE", entityId: invoiceId, fromName: inv.workspace.name });
 }
 
@@ -38,12 +41,14 @@ export async function deliverReminder(invoiceId: string, kind: "MANUAL" | "AUTO"
     const created = await db.invoiceReminder.createMany({ data: [{ invoiceId, kind, offsetDays, sentTo: to }], skipDuplicates: true });
     if (created.count === 0) return { status: "SKIPPED" as const };
   } else await db.invoiceReminder.create({ data: { invoiceId, kind, offsetDays, sentTo: to, sentById: actorId } });
-  const t = emailTemplates.invoiceReminder({ brand: { name: inv.workspace.name, logoUrl: inv.workspace.settings?.invoiceLogoUrl ?? inv.workspace.logoUrl }, number: inv.number!, amount: formatMoney(outstandingCents(inv), inv.currency), dueDate: fmtDate(inv.dueDate), overdueDays: daysOverdue(inv), link: `${env.appUrl}/i/${inv.publicToken}` });
+  const locale = normalizeLocale(inv.client.preferredLanguage);
+  const fmt = makeFmt(locale);
+  const t = emailTemplates.invoiceReminder({ brand: { name: inv.workspace.name, logoUrl: inv.workspace.settings?.invoiceLogoUrl ?? inv.workspace.logoUrl }, number: inv.number!, amount: fmt.money(outstandingCents(inv), inv.currency), dueDate: fmt.date(inv.dueDate), overdueDays: daysOverdue(inv), link: `${env.appUrl}/i/${inv.publicToken}` }, locale);
   const r = await sendEmail({ to, subject: t.subject, html: t.html, template: "invoice_reminder", workspaceId: inv.workspaceId, entityType: "INVOICE", entityId: inv.id, fromName: inv.workspace.name });
   await emit({
     workspaceId: inv.workspaceId, type: "PAYMENT_REMINDER_SENT", actor: null, projectId: inv.projectId, clientId: inv.clientId, entityType: "INVOICE", entityId: inv.id,
-    summary: `${kind === "AUTO" ? "Automatic" : "Manual"} payment reminder for ${inv.number} sent to ${to}`, clientVisible: true, metadata: { emailStatus: r.status },
-    notify: { client: true, title: `Reminder: invoice ${inv.number}`, message: `${formatMoney(outstandingCents(inv), inv.currency)} is awaiting payment.`, clientActionUrl: `/portal/invoices/${inv.id}`, actionLabel: "View & pay" },
+    summary: [kind === "AUTO" ? "Automatic payment reminder for {number} sent to {to}" : "Manual payment reminder for {number} sent to {to}", { number: inv.number, to }], clientVisible: true, metadata: { emailStatus: r.status },
+    notify: { client: true, title: ["Reminder: invoice {number}", { number: inv.number }], message: ["{amount} is awaiting payment.", { amount: { money: outstandingCents(inv), currency: inv.currency } }], clientActionUrl: `/portal/invoices/${inv.id}`, actionLabel: "View & pay" },
   });
   return r;
 }

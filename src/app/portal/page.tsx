@@ -5,10 +5,13 @@ import { requirePortal, portalProjectWhere } from "@/lib/auth/portal";
 import { portalProjectHome, waitingForClient } from "@/server/queries/portal";
 import { PortalProjectHome, WaitingForYou } from "@/components/portal/project-home";
 import { ProgressBar, EmptyState } from "@/components/ui/primitives";
+import { pageTitle, getI18n } from "@/lib/i18n/server";
+import { Tr } from "@/lib/i18n/client";
 
-export const metadata = { title: "Overview" };
+export const generateMetadata = pageTitle("Overview");
 
 export default async function PortalHome() {
+  const { t } = await getI18n();
   const ctx = await requirePortal();
   const projects = await db.project.findMany({ where: portalProjectWhere(ctx), include: { phases: { where: { visibility: "CLIENT_VISIBLE" }, orderBy: { position: "asc" }, select: { title: true, status: true } } }, orderBy: [{ status: "asc" }, { updatedAt: "desc" }] });
   const waiting = await waitingForClient(ctx.workspace.id, ctx.client.id, projects.map((p) => p.id));
@@ -17,9 +20,9 @@ export default async function PortalHome() {
   if (projects.length === 0)
     return (
       <>
-        <h1 className="mb-6 text-2xl font-semibold tracking-tight">Welcome, {ctx.user.name.split(" ")[0]}</h1>
+        <h1 className="mb-6 text-2xl font-semibold tracking-tight"><Tr>Welcome,</Tr> {ctx.user.name.split(" ")[0]}</h1>
         <WaitingForYou items={waiting} />
-        <EmptyState className="mt-8" icon={<FolderKanban />} title="No projects shared yet" description={`${ctx.workspace.name} hasn't shared a project with you yet. You'll be notified when they do.`} />
+        <EmptyState className="mt-8" icon={<FolderKanban />} title="No projects shared yet" description={t("{workspace} hasn't shared a project with you yet. You'll be notified when they do.", { workspace: ctx.workspace.name })} />
       </>
     );
 
@@ -28,7 +31,7 @@ export default async function PortalHome() {
     const home = await portalProjectHome(focus.id);
     return (
       <>
-        <div className="eyebrow mb-1">Project</div>
+        <div className="eyebrow mb-1"><Tr>Project</Tr></div>
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{focus.name}</h1>
         <div className="mt-6"><PortalProjectHome project={focus} home={home} waiting={waiting} base="/portal" /></div>
       </>
@@ -37,10 +40,10 @@ export default async function PortalHome() {
 
   return (
     <div className="space-y-10">
-      <h1 className="text-2xl font-semibold tracking-tight">Hello, {ctx.user.name.split(" ")[0]}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight"><Tr>Hello,</Tr> {ctx.user.name.split(" ")[0]}</h1>
       <WaitingForYou items={waiting} />
       <section>
-        <h2 className="mb-3 text-[13px] font-semibold">Your projects</h2>
+        <h2 className="mb-3 text-[13px] font-semibold"><Tr>Your projects</Tr></h2>
         <ul className="grid gap-3 sm:grid-cols-2">
           {projects.map((p) => {
             const current = p.phases.find((x) => x.status !== "COMPLETED");
@@ -48,7 +51,7 @@ export default async function PortalHome() {
               <li key={p.id}>
                 <Link href={`/portal/projects/${p.id}`} className="glass block rounded-2xl p-5 hover:border-line-strong">
                   <div className="text-[15px] font-medium">{p.name}</div>
-                  <div className="mt-4 flex items-end justify-between"><span className="num text-3xl font-semibold">{p.progress}%</span><span className="text-xs text-muted">{p.status === "COMPLETED" ? "Completed" : current ? current.title : ""}</span></div>
+                  <div className="mt-4 flex items-end justify-between"><span className="num text-3xl font-semibold">{p.progress}%</span><span className="text-xs text-muted">{p.status === "COMPLETED" ? t("Completed") : current ? current.title : ""}</span></div>
                   <ProgressBar value={p.progress} className="mt-2" label={`${p.name} progress`} />
                 </Link>
               </li>

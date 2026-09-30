@@ -93,11 +93,11 @@ export async function submitDeliverableAction(id: string) {
     ]);
     await emit({
       workspaceId: ctx.workspace.id, type: d.requiresApproval ? "APPROVAL_REQUESTED" : "DELIVERABLE_SUBMITTED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: d.projectId, clientId: d.project.clientId, entityType: "DELIVERABLE", entityId: d.id,
-      summary: `${d.title} V${d.currentVersion} submitted${d.requiresApproval ? " for approval" : ""}`, clientVisible: true,
+      summary: [d.requiresApproval ? "{name} V{v} submitted for approval" : "{name} V{v} submitted", { name: d.title, v: d.currentVersion }], clientVisible: true,
       notify: {
         client: true,
-        title: d.requiresApproval ? `Your review is needed: ${d.title} V${d.currentVersion}` : `New deliverable: ${d.title}`,
-        message: d.requiresApproval ? `${ctx.workspace.name} submitted ${d.title} (version ${d.currentVersion}) for your approval.` : `${d.title} (version ${d.currentVersion}) is ready.`,
+        title: d.requiresApproval ? ["Your review is needed: {name} V{v}", { name: d.title, v: d.currentVersion }] : ["New deliverable: {name}", { name: d.title }],
+        message: d.requiresApproval ? ["{workspace} submitted {name} (version {v}) for your approval.", { workspace: ctx.workspace.name, name: d.title, v: d.currentVersion }] : ["{name} (version {v}) is ready.", { name: d.title, v: d.currentVersion }],
         clientActionUrl: `/portal/projects/${d.projectId}/deliverables/${d.id}`, actionLabel: d.requiresApproval ? "Review" : "View", email: true,
       },
     });

@@ -5,10 +5,12 @@ import { PageHeader } from "@/components/ui/primitives";
 import { InvoiceEditor } from "@/components/app/invoice-editor";
 import { centsToInput } from "@/lib/money";
 import { clientDisplayName, loadInvoice } from "@/server/services/invoices";
+import { pageTitle, getI18n } from "@/lib/i18n/server";
 
-export const metadata = { title: "Edit invoice" };
+export const generateMetadata = pageTitle("Edit invoice");
 
 export default async function EditInvoice({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = await getI18n();
   const ctx = await requireWorkspace();
   requirePerm(ctx, "invoices", "edit");
   const { id } = await params;
@@ -24,7 +26,7 @@ export default async function EditInvoice({ params }: { params: Promise<{ id: st
       <InvoiceEditor
         clients={clients.map((c) => ({ id: c.id, name: clientDisplayName(c), currency: c.currency }))}
         projects={projects}
-        numberPreview="Assigned on send"
+        numberPreview={t("Assigned on send")}
         initial={{
           id: inv.id,
           clientId: inv.clientId,

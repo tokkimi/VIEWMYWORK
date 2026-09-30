@@ -1,6 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { db } from "@/lib/db";
-import { fmtDate } from "@/lib/format";
+import { makeFmt, makeT, type Locale } from "@/lib/i18n/core";
 import { EXPENSE_CATEGORIES, PAYMENT_METHOD } from "@/lib/labels";
 
 export type Period = "this_month" | "last_month" | "quarter" | "year" | "custom";
@@ -33,15 +33,19 @@ const csvCell = (v: unknown) => {
 };
 const money = (c: number) => (c / 100).toFixed(2);
 
-export function toCsv(d: Awaited<ReturnType<typeof accountingData>>) {
-  const rows: unknown[][] = [["Type", "Date", "Reference", "Party", "Project", "Category/Method", "Currency", "Net", "Tax", "Total", "Status"]];
-  for (const i of d.invoices) rows.push(["Invoice", fmtDate(i.issuedAt), i.number, i.client.company || `${i.client.firstName} ${i.client.lastName}`, i.project?.name ?? "", "", i.currency, money(i.subtotalCents), money(i.taxCents), money(i.totalCents), i.status]);
-  for (const p of d.payments) rows.push(["Payment", fmtDate(p.paidAt), p.invoice.number ?? "", p.client.company || `${p.client.firstName} ${p.client.lastName}`, "", PAYMENT_METHOD[p.method], p.currency, money(p.amountCents - p.refundedCents), "", money(p.amountCents - p.refundedCents), p.status + (p.reference ? ` (${p.reference})` : "")]);
-  for (const e of d.expenses) rows.push(["Expense", fmtDate(e.date), e.reference ?? "", e.supplier ?? "", e.project?.name ?? "", EXPENSE_CATEGORIES[e.category as keyof typeof EXPENSE_CATEGORIES] ?? e.category, e.currency, money(e.amountCents - e.taxCents), money(e.taxCents), money(e.amountCents), ""]);
+export function toCsv(d: Awaited<ReturnType<typeof accountingData>>, l: Locale = "en") {
+  const t = makeT(l);
+  const fmtDate = (x: Date | null) => makeFmt(l).date(x);
+  const rows: unknown[][] = [["Type", "Date", "Reference", "Party", "Project", "Category/Method", "Currency", "Net", "Tax", "Total", "Status"].map((h) => t(h))];
+  for (const i of d.invoices) rows.push([t("Invoice"), fmtDate(i.issuedAt), i.number, i.client.company || `${i.client.firstName} ${i.client.lastName}`, i.project?.name ?? "", "", i.currency, money(i.subtotalCents), money(i.taxCents), money(i.totalCents), i.status]);
+  for (const p of d.payments) rows.push([t("Payment"), fmtDate(p.paidAt), p.invoice.number ?? "", p.client.company || `${p.client.firstName} ${p.client.lastName}`, "", t(PAYMENT_METHOD[p.method]), p.currency, money(p.amountCents - p.refundedCents), "", money(p.amountCents - p.refundedCents), p.status + (p.reference ? ` (${p.reference})` : "")]);
+  for (const e of d.expenses) rows.push([t("Expense"), fmtDate(e.date), e.reference ?? "", e.supplier ?? "", e.project?.name ?? "", t(EXPENSE_CATEGORIES[e.category as keyof typeof EXPENSE_CATEGORIES] ?? e.category), e.currency, money(e.amountCents - e.taxCents), money(e.taxCents), money(e.amountCents), ""]);
   return "﻿" + rows.map((r) => r.map(csvCell).join(",")).join("\r\n");
 }
 
-export async function toPdf(d: Awaited<ReturnType<typeof accountingData>>, title: string, workspaceName: string) {
+export async function toPdf(d: Awaited<ReturnType<typeof accountingData>>, title: string, workspaceName: string, l: Locale = "en") {
+  const tr = makeT(l);
+  const fmtDate = (x: Date | null) => makeFmt(l).date(x);
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -61,7 +65,7 @@ export async function toPdf(d: Awaited<ReturnType<typeof accountingData>>, title
     line([name], [400], bold, 11);
     line(head, w, bold);
     rows.forEach((r) => line(r, w));
-    if (totals) for (const [cur, [n, t, g]] of totals) line(["", "", "", "", "", `Total ${cur}`, "", money(n), money(t), money(g)], w, bold);
+    if (totals) for (const [cur, [n, t, g]] of totals) line(["", "", "", "", "", `${tr("Total")} ${cur}`, "", money(n), money(t), money(g)], w, bold);
     y -= 10;
   };
   const sum = (arr: { currency: string; n: number; t: number; g: number }[]) => {
@@ -69,9 +73,9 @@ export async function toPdf(d: Awaited<ReturnType<typeof accountingData>>, title
     for (const a of arr) { const c = m.get(a.currency) ?? [0, 0, 0]; m.set(a.currency, [c[0] + a.n, c[1] + a.t, c[2] + a.g]); }
     return m;
   };
-  const head = ["Date", "Reference", "Party", "Project", "Category", "Status", "Cur.", "Net", "Tax", "Total"];
-  section("Invoices", head, d.invoices.map((i) => [fmtDate(i.issuedAt), i.number ?? "", i.client.company || `${i.client.firstName} ${i.client.lastName}`, i.project?.name ?? "", "", i.status, i.currency, money(i.subtotalCents), money(i.taxCents), money(i.totalCents)]), sum(d.invoices.map((i) => ({ currency: i.currency, n: i.subtotalCents, t: i.taxCents, g: i.totalCents }))));
-  section("Payments received", head, d.payments.map((p) => [fmtDate(p.paidAt), p.invoice.number ?? "", p.client.company || `${p.client.firstName} ${p.client.lastName}`, "", PAYMENT_METHOD[p.method], p.status, p.currency, money(p.amountCents - p.refundedCents), "", money(p.amountCents - p.refundedCents)]), sum(d.payments.map((p) => ({ currency: p.currency, n: p.amountCents - p.refundedCents, t: 0, g: p.amountCents - p.refundedCents }))));
-  section("Expenses", head, d.expenses.map((e) => [fmtDate(e.date), e.reference ?? "", e.supplier ?? "", e.project?.name ?? "", EXPENSE_CATEGORIES[e.category as keyof typeof EXPENSE_CATEGORIES] ?? e.category, "", e.currency, money(e.amountCents - e.taxCents), money(e.taxCents), money(e.amountCents)]), sum(d.expenses.map((e) => ({ currency: e.currency, n: e.amountCents - e.taxCents, t: e.taxCents, g: e.amountCents }))));
+  const head = ["Date", "Reference", "Party", "Project", "Category", "Status", "Cur.", "Net", "Tax", "Total"].map((h) => tr(h));
+  section(tr("Invoices"), head, d.invoices.map((i) => [fmtDate(i.issuedAt), i.number ?? "", i.client.company || `${i.client.firstName} ${i.client.lastName}`, i.project?.name ?? "", "", i.status, i.currency, money(i.subtotalCents), money(i.taxCents), money(i.totalCents)]), sum(d.invoices.map((i) => ({ currency: i.currency, n: i.subtotalCents, t: i.taxCents, g: i.totalCents }))));
+  section(tr("Payments received"), head, d.payments.map((p) => [fmtDate(p.paidAt), p.invoice.number ?? "", p.client.company || `${p.client.firstName} ${p.client.lastName}`, "", tr(PAYMENT_METHOD[p.method]), p.status, p.currency, money(p.amountCents - p.refundedCents), "", money(p.amountCents - p.refundedCents)]), sum(d.payments.map((p) => ({ currency: p.currency, n: p.amountCents - p.refundedCents, t: 0, g: p.amountCents - p.refundedCents }))));
+  section(tr("Expenses"), head, d.expenses.map((e) => [fmtDate(e.date), e.reference ?? "", e.supplier ?? "", e.project?.name ?? "", tr(EXPENSE_CATEGORIES[e.category as keyof typeof EXPENSE_CATEGORIES] ?? e.category), "", e.currency, money(e.amountCents - e.taxCents), money(e.taxCents), money(e.amountCents)]), sum(d.expenses.map((e) => ({ currency: e.currency, n: e.amountCents - e.taxCents, t: e.taxCents, g: e.amountCents }))));
   return Buffer.from(await pdf.save());
 }

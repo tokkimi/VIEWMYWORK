@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/auth/context";
 import { PageHeader, Stat, Section } from "@/components/ui/primitives";
+import { pageTitle } from "@/lib/i18n/server";
 
-export const metadata = { title: "Projects" };
+export const generateMetadata = pageTitle("Projects");
 
 /** Aggregates only — the platform owner doesn't browse professionals' project contents. */
 export default async function AdminProjects() {

@@ -7,6 +7,7 @@ import { PROJECT_TYPES } from "@/lib/labels";
 import { toDateInput } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { LayoutTemplate, FilePlus2 } from "lucide-react";
+import { Tr, useI18n } from "@/lib/i18n/client";
 
 export type ClientValues = {
   id?: string;
@@ -38,6 +39,7 @@ export function CurrencySelect({ name = "currency", value }: { name?: string; va
 }
 
 export function ClientFields({ v = {}, compact }: { v?: ClientValues; compact?: boolean }) {
+  const { t, locale } = useI18n();
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {v.id && <input type="hidden" name="id" value={v.id} />}
@@ -54,13 +56,13 @@ export function ClientFields({ v = {}, compact }: { v?: ClientValues; compact?: 
           <Field label="Country" name="country" optional><Input name="country" defaultValue={v.country ?? ""} /></Field>
           <Field label="Timezone" name="timezone" optional><Input name="timezone" placeholder="Europe/Paris" defaultValue={v.timezone ?? ""} /></Field>
           <Field label="Preferred language" name="preferredLanguage">
-            <Select name="preferredLanguage" defaultValue={v.preferredLanguage ?? "en"}>
-              <option value="en">English</option>
-              <option value="fr">Français</option>
-              <option value="de">Deutsch</option>
-              <option value="es">Español</option>
-              <option value="it">Italiano</option>
-              <option value="nl">Nederlands</option>
+            <Select name="preferredLanguage" defaultValue={v.preferredLanguage ?? locale}>
+              <option value="en">{t("English")}</option>
+              <option value="fr">{t("Français")}</option>
+              <option value="de">{t("Deutsch")}</option>
+              <option value="es">{t("Español")}</option>
+              <option value="it">{t("Italiano")}</option>
+              <option value="nl">{t("Nederlands")}</option>
             </Select>
           </Field>
           <Field label="VAT / tax number" name="vatNumber" optional><Input name="vatNumber" defaultValue={v.vatNumber ?? ""} /></Field>
@@ -90,12 +92,13 @@ export type ProjectValues = {
 };
 
 export function ProjectFields({ v = {}, clients, members, templates, lockedClient }: { v?: ProjectValues; clients: { id: string; name: string }[]; members?: { id: string; name: string }[]; templates?: { id: string; name: string; phases: number }[]; lockedClient?: boolean }) {
+  const { t } = useI18n();
   const [templateId, setTemplateId] = useState<string>("");
   return (
     <div className="space-y-6">
       {v.id && <input type="hidden" name="id" value={v.id} />}
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Project name" name="name" className="sm:col-span-2"><Input name="name" defaultValue={v.name} required placeholder="Website Redesign" /></Field>
+        <Field label="Project name" name="name" className="sm:col-span-2"><Input name="name" defaultValue={v.name} required placeholder={t("Website Redesign")} /></Field>
         <Field label="Client" name="clientId">
           <Select name="clientId" defaultValue={v.clientId ?? clients[0]?.id} disabled={lockedClient}>
             {clients.map((c) => (
@@ -107,8 +110,8 @@ export function ProjectFields({ v = {}, clients, members, templates, lockedClien
         <Field label="Project type" name="type" optional>
           <Select name="type" defaultValue={v.type ?? ""}>
             <option value="">—</option>
-            {PROJECT_TYPES.map((t) => (
-              <option key={t} value={t}>{t}</option>
+            {PROJECT_TYPES.map((pt) => (
+              <option key={pt} value={pt}>{t(pt)}</option>
             ))}
           </Select>
         </Field>
@@ -132,11 +135,11 @@ export function ProjectFields({ v = {}, clients, members, templates, lockedClien
         {v.status && (
           <Field label="Status" name="status">
             <Select name="status" defaultValue={v.status}>
-              <option value="PLANNING">Planning</option>
-              <option value="ACTIVE">Active</option>
-              <option value="ON_HOLD">On hold</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="CANCELLED">Cancelled</option>
+              <option value="PLANNING">{t("Planning")}</option>
+              <option value="ACTIVE">{t("Active")}</option>
+              <option value="ON_HOLD">{t("On hold")}</option>
+              <option value="COMPLETED">{t("Completed")}</option>
+              <option value="CANCELLED">{t("Cancelled")}</option>
             </Select>
           </Field>
         )}
@@ -146,17 +149,17 @@ export function ProjectFields({ v = {}, clients, members, templates, lockedClien
       </div>
       {templates && (
         <div>
-          <div className="mb-2 text-[13px] font-medium">Specification</div>
+          <div className="mb-2 text-[13px] font-medium"><Tr>Specification</Tr></div>
           <input type="hidden" name="templateId" value={templateId} />
           <div className="grid gap-2 sm:grid-cols-3">
             <button type="button" onClick={() => setTemplateId("")} aria-pressed={templateId === ""} className={cn("flex items-center gap-2.5 rounded-xl border p-3 text-left text-sm transition-colors", templateId === "" ? "border-accent bg-accent-soft" : "border-line hover:border-line-strong")}>
               <FilePlus2 className="size-4 shrink-0 text-muted" />
-              <span><span className="block">Start from scratch</span><span className="text-xs text-subtle">Empty specification</span></span>
+              <span><span className="block"><Tr>Start from scratch</Tr></span><span className="text-xs text-subtle"><Tr>Empty specification</Tr></span></span>
             </button>
             {templates.map((t) => (
               <button key={t.id} type="button" onClick={() => setTemplateId(t.id)} aria-pressed={templateId === t.id} className={cn("flex items-center gap-2.5 rounded-xl border p-3 text-left text-sm transition-colors", templateId === t.id ? "border-accent bg-accent-soft" : "border-line hover:border-line-strong")}>
                 <LayoutTemplate className="size-4 shrink-0 text-muted" />
-                <span className="min-w-0"><span className="block truncate">{t.name}</span><span className="text-xs text-subtle">{t.phases} phases</span></span>
+                <span className="min-w-0"><span className="block truncate"><Tr>{t.name}</Tr></span><span className="text-xs text-subtle">{t.phases} <Tr>phases</Tr></span></span>
               </button>
             ))}
           </div>

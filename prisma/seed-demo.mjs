@@ -28,22 +28,22 @@ async function main() {
 
   const admin = await db.user.upsert({
     where: { email: adminEmail },
-    create: { email: adminEmail, name: "Admin Démo", passwordHash: await hash(adminPw), emailVerifiedAt: now, platformRole: "SUPER_ADMIN" },
+    create: { email: adminEmail, name: "Admin Démo", locale: "fr", passwordHash: await hash(adminPw), emailVerifiedAt: now, platformRole: "SUPER_ADMIN" },
     update: { platformRole: "SUPER_ADMIN", passwordHash: await hash(adminPw), emailVerifiedAt: now },
   });
   const clientUser = await db.user.upsert({
     where: { email: clientEmail },
-    create: { email: clientEmail, name: "Claire Dubois", passwordHash: await hash(clientPw), emailVerifiedAt: now },
+    create: { email: clientEmail, name: "Claire Dubois", locale: "fr", passwordHash: await hash(clientPw), emailVerifiedAt: now },
     update: { passwordHash: await hash(clientPw), emailVerifiedAt: now },
   });
 
-  const ws = await db.workspace.create({ data: { name: "Studio Démo", slug: "studio-demo", onboardingDone: true, industry: "Web & software" } });
+  const ws = await db.workspace.create({ data: { name: "Studio Démo", slug: "studio-demo", onboardingDone: true, locale: "fr", industry: "Web & software" } });
   await db.workspaceMember.create({ data: { workspaceId: ws.id, userId: admin.id, role: "OWNER", allProjects: true } });
   await db.workspaceSetting.create({ data: { workspaceId: ws.id, companyLegalName: "Studio Démo SAS", companyEmail: adminEmail, companyAddress: "12 rue de la Paix\n75002 Paris", companyCountry: "France", companyVatNumber: "FR12345678901" } });
   await db.invoiceSettings.create({ data: { workspaceId: ws.id, defaultTaxRateBps: 2000, bankDetails: "IBAN FR76 0000 0000 0000 0000 0000 000 · BIC DEMOFRPP", remindersEnabled: true } });
   await db.subscription.create({ data: { workspaceId: ws.id, planId: plan.id, status: "TRIALING", priceCents: plan.monthlyPriceCents, currency: plan.currency, trialEndsAt: days(30) } });
 
-  const client = await db.client.create({ data: { workspaceId: ws.id, firstName: "Claire", lastName: "Dubois", company: "Maison Lumière", email: clientEmail, billingAddress: "8 avenue Montaigne\n75008 Paris", country: "France", tags: ["VIP"] } });
+  const client = await db.client.create({ data: { workspaceId: ws.id, firstName: "Claire", lastName: "Dubois", company: "Maison Lumière", email: clientEmail, preferredLanguage: "fr", billingAddress: "8 avenue Montaigne\n75008 Paris", country: "France", tags: ["VIP"] } });
   await db.clientPortalAccess.create({ data: { workspaceId: ws.id, clientId: client.id, userId: clientUser.id } });
 
   const project = await db.project.create({ data: { workspaceId: ws.id, clientId: client.id, name: "Refonte du site web", type: "Website", description: "Nouveau site vitrine et boutique.", startDate: days(-30), targetDate: days(45), managerId: admin.id, budgetCents: 480000, currency: "EUR" } });

@@ -5,11 +5,13 @@ import { PageHeader, Section, Avatar, Badge, EmptyState } from "@/components/ui/
 import { InviteMemberDialog, EditMemberDialog, RemoveMemberButton, RevokeInvitationButton } from "@/components/app/team-forms";
 import { ROLE_LABELS } from "@/lib/auth/permissions";
 import { getWorkspacePlan } from "@/lib/plans";
-import { fmtDate, relativeTime } from "@/lib/format";
+import { pageTitle, getI18n } from "@/lib/i18n/server";
+import { Tr } from "@/lib/i18n/client";
 
-export const metadata = { title: "Team" };
+export const generateMetadata = pageTitle("Team");
 
 export default async function Team() {
+  const { t, fmt, p: tp } = await getI18n();
   const ctx = await requireWorkspace();
   requirePerm(ctx, "team", "view");
   const manage = can(ctx, "team", "manage");
@@ -26,20 +28,20 @@ export default async function Team() {
     <>
       <PageHeader
         title="Team"
-        description={seats === null || seats === undefined ? `${used} collaborator${used === 1 ? "" : "s"}` : `${used} of ${seats} collaborator seat${seats === 1 ? "" : "s"} used`}
+        description={seats === null || seats === undefined ? tp(used, "{n} collaborator", "{n} collaborators") : t("{used} of {seats} collaborator seats used", { used, seats })}
         actions={manage ? <InviteMemberDialog projects={projects} isOwner={ctx.member.role === "OWNER"} /> : undefined}
       />
-      {seats === 0 && manage && <p className="mb-6 rounded-xl border border-line px-4 py-3 text-sm text-muted">Your {plan?.plan.name} plan is a solo workspace. Upgrade in Settings → Billing to invite collaborators.</p>}
+      {seats === 0 && manage && <p className="mb-6 rounded-xl border border-line px-4 py-3 text-sm text-muted"><Tr>Your</Tr> {plan?.plan.name} <Tr>plan is a solo workspace. Upgrade in Settings → Billing to invite collaborators.</Tr></p>}
       <div className="panel overflow-x-auto rounded-2xl">
         <table className="w-full min-w-[720px] text-sm">
-          <thead><tr className="text-left text-[11.5px] uppercase tracking-wide text-subtle"><th className="border-b border-line px-4 py-2.5 font-medium">Member</th><th className="border-b border-line px-4 py-2.5 font-medium">Role</th><th className="border-b border-line px-4 py-2.5 font-medium">Projects</th><th className="border-b border-line px-4 py-2.5 font-medium">Status</th><th className="border-b border-line px-4 py-2.5" /></tr></thead>
+          <thead><tr className="text-left text-[11.5px] uppercase tracking-wide text-subtle"><th className="border-b border-line px-4 py-2.5 font-medium"><Tr>Member</Tr></th><th className="border-b border-line px-4 py-2.5 font-medium"><Tr>Role</Tr></th><th className="border-b border-line px-4 py-2.5 font-medium"><Tr>Projects</Tr></th><th className="border-b border-line px-4 py-2.5 font-medium"><Tr>Status</Tr></th><th className="border-b border-line px-4 py-2.5" /></tr></thead>
           <tbody>
             {members.map((m) => (
               <tr key={m.id} className="border-b border-line last:border-0">
-                <td className="px-4 py-3"><div className="flex items-center gap-3"><Avatar name={m.user.name} src={m.user.avatarUrl} size={30} /><div className="min-w-0"><div className="truncate">{m.user.name}{m.userId === ctx.user.id && <span className="text-subtle"> (you)</span>}</div><div className="truncate text-xs text-muted">{m.user.email}</div></div></div></td>
-                <td className="px-4 py-3"><div>{ROLE_LABELS[m.role]}</div>{m.title && <div className="text-xs text-muted">{m.title}</div>}</td>
-                <td className="px-4 py-3 text-muted">{m.role === "OWNER" || m.role === "ADMIN" || m.allProjects ? "All projects" : m.projectMemberships.map((p) => p.project.name).join(", ") || "—"}</td>
-                <td className="px-4 py-3">{m.status === "ACTIVE" ? <span className="text-xs text-subtle">{m.user.lastActiveAt ? `Active ${relativeTime(m.user.lastActiveAt)}` : "Active"}</span> : <Badge tone="warning">Suspended</Badge>}</td>
+                <td className="px-4 py-3"><div className="flex items-center gap-3"><Avatar name={m.user.name} src={m.user.avatarUrl} size={30} /><div className="min-w-0"><div className="truncate">{m.user.name}{m.userId === ctx.user.id && <span className="text-subtle"> <Tr>(you)</Tr></span>}</div><div className="truncate text-xs text-muted">{m.user.email}</div></div></div></td>
+                <td className="px-4 py-3"><div>{t(ROLE_LABELS[m.role])}</div>{m.title && <div className="text-xs text-muted">{m.title}</div>}</td>
+                <td className="px-4 py-3 text-muted">{m.role === "OWNER" || m.role === "ADMIN" || m.allProjects ? t("All projects") : m.projectMemberships.map((p) => p.project.name).join(", ") || "—"}</td>
+                <td className="px-4 py-3">{m.status === "ACTIVE" ? <span className="text-xs text-subtle">{m.user.lastActiveAt ? t("Active {when}", { when: fmt.rel(m.user.lastActiveAt) }) : t("Active")}</span> : <Badge tone="warning"><Tr>Suspended</Tr></Badge>}</td>
                 <td className="px-4 py-3 text-right">
                   {manage && m.role !== "OWNER" && m.userId !== ctx.user.id && (
                     <div className="flex justify-end gap-1">
@@ -59,7 +61,7 @@ export default async function Team() {
             <ul className="panel divide-y divide-line rounded-2xl">
               {invitations.map((i) => (
                 <li key={i.id} className="flex items-center gap-3 px-4 py-3 text-sm">
-                  <div className="min-w-0 flex-1"><div className="truncate">{i.email}</div><div className="text-xs text-muted">{i.role ? ROLE_LABELS[i.role] : ""} · expires {fmtDate(i.expiresAt)}</div></div>
+                  <div className="min-w-0 flex-1"><div className="truncate">{i.email}</div><div className="text-xs text-muted">{i.role ? ROLE_LABELS[i.role] : ""} <Tr>· expires</Tr> {fmt.date(i.expiresAt)}</div></div>
                   <RevokeInvitationButton id={i.id} />
                 </li>
               ))}

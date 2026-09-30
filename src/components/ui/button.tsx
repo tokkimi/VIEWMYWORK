@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { Tx } from "@/lib/i18n/client";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger" | "outline";
 type Size = "sm" | "md" | "lg";
@@ -23,14 +24,18 @@ export function buttonClass(variant: Variant = "secondary", size: Size = "md", c
   return cn(base, variants[variant], sizes[size], className);
 }
 
-export function Button({ variant = "secondary", size = "md", className, ...props }: ComponentProps<"button"> & { variant?: Variant; size?: Size }) {
-  return <button type="button" className={buttonClass(variant, size, className)} {...props} />;
+export function Button({ variant = "secondary", size = "md", className, children, ...props }: ComponentProps<"button"> & { variant?: Variant; size?: Size }) {
+  return (
+    <button type="button" className={buttonClass(variant, size, className)} {...props}>
+      <Tx>{children}</Tx>
+    </button>
+  );
 }
 
 export function ButtonLink({ variant = "secondary", size = "md", className, href, children, ...props }: Omit<ComponentProps<typeof Link>, "href"> & { href: string; variant?: Variant; size?: Size; children: ReactNode }) {
   return (
     <Link href={href} className={buttonClass(variant, size, className)} {...props}>
-      {children}
+      <Tx>{children}</Tx>
     </Link>
   );
 }

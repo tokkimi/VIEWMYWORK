@@ -9,12 +9,14 @@ import { ButtonLink } from "@/components/ui/button";
 import { LinkTabs } from "@/components/ui/tabs";
 import { Pagination } from "@/components/ui/pagination";
 import { inputClass } from "@/components/ui/form";
-import { formatMoney } from "@/lib/money";
+import { pageTitle, getI18n } from "@/lib/i18n/server";
+import { Tr } from "@/lib/i18n/client";
 
-export const metadata = { title: "Clients" };
+export const generateMetadata = pageTitle("Clients");
 const PER_PAGE = 30;
 
 export default async function Clients({ searchParams }: { searchParams: Promise<{ q?: string; archived?: string; tag?: string; page?: string }> }) {
+  const { t, fmt } = await getI18n();
   const ctx = await requireWorkspace();
   requirePerm(ctx, "clients", "view");
   const sp = await searchParams;
@@ -41,7 +43,7 @@ export default async function Clients({ searchParams }: { searchParams: Promise<
 
   return (
     <>
-      <PageHeader title="Clients" description="Everyone you work for, their projects, files and invoices." actions={can(ctx, "clients", "edit") ? <ButtonLink href="/app/clients/new" variant="primary"><Plus className="size-4" />Add client</ButtonLink> : undefined} />
+      <PageHeader title="Clients" description="Everyone you work for, their projects, files and invoices." actions={can(ctx, "clients", "edit") ? <ButtonLink href="/app/clients/new" variant="primary"><Plus className="size-4" /><Tr>Add client</Tr></ButtonLink> : undefined} />
       <Suspense>
         <LinkTabs tabs={[{ href: "/app/clients", label: "Active" }, { href: "/app/clients?archived=1", label: "Archived" }]} exact />
       </Suspense>
@@ -49,28 +51,28 @@ export default async function Clients({ searchParams }: { searchParams: Promise<
         {sp.archived && <input type="hidden" name="archived" value="1" />}
         <div className="relative min-w-60 flex-1 sm:max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-subtle" />
-          <input name="q" defaultValue={sp.q} placeholder="Search clients…" aria-label="Search clients" className={`${inputClass} pl-9`} />
+          <input name="q" defaultValue={sp.q} placeholder={t("Search clients…")} aria-label={t("Search clients")} className={`${inputClass} pl-9`} />
         </div>
         {allTags.length > 0 && (
-          <select name="tag" defaultValue={sp.tag ?? ""} aria-label="Filter by tag" className={`${inputClass} w-auto`}>
-            <option value="">All tags</option>
+          <select name="tag" defaultValue={sp.tag ?? ""} aria-label={t("Filter by tag")} className={`${inputClass} w-auto`}>
+            <option value="">{t("All tags")}</option>
             {allTags.map((t) => <option key={t}>{t}</option>)}
           </select>
         )}
-        <button className="h-9 rounded-[10px] border border-line px-3 text-sm text-muted hover:text-fg">Filter</button>
+        <button className="h-9 rounded-[10px] border border-line px-3 text-sm text-muted hover:text-fg"><Tr>Filter</Tr></button>
       </form>
       {clients.length === 0 ? (
-        <EmptyState icon={<Users />} title={sp.q || sp.tag ? "No matching clients" : sp.archived ? "No archived clients" : "No clients yet"} description={sp.q ? undefined : "Add a client, create their project and invite them to a portal they'll love."} action={!sp.q && !sp.archived && can(ctx, "clients", "edit") ? <ButtonLink href="/app/clients/new" variant="primary">Add client</ButtonLink> : undefined} />
+        <EmptyState icon={<Users />} title={sp.q || sp.tag ? t("No matching clients") : sp.archived ? t("No archived clients") : t("No clients yet")} description={sp.q ? undefined : t("Add a client, create their project and invite them to a portal they'll love.")} action={!sp.q && !sp.archived && can(ctx, "clients", "edit") ? <ButtonLink href="/app/clients/new" variant="primary"><Tr>Add client</Tr></ButtonLink> : undefined} />
       ) : (
         <>
           <Table>
             <thead>
               <tr>
-                <th className={th}>Client</th>
-                <th className={th}>Email</th>
-                <th className={th}>Active projects</th>
-                {can(ctx, "invoices", "view") && <th className={`${th} text-right`}>Outstanding</th>}
-                <th className={`${th} text-right`}>Portal</th>
+                <th className={th}><Tr>Client</Tr></th>
+                <th className={th}><Tr>Email</Tr></th>
+                <th className={th}><Tr>Active projects</Tr></th>
+                {can(ctx, "invoices", "view") && <th className={`${th} text-right`}><Tr>Outstanding</Tr></th>}
+                <th className={`${th} text-right`}><Tr>Portal</Tr></th>
               </tr>
             </thead>
             <tbody>
@@ -90,8 +92,8 @@ export default async function Clients({ searchParams }: { searchParams: Promise<
                     </td>
                     <td className={`${td} text-muted`}>{c.email}</td>
                     <td className={`${td} num text-muted`}>{c.projects.length}</td>
-                    {can(ctx, "invoices", "view") && <td className={`${td} num text-right ${out ? "" : "text-subtle"}`}>{out ? formatMoney(out, c.currency) : "—"}</td>}
-                    <td className={`${td} text-right`}>{c.portalAccess.length ? <Badge tone="success">Active</Badge> : <span className="text-xs text-subtle">Not invited</span>}</td>
+                    {can(ctx, "invoices", "view") && <td className={`${td} num text-right ${out ? "" : "text-subtle"}`}>{out ? fmt.money(out, c.currency) : "—"}</td>}
+                    <td className={`${td} text-right`}>{c.portalAccess.length ? <Badge tone="success"><Tr>Active</Tr></Badge> : <span className="text-xs text-subtle"><Tr>Not invited</Tr></span>}</td>
                   </tr>
                 );
               })}

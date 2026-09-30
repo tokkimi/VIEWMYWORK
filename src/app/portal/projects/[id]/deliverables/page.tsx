@@ -4,9 +4,11 @@ import { db } from "@/lib/db";
 import { requirePortal, getPortalProject } from "@/lib/auth/portal";
 import { DeliverableStatusBadge } from "@/components/status";
 import { EmptyState } from "@/components/ui/primitives";
-import { fmtDate } from "@/lib/format";
+import { getI18n } from "@/lib/i18n/server";
+import { Tr } from "@/lib/i18n/client";
 
 export default async function PortalDeliverables({ params }: { params: Promise<{ id: string }> }) {
+  const { t, fmt } = await getI18n();
   const { id } = await params;
   const ctx = await requirePortal();
   await getPortalProject(ctx, id);
@@ -17,7 +19,7 @@ export default async function PortalDeliverables({ params }: { params: Promise<{
       {list.map((d) => (
         <li key={d.id}>
           <Link href={`/portal/projects/${id}/deliverables/${d.id}`} className="flex min-h-14 items-center gap-3 px-4 py-3 hover:bg-white/[0.02]">
-            <div className="min-w-0 flex-1"><div className="truncate text-sm font-medium">{d.title} <span className="text-subtle">V{d.currentVersion}</span></div><div className="text-xs text-subtle">Updated {fmtDate(d.updatedAt)}</div></div>
+            <div className="min-w-0 flex-1"><div className="truncate text-sm font-medium">{d.title} <span className="text-subtle">V{d.currentVersion}</span></div><div className="text-xs text-subtle"><Tr>Updated</Tr> {fmt.date(d.updatedAt)}</div></div>
             <DeliverableStatusBadge s={d.status} />
             <ChevronRight className="size-4 text-subtle" />
           </Link>

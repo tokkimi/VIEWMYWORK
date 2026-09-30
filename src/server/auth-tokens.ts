@@ -4,6 +4,7 @@ import { randomToken, sha256 } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { sendEmail } from "@/lib/email/send";
 import { emailTemplates } from "@/lib/email/templates";
+import { normalizeLocale } from "@/lib/i18n/core";
 
 export async function issueAuthToken(userId: string, type: AuthTokenType, ttlMinutes: number) {
   await db.authToken.updateMany({ where: { userId, type, usedAt: null }, data: { usedAt: new Date() } });
@@ -19,9 +20,9 @@ export async function consumeAuthToken(token: string, type: AuthTokenType) {
   return updated.count === 1 ? row.userId : null;
 }
 
-export async function sendVerificationEmail(user: { id: string; email: string }, next?: string) {
+export async function sendVerificationEmail(user: { id: string; email: string; locale?: string | null }, next?: string) {
   const token = await issueAuthToken(user.id, "EMAIL_VERIFICATION", 24 * 60);
   const link = `${env.appUrl}/api/auth/verify?token=${token}${next ? `&next=${encodeURIComponent(next)}` : ""}`;
-  const t = emailTemplates.emailVerification(link);
+  const t = emailTemplates.emailVerification(link, normalizeLocale(user.locale));
   return sendEmail({ to: user.email, subject: t.subject, html: t.html, template: "email_verification" });
 }

@@ -19,7 +19,7 @@ export async function exchangeCode(code: string) {
 
 async function markDisconnected(workspaceId: string, reason: string) {
   await db.integration.update({ where: { workspaceId_provider: { workspaceId, provider: "GOOGLE_DRIVE" } }, data: { status: "DISCONNECTED", lastError: reason, accessTokenEnc: null } });
-  await notifyWorkspaceAdmins(workspaceId, "INTEGRATION_DISCONNECTED", "Google Drive disconnected", `Access to Google Drive was lost (${reason}). Linked files stay listed but can't be refreshed until you reconnect.`, "/app/settings/integrations");
+  await notifyWorkspaceAdmins(workspaceId, "INTEGRATION_DISCONNECTED", "Google Drive disconnected", ["Access to Google Drive was lost ({reason}). Linked files stay listed but can't be refreshed until you reconnect.", { reason }], "/app/settings/integrations");
 }
 
 /** Returns a valid access token, refreshing it when expired. Revoked access disconnects gracefully. */

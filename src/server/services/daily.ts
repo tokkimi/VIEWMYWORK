@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { emit } from "@/lib/events";
 import { deriveStatus, outstandingCents } from "@/lib/invoices/status";
-import { formatMoney } from "@/lib/money";
 import { deleteObject } from "@/lib/storage";
 import { integrations } from "@/lib/env";
 import { daysBetween } from "@/lib/format";
@@ -25,14 +24,14 @@ export async function runDailyJobs(now = new Date()) {
       report.overdue++;
       await emit({
         workspaceId: inv.workspaceId, type: "INVOICE_OVERDUE", actor: null, projectId: inv.projectId, clientId: inv.clientId, entityType: "INVOICE", entityId: inv.id,
-        summary: `Invoice ${inv.number} is overdue`,
-        notify: { team: { kind: "workspace", capability: ["invoices", "view"] }, title: `${inv.number} is overdue`, message: `${formatMoney(outstandingCents(inv), inv.currency)} from ${inv.client.company || inv.client.lastName} is past due.`, actionUrl: `/app/invoices/${inv.id}`, actionLabel: "Open invoice", email: true },
+        summary: ["Invoice {number} is overdue", { number: inv.number }],
+        notify: { team: { kind: "workspace", capability: ["invoices", "view"] }, title: ["{number} is overdue", { number: inv.number }], message: ["{amount} from {client} is past due.", { amount: { money: outstandingCents(inv), currency: inv.currency }, client: inv.client.company || inv.client.lastName }], actionUrl: `/app/invoices/${inv.id}`, actionLabel: "Open invoice", email: true },
       });
     }
     const until = daysBetween(now, inv.dueDate);
     if (until >= 0 && until <= 3 && next !== "OVERDUE" && !(await alreadyEmitted("INVOICE_DUE_SOON", inv.id))) {
       report.dueSoon++;
-      await emit({ workspaceId: inv.workspaceId, type: "INVOICE_DUE_SOON", actor: null, projectId: inv.projectId, clientId: inv.clientId, entityType: "INVOICE", entityId: inv.id, summary: `Invoice ${inv.number} is due soon`, notify: { team: { kind: "workspace", capability: ["invoices", "view"] }, title: `${inv.number} is due ${until === 0 ? "today" : `in ${until} days`}`, message: `${formatMoney(outstandingCents(inv), inv.currency)} outstanding.`, actionUrl: `/app/invoices/${inv.id}`, actionLabel: "Open invoice" } });
+      await emit({ workspaceId: inv.workspaceId, type: "INVOICE_DUE_SOON", actor: null, projectId: inv.projectId, clientId: inv.clientId, entityType: "INVOICE", entityId: inv.id, summary: ["Invoice {number} is due soon", { number: inv.number }], notify: { team: { kind: "workspace", capability: ["invoices", "view"] }, title: until === 0 ? ["{number} is due today", { number: inv.number }] : ["{number} is due in {n} days", { number: inv.number, n: until }], message: ["{amount} outstanding.", { amount: { money: outstandingCents(inv), currency: inv.currency } }], actionUrl: `/app/invoices/${inv.id}`, actionLabel: "Open invoice" } });
     }
   }
 
@@ -63,12 +62,12 @@ export async function runDailyJobs(now = new Date()) {
   for (const t of soon) {
     if (await alreadyEmitted("DEADLINE_APPROACHING", t.id)) continue;
     report.taskAlerts++;
-    await emit({ workspaceId: t.workspaceId, type: "DEADLINE_APPROACHING", actor: null, projectId: t.projectId, entityType: "TASK", entityId: t.id, summary: `“${t.title}” is due tomorrow`, notify: { team: { kind: "users", userIds: [t.assigneeId!] }, title: "Deadline tomorrow", message: `${t.title} — ${t.project.name}`, actionUrl: `/app/projects/${t.projectId}/tasks?task=${t.id}`, actionLabel: "Open task", email: true } });
+    await emit({ workspaceId: t.workspaceId, type: "DEADLINE_APPROACHING", actor: null, projectId: t.projectId, entityType: "TASK", entityId: t.id, summary: ["“{task}” is due tomorrow", { task: t.title }], notify: { team: { kind: "users", userIds: [t.assigneeId!] }, title: "Deadline tomorrow", message: `${t.title} — ${t.project.name}`, actionUrl: `/app/projects/${t.projectId}/tasks?task=${t.id}`, actionLabel: "Open task", email: true } });
   }
   for (const t of late) {
     if (await alreadyEmitted("TASK_OVERDUE", t.id)) continue;
     report.taskAlerts++;
-    await emit({ workspaceId: t.workspaceId, type: "TASK_OVERDUE", actor: null, projectId: t.projectId, entityType: "TASK", entityId: t.id, summary: `“${t.title}” is overdue`, notify: { team: { kind: "users", userIds: [t.assigneeId, t.project.managerId].filter((x): x is string => Boolean(x)) }, title: "Task overdue", message: `${t.title} — ${t.project.name}`, actionUrl: `/app/projects/${t.projectId}/tasks?task=${t.id}`, actionLabel: "Open task" } });
+    await emit({ workspaceId: t.workspaceId, type: "TASK_OVERDUE", actor: null, projectId: t.projectId, entityType: "TASK", entityId: t.id, summary: ["“{task}” is overdue", { task: t.title }], notify: { team: { kind: "users", userIds: [t.assigneeId, t.project.managerId].filter((x): x is string => Boolean(x)) }, title: "Task overdue", message: `${t.title} — ${t.project.name}`, actionUrl: `/app/projects/${t.projectId}/tasks?task=${t.id}`, actionLabel: "Open task" } });
   }
 
   // 4. Cleanup: abandoned uploads, expired sessions/tokens, stale rate-limit rows.

@@ -1,13 +1,16 @@
 import { cn } from "@/lib/cn";
+import { Tr } from "@/lib/i18n/client";
+import { getI18n } from "@/lib/i18n/server";
 
 /** Minimal, accessible bar chart (SVG-free, pure CSS). Each bar carries its value for screen readers. */
-export function BarChart({ data, format, muted, height = 160 }: { data: { label: string; value: number }[]; format: (v: number) => string; muted?: boolean; height?: number }) {
+export async function BarChart({ data, format, muted, height = 160 }: { data: { label: string; value: number }[]; format: (v: number) => string; muted?: boolean; height?: number }) {
+  const { t } = await getI18n();
   const max = Math.max(1, ...data.map((d) => d.value));
   const total = data.reduce((a, d) => a + d.value, 0);
-  if (total === 0) return <p className="flex items-center justify-center text-sm text-subtle" style={{ height }}>No data yet</p>;
+  if (total === 0) return <p className="flex items-center justify-center text-sm text-subtle" style={{ height }}><Tr>No data yet</Tr></p>;
   return (
     <figure>
-      <ul className="flex items-end gap-1.5" style={{ height }} aria-label="Chart">
+      <ul className="flex items-end gap-1.5" style={{ height }} aria-label={t("Chart")}>
         {data.map((d) => (
           <li key={d.label} className="group relative flex h-full flex-1 flex-col justify-end" aria-label={`${d.label}: ${format(d.value)}`}>
             <div className={cn("w-full rounded-t-[5px] transition-colors", muted ? "bg-white/15 group-hover:bg-white/25" : "bg-accent/70 group-hover:bg-accent")} style={{ height: `${Math.max(d.value ? 2 : 0, (d.value / max) * 100)}%` }} />

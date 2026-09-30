@@ -6,19 +6,20 @@ import { PageHeader, Section, Stat, EmptyState, Badge } from "@/components/ui/pr
 import { ListCard } from "@/components/app/blocks";
 import { ExpenseDialog, DeleteExpenseButton } from "@/components/app/finance-forms";
 import { BarChart } from "@/components/charts";
-import { formatMoney } from "@/lib/money";
-import { fmtDate } from "@/lib/format";
 import { EXPENSE_CATEGORIES } from "@/lib/labels";
 import { hasFeature } from "@/lib/plans";
 import { outstandingCents } from "@/lib/invoices/status";
 import { inputClass } from "@/components/ui/form";
 import { buttonClass } from "@/components/ui/button";
+import { pageTitle, getI18n } from "@/lib/i18n/server";
+import { Tr } from "@/lib/i18n/client";
 
-export const metadata = { title: "Finance" };
+export const generateMetadata = pageTitle("Finance");
 
 function monthKey(d: Date) { return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`; }
 
 export default async function Finance({ searchParams }: { searchParams: Promise<{ new?: string }> }) {
+  const { t, fmt } = await getI18n();
   const ctx = await requireWorkspace();
   requirePerm(ctx, "finance", "view");
   const sp = await searchParams;
@@ -48,31 +49,31 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
 
   return (
     <>
-      <PageHeader title="Finance" description={`Client revenue, expenses and margin in ${cur}.`} actions={can(ctx, "finance", "edit") ? <ExpenseDialog projects={projects} currency={cur} openInitially={sp.new === "expense"} /> : undefined} />
+      <PageHeader title="Finance" description={t("Client revenue, expenses and margin in {currency}.", { currency: cur })} actions={can(ctx, "finance", "edit") ? <ExpenseDialog projects={projects} currency={cur} openInitially={sp.new === "expense"} /> : undefined} />
       <div className="panel mb-10 grid grid-cols-2 divide-line overflow-hidden rounded-2xl sm:grid-cols-3 lg:grid-cols-6 [&>*]:border-line [&>*:not(:last-child)]:border-r">
-        <Stat label="Active budgets" value={formatMoney(budgets._sum.budgetCents ?? 0, cur)} />
-        <Stat label="Revenue (YTD)" value={formatMoney(ytdRevenue, cur)} />
-        <Stat label="Outstanding" value={formatMoney(outstanding, cur)} />
-        <Stat label="Overdue" value={formatMoney(overdue, cur)} tone={overdue ? "danger" : undefined} />
-        <Stat label="Expenses (YTD)" value={formatMoney(ytdExpenses, cur)} />
-        <Stat label="Estimated margin" value={formatMoney(ytdRevenue - ytdExpenses, cur)} tone={ytdRevenue - ytdExpenses < 0 ? "danger" : undefined} hint="YTD" />
+        <Stat label="Active budgets" value={fmt.money(budgets._sum.budgetCents ?? 0, cur)} />
+        <Stat label="Revenue (YTD)" value={fmt.money(ytdRevenue, cur)} />
+        <Stat label="Outstanding" value={fmt.money(outstanding, cur)} />
+        <Stat label="Overdue" value={fmt.money(overdue, cur)} tone={overdue ? "danger" : undefined} />
+        <Stat label="Expenses (YTD)" value={fmt.money(ytdExpenses, cur)} />
+        <Stat label="Estimated margin" value={fmt.money(ytdRevenue - ytdExpenses, cur)} tone={ytdRevenue - ytdExpenses < 0 ? "danger" : undefined} hint="YTD" />
       </div>
       <div className="grid gap-10 xl:grid-cols-2">
-        <Section title="Payments received" description="Last 12 months"><div className="panel rounded-2xl p-5"><BarChart data={months.map((m) => ({ label: m.slice(5), value: rev.get(m)! }))} format={(v) => formatMoney(v, cur)} /></div></Section>
-        <Section title="Expenses" description="Last 12 months"><div className="panel rounded-2xl p-5"><BarChart data={months.map((m) => ({ label: m.slice(5), value: exp.get(m)! }))} format={(v) => formatMoney(v, cur)} muted /></div></Section>
+        <Section title="Payments received" description="Last 12 months"><div className="panel rounded-2xl p-5"><BarChart data={months.map((m) => ({ label: m.slice(5), value: rev.get(m)! }))} format={(v) => fmt.money(v, cur)} /></div></Section>
+        <Section title="Expenses" description="Last 12 months"><div className="panel rounded-2xl p-5"><BarChart data={months.map((m) => ({ label: m.slice(5), value: exp.get(m)! }))} format={(v) => fmt.money(v, cur)} muted /></div></Section>
       </div>
 
       <Section title="Accounting exports" className="mt-10" description="Invoices, payments, expenses and taxes for your accountant. Client revenue only — never platform billing.">
         {exportsAllowed ? (
           <form action="/api/exports/accounting" method="get" className="panel flex flex-wrap items-end gap-3 rounded-2xl p-4">
-            <label className="text-xs text-muted">Period<select name="period" defaultValue="this_month" className={`${inputClass} mt-1 w-40`}><option value="this_month">This month</option><option value="last_month">Last month</option><option value="quarter">This quarter</option><option value="year">This year</option><option value="custom">Custom</option></select></label>
-            <label className="text-xs text-muted">From (custom)<input type="date" name="from" className={`${inputClass} mt-1 w-40`} /></label>
-            <label className="text-xs text-muted">To (custom)<input type="date" name="to" className={`${inputClass} mt-1 w-40`} /></label>
-            <button name="format" value="csv" className={buttonClass("secondary")}><Download className="size-4" />CSV</button>
-            <button name="format" value="pdf" className={buttonClass("secondary")}><Download className="size-4" />PDF</button>
+            <label className="text-xs text-muted"><Tr>Period</Tr><select name="period" defaultValue="this_month" className={`${inputClass} mt-1 w-40`}><option value="this_month">{t("This month")}</option><option value="last_month">{t("Last month")}</option><option value="quarter">{t("This quarter")}</option><option value="year">{t("This year")}</option><option value="custom">{t("Custom")}</option></select></label>
+            <label className="text-xs text-muted"><Tr>From (custom)</Tr><input type="date" name="from" className={`${inputClass} mt-1 w-40`} /></label>
+            <label className="text-xs text-muted"><Tr>To (custom)</Tr><input type="date" name="to" className={`${inputClass} mt-1 w-40`} /></label>
+            <button name="format" value="csv" className={buttonClass("secondary")}><Download className="size-4" /><Tr>CSV</Tr></button>
+            <button name="format" value="pdf" className={buttonClass("secondary")}><Download className="size-4" /><Tr>PDF</Tr></button>
           </form>
         ) : (
-          <p className="panel rounded-2xl px-4 py-4 text-sm text-muted">Accounting exports are available on higher plans. <Link href="/app/settings/billing" className="text-accent hover:underline">Upgrade</Link></p>
+          <p className="panel rounded-2xl px-4 py-4 text-sm text-muted"><Tr>Accounting exports are available on higher plans.</Tr> <Link href="/app/settings/billing" className="text-accent hover:underline"><Tr>Upgrade</Tr></Link></p>
         )}
       </Section>
 
@@ -84,8 +85,8 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
                 <div className="min-w-0"><div className="truncate">{e.name}</div><div className="truncate text-xs text-subtle">{e.supplier ?? "—"}</div></div>
                 <span className="hidden sm:block"><Badge>{EXPENSE_CATEGORIES[e.category as keyof typeof EXPENSE_CATEGORIES] ?? e.category}</Badge></span>
                 <span className="hidden truncate text-muted sm:block">{e.project?.name ?? "—"}</span>
-                <span className="hidden text-muted sm:block">{fmtDate(e.date)}</span>
-                <span className="num text-right">{formatMoney(e.amountCents, e.currency)}</span>
+                <span className="hidden text-muted sm:block">{fmt.date(e.date)}</span>
+                <span className="num text-right">{fmt.money(e.amountCents, e.currency)}</span>
                 {can(ctx, "finance", "edit") && <span className="hidden justify-end gap-1 sm:flex"><ExpenseDialog projects={projects} currency={cur} expense={e} /><DeleteExpenseButton id={e.id} /></span>}
               </div>
             ))}

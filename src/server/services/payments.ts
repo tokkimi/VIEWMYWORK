@@ -7,7 +7,6 @@ import { env } from "@/lib/env";
 import { recomputeInvoice } from "./invoices";
 import { afterPayment } from "./billing";
 import { emit } from "@/lib/events";
-import { formatMoney } from "@/lib/money";
 
 /**
  * DOMAIN B — client invoice payments. Money goes to the professional's own Stripe
@@ -68,8 +67,8 @@ export async function handleConnectEvent(event: Stripe.Event) {
       if (!inv) return;
       await emit({
         workspaceId: inv.workspaceId, type: "PAYMENT_FAILED", actor: null, projectId: inv.projectId, clientId: inv.clientId, entityType: "INVOICE", entityId: inv.id,
-        summary: `Online payment attempt failed for ${inv.number}`,
-        notify: { team: { kind: "workspace", capability: ["invoices", "view"] }, title: "Payment failed", message: `A payment attempt for invoice ${inv.number} failed.`, actionUrl: `/app/invoices/${inv.id}`, actionLabel: "Open invoice" },
+        summary: ["Online payment attempt failed for {number}", { number: inv.number }],
+        notify: { team: { kind: "workspace", capability: ["invoices", "view"] }, title: "Payment failed", message: ["A payment attempt for invoice {number} failed.", { number: inv.number }], actionUrl: `/app/invoices/${inv.id}`, actionLabel: "Open invoice" },
       });
       return;
     }
@@ -86,8 +85,8 @@ export async function handleConnectEvent(event: Stripe.Event) {
       });
       await emit({
         workspaceId: payment.workspaceId, type: "REFUND_ISSUED", actor: null, projectId: invoice.projectId, clientId: invoice.clientId, entityType: "INVOICE", entityId: invoice.id,
-        summary: `Refund of ${formatMoney(refunded, payment.currency)} processed for ${invoice.number}`, clientVisible: true,
-        notify: { team: { kind: "workspace", capability: ["invoices", "view"] }, client: true, title: "Refund processed", message: `${formatMoney(refunded, payment.currency)} was refunded for invoice ${invoice.number}.`, actionUrl: `/app/invoices/${invoice.id}`, clientActionUrl: `/portal/invoices/${invoice.id}`, actionLabel: "Open invoice", email: true },
+        summary: ["Refund of {amount} processed for {number}", { amount: { money: refunded, currency: payment.currency }, number: invoice.number }], clientVisible: true,
+        notify: { team: { kind: "workspace", capability: ["invoices", "view"] }, client: true, title: "Refund processed", message: ["{amount} was refunded for invoice {number}.", { amount: { money: refunded, currency: payment.currency }, number: invoice.number }], actionUrl: `/app/invoices/${invoice.id}`, clientActionUrl: `/portal/invoices/${invoice.id}`, actionLabel: "Open invoice", email: true },
       });
       return;
     }

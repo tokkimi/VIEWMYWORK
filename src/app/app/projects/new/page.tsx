@@ -4,8 +4,10 @@ import { requireWorkspace, requirePerm } from "@/lib/auth/context";
 import { PageHeader, EmptyState } from "@/components/ui/primitives";
 import { ButtonLink } from "@/components/ui/button";
 import { NewProjectForm } from "@/components/app/project-forms";
+import { pageTitle } from "@/lib/i18n/server";
+import { Tr } from "@/lib/i18n/client";
 
-export const metadata = { title: "New project" };
+export const generateMetadata = pageTitle("New project");
 
 export default async function NewProject({ searchParams }: { searchParams: Promise<{ clientId?: string }> }) {
   const ctx = await requireWorkspace();
@@ -20,7 +22,7 @@ export default async function NewProject({ searchParams }: { searchParams: Promi
     return (
       <>
         <PageHeader title="New project" />
-        <EmptyState icon={<Users />} title="Add a client first" description="Every project belongs to a client — that's who the portal is for." action={<ButtonLink href="/app/clients/new" variant="primary">Add client</ButtonLink>} />
+        <EmptyState icon={<Users />} title="Add a client first" description="Every project belongs to a client — that's who the portal is for." action={<ButtonLink href="/app/clients/new" variant="primary"><Tr>Add client</Tr></ButtonLink>} />
       </>
     );
   return (

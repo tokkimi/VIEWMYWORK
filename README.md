@@ -1,4 +1,4 @@
-# ViewMyWork
+# FollowMyFuture
 
 **Your clients shouldn't have to ask "Where are we?"**
 

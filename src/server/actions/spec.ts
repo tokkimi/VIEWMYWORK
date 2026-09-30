@@ -9,7 +9,6 @@ import { formToObject, zOptStr, zOptDate, zId, zOptId, zOptMoney } from "@/lib/v
 import { emit } from "@/lib/events";
 import { recalcProject } from "@/lib/progress";
 import { loadPhase, loadTask, logSpec, assertAssignable } from "@/server/services/spec";
-import { fmtDate } from "@/lib/format";
 import { TASK_STATUS } from "@/lib/labels";
 
 const visibility = z.enum(["INTERNAL", "CLIENT_VISIBLE"]);
@@ -25,7 +24,7 @@ export async function addPhaseAction(fd: FormData) {
     await db.$transaction(async (tx) => {
       const last = await tx.phase.aggregate({ where: { projectId: i.projectId }, _max: { position: true } });
       await tx.phase.create({ data: { projectId: i.projectId, title: i.title, weight: i.weight, position: (last._max.position ?? -1) + 1 } });
-      await logSpec(tx, i.projectId, ctx, `Phase “${i.title}” added`);
+      await logSpec(tx, i.projectId, ctx, ["Phase “{name}” added", { name: i.title }]);
       await recalcProject(tx, i.projectId);
     });
     return null;
@@ -41,8 +40,8 @@ export async function updatePhaseAction(fd: FormData) {
     const { phase } = await loadPhase(ctx, i.id);
     await db.$transaction(async (tx) => {
       await tx.phase.update({ where: { id: i.id }, data: { title: i.title, description: i.description ?? null, weight: i.weight, visibility: i.visibility, startDate: i.startDate ?? null, deadline: i.deadline ?? null } });
-      if ((phase.deadline?.getTime() ?? 0) !== (i.deadline?.getTime() ?? 0)) await logSpec(tx, phase.projectId, ctx, `Deadline of “${i.title}” changed to ${fmtDate(i.deadline)}`);
-      if (phase.weight !== i.weight) await logSpec(tx, phase.projectId, ctx, `Weight of “${i.title}” changed ${phase.weight} → ${i.weight}`);
+      if ((phase.deadline?.getTime() ?? 0) !== (i.deadline?.getTime() ?? 0)) await logSpec(tx, phase.projectId, ctx, i.deadline ? ["Deadline of “{name}” changed to {date}", { name: i.title, date: { date: i.deadline } }] : ["Deadline of “{name}” removed", { name: i.title }]);
+      if (phase.weight !== i.weight) await logSpec(tx, phase.projectId, ctx, ["Weight of “{name}” changed {from} → {to}", { name: i.title, from: phase.weight, to: i.weight }]);
       await recalcProject(tx, phase.projectId);
     });
     return null;
@@ -56,7 +55,7 @@ export async function deletePhaseAction(id: string) {
     await db.$transaction(async (tx) => {
       await tx.task.deleteMany({ where: { phaseId: id } });
       await tx.phase.delete({ where: { id } });
-      await logSpec(tx, phase.projectId, ctx, `Phase “${phase.title}” deleted`);
+      await logSpec(tx, phase.projectId, ctx, ["Phase “{name}” deleted", { name: phase.title }]);
       await recalcProject(tx, phase.projectId);
     });
     return null;
@@ -73,7 +72,7 @@ export async function duplicatePhaseAction(id: string) {
       const tasks = await tx.task.findMany({ where: { phaseId: id, parentId: null }, orderBy: { position: "asc" } });
       for (const t of tasks)
         await tx.task.create({ data: { workspaceId: t.workspaceId, projectId: t.projectId, phaseId: copy.id, title: t.title, description: t.description, weight: t.weight, priority: t.priority, position: t.position, visibility: t.visibility, estimatedMinutes: t.estimatedMinutes, requiresApproval: t.requiresApproval } });
-      await logSpec(tx, phase.projectId, ctx, `Phase “${phase.title}” duplicated`);
+      await logSpec(tx, phase.projectId, ctx, ["Phase “{name}” duplicated", { name: phase.title }]);
       await recalcProject(tx, phase.projectId);
     });
     return null;
@@ -104,7 +103,7 @@ export async function addMilestoneAction(fd: FormData) {
     await db.$transaction(async (tx) => {
       const last = await tx.milestone.aggregate({ where: { phaseId: i.phaseId }, _max: { position: true } });
       await tx.milestone.create({ data: { phaseId: i.phaseId, projectId: phase.projectId, title: i.title, dueDate: i.dueDate, visibility: i.visibility, position: (last._max.position ?? -1) + 1 } });
-      await logSpec(tx, phase.projectId, ctx, `Milestone “${i.title}” added`);
+      await logSpec(tx, phase.projectId, ctx, ["Milestone “{name}” added", { name: i.title }]);
     });
     return null;
   }, "Milestone added.");
@@ -118,7 +117,7 @@ export async function toggleMilestoneAction(id: string) {
     await loadPhase(ctx, m.phaseId);
     await db.$transaction(async (tx) => {
       await tx.milestone.update({ where: { id }, data: { completedAt: m.completedAt ? null : new Date() } });
-      await logSpec(tx, m.projectId, ctx, m.completedAt ? `Milestone “${m.title}” reopened` : `Milestone “${m.title}” reached`);
+      await logSpec(tx, m.projectId, ctx, [m.completedAt ? "Milestone “{name}” reopened" : "Milestone “{name}” reached", { name: m.title }]);
     });
     return null;
   });
@@ -163,15 +162,15 @@ export async function addTaskAction(fd: FormData) {
       const t = await tx.task.create({
         data: { workspaceId: ctx.workspace.id, projectId: i.projectId, phaseId, parentId: i.parentId ?? null, milestoneId: i.milestoneId ?? null, title: i.title, assigneeId: i.assigneeId ?? null, deadline: i.deadline ?? null, priority: i.priority, visibility: i.visibility, position: (last._max.position ?? -1) + 1 },
       });
-      if (!i.parentId) await logSpec(tx, i.projectId, ctx, `Task “${i.title}” added`);
+      if (!i.parentId) await logSpec(tx, i.projectId, ctx, ["Task “{name}” added", { name: i.title }]);
       await recalcProject(tx, i.projectId);
       return t;
     });
     if (task.assigneeId && task.assigneeId !== ctx.user.id)
       await emit({
         workspaceId: ctx.workspace.id, type: "TASK_ASSIGNED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: project.id, entityType: "TASK", entityId: task.id,
-        summary: `Task “${task.title}” assigned`,
-        notify: { team: { kind: "users", userIds: [task.assigneeId] }, title: `${ctx.user.name} assigned you a task`, message: `${task.title} — ${project.name}`, actionUrl: `/app/projects/${project.id}/tasks?task=${task.id}`, actionLabel: "Open task", email: true },
+        summary: ["Task “{name}” assigned", { name: task.title }],
+        notify: { team: { kind: "users", userIds: [task.assigneeId] }, title: ["{name} assigned you a task", { name: ctx.user.name }], message: `${task.title} — ${project.name}`, actionUrl: `/app/projects/${project.id}/tasks?task=${task.id}`, actionLabel: "Open task", email: true },
       });
     return { id: task.id };
   });
@@ -245,7 +244,7 @@ async function applyTaskUpdate(ctx: Awaited<ReturnType<typeof requireWorkspace>>
     data.completedAt = i.status === "COMPLETED" ? new Date() : null;
     if (i.status === "COMPLETED") {
       const blockers = await db.taskDependency.findMany({ where: { taskId: task.id, dependsOn: { status: { not: "COMPLETED" } } }, include: { dependsOn: { select: { title: true } } } });
-      if (blockers.length) throw new AppError(`Complete “${blockers[0].dependsOn.title}” first — this task depends on it.`);
+      if (blockers.length) throw new AppError(["Complete “{task}” first — this task depends on it.", { task: blockers[0].dependsOn.title }]);
     }
   }
 
@@ -256,7 +255,7 @@ async function applyTaskUpdate(ctx: Awaited<ReturnType<typeof requireWorkspace>>
       if (i.status === "WAITING_FOR_CLIENT") await tx.clientWait.create({ data: { projectId: task.projectId, reason: task.requiresApproval ? "APPROVAL" : "INFORMATION", label: task.title, entityType: "TASK", entityId: task.id } });
       if (task.status === "WAITING_FOR_CLIENT") await tx.clientWait.updateMany({ where: { entityType: "TASK", entityId: task.id, resolvedAt: null }, data: { resolvedAt: new Date() } });
     }
-    if (i.deadline !== undefined && (task.deadline?.getTime() ?? 0) !== ((i.deadline || null)?.getTime() ?? 0)) await logSpec(tx, task.projectId, ctx, `Deadline of “${task.title}” changed to ${fmtDate(i.deadline || null)}`);
+    if (i.deadline !== undefined && (task.deadline?.getTime() ?? 0) !== ((i.deadline || null)?.getTime() ?? 0)) await logSpec(tx, task.projectId, ctx, i.deadline ? ["Deadline of “{name}” changed to {date}", { name: task.title, date: { date: i.deadline } }] : ["Deadline of “{name}” removed", { name: task.title }]);
     await recalcProject(tx, task.projectId);
   });
 
@@ -264,15 +263,15 @@ async function applyTaskUpdate(ctx: Awaited<ReturnType<typeof requireWorkspace>>
   if (statusChanged && i.status === "COMPLETED")
     await emit({
       workspaceId: ctx.workspace.id, type: "TASK_COMPLETED", actor, projectId: project.id, clientId: project.clientId, entityType: "TASK", entityId: task.id,
-      summary: `Task “${task.title}” completed`, clientVisible: task.visibility === "CLIENT_VISIBLE",
-      notify: { team: { kind: "users", userIds: [project.managerId, task.assigneeId].filter((x): x is string => Boolean(x)) }, title: "Task completed", message: `${ctx.user.name} completed “${task.title}” in ${project.name}.`, actionUrl: `/app/projects/${project.id}/tasks?task=${task.id}`, actionLabel: "Open task" },
+      summary: ["Task “{name}” completed", { name: task.title }], clientVisible: task.visibility === "CLIENT_VISIBLE",
+      notify: { team: { kind: "users", userIds: [project.managerId, task.assigneeId].filter((x): x is string => Boolean(x)) }, title: "Task completed", message: ["{user} completed “{task}” in {project}.", { user: ctx.user.name, task: task.title, project: project.name }], actionUrl: `/app/projects/${project.id}/tasks?task=${task.id}`, actionLabel: "Open task" },
     });
   else if (statusChanged)
-    await emit({ workspaceId: ctx.workspace.id, type: "TASK_STATUS_CHANGED", actor, projectId: project.id, clientId: project.clientId, entityType: "TASK", entityId: task.id, summary: `“${task.title}” moved to ${TASK_STATUS[i.status!].label}`, clientVisible: task.visibility === "CLIENT_VISIBLE" && i.status === "WAITING_FOR_CLIENT" });
+    await emit({ workspaceId: ctx.workspace.id, type: "TASK_STATUS_CHANGED", actor, projectId: project.id, clientId: project.clientId, entityType: "TASK", entityId: task.id, summary: ["“{task}” moved to {status}", { task: task.title, status: { t: TASK_STATUS[i.status!].label } }], clientVisible: task.visibility === "CLIENT_VISIBLE" && i.status === "WAITING_FOR_CLIENT" });
   if (i.assigneeId && i.assigneeId !== task.assigneeId && i.assigneeId !== ctx.user.id)
     await emit({
-      workspaceId: ctx.workspace.id, type: "TASK_ASSIGNED", actor, projectId: project.id, entityType: "TASK", entityId: task.id, summary: `Task “${task.title}” assigned`,
-      notify: { team: { kind: "users", userIds: [i.assigneeId] }, title: `${ctx.user.name} assigned you a task`, message: `${task.title} — ${project.name}`, actionUrl: `/app/projects/${project.id}/tasks?task=${task.id}`, actionLabel: "Open task", email: true },
+      workspaceId: ctx.workspace.id, type: "TASK_ASSIGNED", actor, projectId: project.id, entityType: "TASK", entityId: task.id, summary: ["Task “{name}” assigned", { name: task.title }],
+      notify: { team: { kind: "users", userIds: [i.assigneeId] }, title: ["{name} assigned you a task", { name: ctx.user.name }], message: `${task.title} — ${project.name}`, actionUrl: `/app/projects/${project.id}/tasks?task=${task.id}`, actionLabel: "Open task", email: true },
     });
   return { id: task.id };
 }
@@ -284,7 +283,7 @@ export async function deleteTaskAction(id: string) {
     await db.$transaction(async (tx) => {
       await tx.task.delete({ where: { id } });
       await tx.clientWait.updateMany({ where: { entityType: "TASK", entityId: id, resolvedAt: null }, data: { resolvedAt: new Date() } });
-      if (!task.parentId) await logSpec(tx, task.projectId, ctx, `Task “${task.title}” deleted`);
+      if (!task.parentId) await logSpec(tx, task.projectId, ctx, ["Task “{name}” deleted", { name: task.title }]);
       await recalcProject(tx, task.projectId);
     });
     return null;

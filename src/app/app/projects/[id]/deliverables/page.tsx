@@ -9,9 +9,11 @@ import { FileGrid } from "@/components/app/files";
 import { Uploader } from "@/components/app/uploader";
 import { toFileDTO } from "@/lib/file-dto";
 import { integrations } from "@/lib/env";
-import { fmtDateTime } from "@/lib/format";
+import { Tr } from "@/lib/i18n/client";
+import { getI18n } from "@/lib/i18n/server";
 
 export default async function Deliverables({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ new?: string }> }) {
+  const { t, fmt } = await getI18n();
   const { id } = await params;
   const sp = await searchParams;
   const { project, perms } = await loadProject(id);
@@ -25,7 +27,7 @@ export default async function Deliverables({ params, searchParams }: { params: P
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted">Versioned deliverables with a permanent approval history.</p>
+        <p className="text-sm text-muted"><Tr>Versioned deliverables with a permanent approval history.</Tr></p>
         {canEdit && <NewDeliverableDialog projectId={id} phases={project.phases.map((p) => ({ id: p.id, title: p.title }))} openInitially={sp.new === "1"} />}
       </div>
       {deliverables.length === 0 ? (
@@ -42,11 +44,11 @@ export default async function Deliverables({ params, searchParams }: { params: P
                       <h3 className="text-[15px] font-medium">{d.title}</h3>
                       <Badge>V{d.currentVersion}</Badge>
                       <DeliverableStatusBadge s={d.status} />
-                      {d.visibility === "INTERNAL" && <Badge>Internal</Badge>}
-                      {!d.requiresApproval && <Badge>No approval needed</Badge>}
+                      {d.visibility === "INTERNAL" && <Badge><Tr>Internal</Tr></Badge>}
+                      {!d.requiresApproval && <Badge><Tr>No approval needed</Tr></Badge>}
                     </div>
                     {d.description && <p className="mt-1.5 max-w-2xl whitespace-pre-line text-sm text-muted">{d.description}</p>}
-                    {current?.previewUrl && <a href={current.previewUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-sm text-accent hover:underline"><ExternalLink className="size-3.5" />Preview link</a>}
+                    {current?.previewUrl && <a href={current.previewUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-sm text-accent hover:underline"><ExternalLink className="size-3.5" /><Tr>Preview link</Tr></a>}
                   </div>
                   {canEdit && <DeliverableActions d={{ id: d.id, title: d.title, description: d.description, status: d.status, requiresApproval: d.requiresApproval, internal: d.visibility === "INTERNAL", notes: current?.notes ?? null, previewUrl: current?.previewUrl ?? null }} />}
                 </div>
@@ -54,23 +56,23 @@ export default async function Deliverables({ params, searchParams }: { params: P
                   {canEdit && current && d.status !== "APPROVED" && d.status !== "WAITING_FOR_CLIENT" && (
                     <div className="mb-4"><Uploader target={{ deliverableVersionId: current.id }} configured={integrations.storage()} compact defaultVisibility="CLIENT_VISIBLE" category="DELIVERABLE" /></div>
                   )}
-                  {current && current.files.length > 0 ? <FileGrid files={current.files.map(toFileDTO)} canManage={canEdit && d.status !== "APPROVED"} /> : <p className="text-sm text-subtle">No files on V{d.currentVersion}.</p>}
+                  {current && current.files.length > 0 ? <FileGrid files={current.files.map(toFileDTO)} canManage={canEdit && d.status !== "APPROVED"} /> : <p className="text-sm text-subtle"><Tr>No files on V</Tr>{d.currentVersion}.</p>}
                 </div>
                 {(d.approvals.length > 0 || d.versions.length > 1) && (
                   <div className="border-t border-line p-5">
-                    <h4 className="eyebrow mb-3">Approval history</h4>
+                    <h4 className="eyebrow mb-3"><Tr>Approval history</Tr></h4>
                     <ol className="space-y-3 border-l border-line pl-4 text-sm">
                       {d.versions.map((v) => {
                         const decisions = d.approvals.filter((a) => a.version === v.version);
                         return (
                           <li key={v.id}>
-                            <div className="font-medium">{d.title} V{v.version}{v.submittedAt ? <span className="font-normal text-subtle"> · submitted {fmtDateTime(v.submittedAt)}</span> : <span className="font-normal text-subtle"> · not submitted</span>}</div>
+                            <div className="font-medium">{d.title} V{v.version}{v.submittedAt ? <span className="font-normal text-subtle"> <Tr>· submitted</Tr> {fmt.dateTime(v.submittedAt)}</span> : <span className="font-normal text-subtle"> <Tr>· not submitted</Tr></span>}</div>
                             {v.notes && <p className="text-xs text-muted">{v.notes}</p>}
                             {decisions.map((a) => (
                               <div key={a.id} className="mt-1.5 flex gap-2">
                                 {a.decision === "APPROVED" ? <CheckCircle2 className="mt-0.5 size-4 text-success" /> : <MessageSquareWarning className="mt-0.5 size-4 text-danger" />}
                                 <div>
-                                  <div className={a.decision === "APPROVED" ? "text-success" : "text-danger"}>{a.decision === "APPROVED" ? "Approved" : "Changes requested"} <span className="text-subtle">by {a.userName} · {fmtDateTime(a.createdAt)}</span></div>
+                                  <div className={a.decision === "APPROVED" ? "text-success" : "text-danger"}>{a.decision === "APPROVED" ? t("Approved") : t("Changes requested")} <span className="text-subtle"><Tr>by</Tr> {a.userName} · {fmt.dateTime(a.createdAt)}</span></div>
                                   {a.comment && <p className="mt-0.5 whitespace-pre-line text-muted">“{a.comment}”</p>}
                                 </div>
                               </div>

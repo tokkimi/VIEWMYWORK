@@ -15,8 +15,8 @@ export async function syncPlanToStripe(planId: string) {
   const stripe = getStripe();
   const plan = await db.plan.findUniqueOrThrow({ where: { id: planId } });
   let productId = plan.stripeProductId;
-  if (!productId) productId = (await stripe.products.create({ name: `ViewMyWork ${plan.name}`, metadata: { planId: plan.id, planCode: plan.code } })).id;
-  else await stripe.products.update(productId, { name: `ViewMyWork ${plan.name}` });
+  if (!productId) productId = (await stripe.products.create({ name: `FollowMyFuture ${plan.name}`, metadata: { planId: plan.id, planCode: plan.code } })).id;
+  else await stripe.products.update(productId, { name: `FollowMyFuture ${plan.name}` });
 
   async function ensurePrice(existingId: string | null, amount: number | null, interval: "month" | "year") {
     if (amount === null) return null;
@@ -95,7 +95,7 @@ export async function handlePlatformEvent(event: Stripe.Event) {
       });
       if (!paid) {
         await db.subscription.update({ where: { id: local.id }, data: { status: "PAST_DUE" } });
-        await notifyWorkspaceAdmins(local.workspaceId, "SUBSCRIPTION_PAYMENT_FAILED", "Subscription payment failed", "We couldn't charge your card for your ViewMyWork subscription. Update your payment method to avoid interruption.", "/app/settings/billing");
+        await notifyWorkspaceAdmins(local.workspaceId, "SUBSCRIPTION_PAYMENT_FAILED", "Subscription payment failed", "We couldn't charge your card for your FollowMyFuture subscription. Update your payment method to avoid interruption.", "/app/settings/billing");
       }
       return;
     }

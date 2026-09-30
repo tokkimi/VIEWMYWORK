@@ -18,7 +18,7 @@ export async function markInvoiceViewed(invoiceId: string, portalUserId: string 
   if (updated.count === 0) return; // someone else recorded it first
   await emit({
     workspaceId: inv.workspaceId, type: "INVOICE_VIEWED", actor: null, projectId: inv.projectId, clientId: inv.clientId, entityType: "INVOICE", entityId: inv.id,
-    summary: `Client viewed invoice ${inv.number}`,
-    notify: { team: { kind: "workspace", capability: ["invoices", "view"] }, title: "Invoice viewed", message: `Your client viewed ${inv.number}.`, actionUrl: `/app/invoices/${inv.id}`, actionLabel: "Open invoice" },
+    summary: ["Client viewed invoice {number}", { number: inv.number }],
+    notify: { team: { kind: "workspace", capability: ["invoices", "view"] }, title: "Invoice viewed", message: ["Your client viewed {number}.", { number: inv.number }], actionUrl: `/app/invoices/${inv.id}`, actionLabel: "Open invoice" },
   });
 }

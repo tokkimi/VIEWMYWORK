@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
 import { requireWorkspace, requirePerm } from "@/lib/auth/context";
 import { InvoiceSettingsForm } from "@/components/app/settings-forms";
+import { pageTitle } from "@/lib/i18n/server";
 
-export const metadata = { title: "Invoice settings" };
+export const generateMetadata = pageTitle("Invoice settings");
 
 export default async function InvoiceSettingsPage() {
   const ctx = await requireWorkspace();

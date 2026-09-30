@@ -8,8 +8,8 @@ import { formToObject, zOptStr, zOptDate, zCurrency, zId, zOptMoney, zOptId, zBo
 import { assertWithinLimit, requireActiveSubscription } from "@/lib/plans";
 import { emit } from "@/lib/events";
 import { recalcProject } from "@/lib/progress";
+import { getLocale } from "@/lib/i18n/server";
 import { applyTemplate, assertAssignable, logSpec, snapshotSpec } from "@/server/services/spec";
-import { fmtDate } from "@/lib/format";
 
 const projectSchema = z.object({
   name: z.string().trim().min(1, "Project name is required.").max(140),
@@ -29,6 +29,7 @@ export async function createProjectAction(fd: FormData) {
     const ctx = await requireWorkspace();
     requirePerm(ctx, "projects", "manage");
     await assertWithinLimit(ctx.workspace.id, "projects");
+    const locale = await getLocale();
     const raw = formToObject(fd);
     const input = projectSchema.parse(raw);
     const templateId = typeof raw.templateId === "string" && isUuid(raw.templateId) ? raw.templateId : null;
@@ -42,13 +43,13 @@ export async function createProjectAction(fd: FormData) {
       const p = await tx.project.create({ data: { ...rest, budgetCents: budget ?? null, managerId: input.managerId ?? ctx.user.id, workspaceId: ctx.workspace.id, status: "ACTIVE" } });
       if (!ctx.isAdmin && !ctx.member.allProjects) await tx.projectMember.create({ data: { projectId: p.id, memberId: ctx.member.id } });
       if (templateId) {
-        const tpl = await applyTemplate(tx, ctx.workspace.id, p.id, templateId);
-        await logSpec(tx, p.id, ctx, `Specification created from template “${tpl.name}”`);
+        const tpl = await applyTemplate(tx, ctx.workspace.id, p.id, templateId, locale);
+        await logSpec(tx, p.id, ctx, ["Specification created from template “{name}”", { name: tpl.name }]);
       } else await logSpec(tx, p.id, ctx, "Project created");
       await recalcProject(tx, p.id);
       return p;
     });
-    await emit({ workspaceId: ctx.workspace.id, type: "PROJECT_CREATED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: project.id, clientId: client.id, entityType: "PROJECT", entityId: project.id, summary: `Project “${project.name}” created` });
+    await emit({ workspaceId: ctx.workspace.id, type: "PROJECT_CREATED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: project.id, clientId: client.id, entityType: "PROJECT", entityId: project.id, summary: ["Project “{name}” created", { name: project.name }] });
     return { id: project.id, redirect: `/app/projects/${project.id}` };
   }, "Project created.");
 }
@@ -67,10 +68,10 @@ export async function updateProjectAction(fd: FormData) {
     await db.$transaction(async (tx) => {
       await tx.project.update({ where: { id }, data: { ...rest, budgetCents: budget ?? null, managerId: input.managerId ?? null } });
       if ((project.targetDate?.getTime() ?? 0) !== (input.targetDate?.getTime() ?? 0))
-        await logSpec(tx, id, ctx, `Target date changed from ${fmtDate(project.targetDate)} to ${fmtDate(input.targetDate)}`);
+        await logSpec(tx, id, ctx, ["Target date changed from {from} to {to}", { from: project.targetDate ? { date: project.targetDate } : "—", to: input.targetDate ? { date: input.targetDate } : "—" }]);
     });
     if ((project.targetDate?.getTime() ?? 0) !== (input.targetDate?.getTime() ?? 0))
-      await emit({ workspaceId: ctx.workspace.id, type: "DEADLINE_CHANGED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: id, clientId: project.clientId, entityType: "PROJECT", entityId: id, summary: `Target date changed to ${fmtDate(input.targetDate)}`, clientVisible: true });
+      await emit({ workspaceId: ctx.workspace.id, type: "DEADLINE_CHANGED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: id, clientId: project.clientId, entityType: "PROJECT", entityId: id, summary: ["Target date changed to {date}", { date: input.targetDate ? { date: input.targetDate } : "—" }], clientVisible: true });
     return { id };
   }, "Project saved.");
 }
@@ -83,7 +84,7 @@ export async function setProgressModeAction(projectId: string, mode: "AUTO" | "M
     await db.$transaction(async (tx) => {
       await tx.project.update({ where: { id: projectId }, data: { progressMode: mode, manualProgress: value } });
       await recalcProject(tx, projectId);
-      await logSpec(tx, projectId, ctx, mode === "MANUAL" ? `Progress set manually to ${value}%` : "Progress switched to automatic");
+      await logSpec(tx, projectId, ctx, mode === "MANUAL" ? ["Progress set manually to {n}%", { n: value }] : "Progress switched to automatic");
     });
     return null;
   }, "Progress updated.");
@@ -100,8 +101,8 @@ export async function completeProjectAction(projectId: string) {
     });
     await emit({
       workspaceId: ctx.workspace.id, type: "PROJECT_COMPLETED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId, clientId: project.clientId, entityType: "PROJECT", entityId: projectId,
-      summary: `Project “${project.name}” completed`, clientVisible: true,
-      notify: { team: { kind: "project" }, client: true, title: `${project.name} is complete`, message: `The project has been marked as completed. Documents and invoices remain available in your portal.`, actionUrl: `/app/projects/${projectId}`, clientActionUrl: `/portal/projects/${projectId}`, actionLabel: "Open project", email: true },
+      summary: ["Project “{name}” completed", { name: project.name }], clientVisible: true,
+      notify: { team: { kind: "project" }, client: true, title: ["{name} is complete", { name: project.name }], message: "The project has been marked as completed. Documents and invoices remain available in your portal.", actionUrl: `/app/projects/${projectId}`, clientActionUrl: `/portal/projects/${projectId}`, actionLabel: "Open project", email: true },
     });
     return null;
   }, "Project marked complete.");
@@ -122,7 +123,7 @@ export async function archiveProjectAction(projectId: string, archive: boolean) 
     const { project } = await requireProjectPerm(ctx, projectId, "projects", "manage");
     if (!archive) await assertWithinLimit(ctx.workspace.id, "projects");
     await db.project.update({ where: { id: projectId }, data: { archivedAt: archive ? new Date() : null } });
-    if (archive) await emit({ workspaceId: ctx.workspace.id, type: "PROJECT_ARCHIVED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId, clientId: project.clientId, entityType: "PROJECT", entityId: projectId, summary: `Project “${project.name}” archived` });
+    if (archive) await emit({ workspaceId: ctx.workspace.id, type: "PROJECT_ARCHIVED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId, clientId: project.clientId, entityType: "PROJECT", entityId: projectId, summary: ["Project “{name}” archived", { name: project.name }] });
     return { redirect: archive ? "/app/projects" : `/app/projects/${projectId}` };
   }, archive ? "Project archived." : "Project restored.");
 }
@@ -155,8 +156,8 @@ export async function publishProjectUpdateAction(fd: FormData) {
     const u = await db.projectUpdate.create({ data: { projectId: i.projectId, title: i.title, body: i.body, nextSteps: i.nextSteps, authorId: ctx.user.id, authorName: ctx.user.name } });
     await emit({
       workspaceId: ctx.workspace.id, type: "PROJECT_UPDATE_PUBLISHED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: project.id, clientId: project.clientId, entityType: "PROJECT_UPDATE", entityId: u.id,
-      summary: `Update published${i.title ? `: ${i.title}` : ""}`, clientVisible: true,
-      notify: { client: true, title: i.title ? `${project.name}: ${i.title}` : `New update on ${project.name}`, message: i.body.slice(0, 600) + (i.nextSteps ? `\n\nNext: ${i.nextSteps.slice(0, 300)}` : ""), clientActionUrl: `/portal/projects/${project.id}`, actionLabel: "View project", email: Boolean(i.notify) },
+      summary: i.title ? ["Update published: {title}", { title: i.title }] : "Update published", clientVisible: true,
+      notify: { client: true, title: i.title ? `${project.name}: ${i.title}` : ["New update on {project}", { project: project.name }], message: i.nextSteps ? ["{body}\n\nNext: {next}", { body: i.body.slice(0, 600), next: i.nextSteps.slice(0, 300) }] : i.body.slice(0, 600), clientActionUrl: `/portal/projects/${project.id}`, actionLabel: "View project", email: Boolean(i.notify) },
     });
     return null;
   }, "Update published.");
@@ -181,8 +182,8 @@ export async function startClientWaitAction(fd: FormData) {
     const w = await db.clientWait.create({ data: { projectId: i.projectId, reason: i.reason, label: i.label } });
     await emit({
       workspaceId: ctx.workspace.id, type: "CLIENT_WAIT_STARTED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: project.id, clientId: project.clientId, entityType: "CLIENT_WAIT", entityId: w.id,
-      summary: `Waiting for client: ${i.label}`, clientVisible: true,
-      notify: { client: true, title: `${project.name}: your input is needed`, message: i.label, clientActionUrl: `/portal/projects/${project.id}`, actionLabel: "Open portal", email: true },
+      summary: ["Waiting for client: {label}", { label: i.label }], clientVisible: true,
+      notify: { client: true, title: ["{project}: your input is needed", { project: project.name }], message: ["{label}", { label: i.label }], clientActionUrl: `/portal/projects/${project.id}`, actionLabel: "Open portal", email: true },
     });
     return null;
   }, "Client request recorded.");
@@ -206,9 +207,9 @@ export async function createScopeChangeAction(fd: FormData) {
     const { project } = await requireProjectPerm(ctx, i.projectId, "projects", "manage");
     await db.$transaction(async (tx) => {
       await tx.scopeChange.create({ data: { projectId: i.projectId, description: i.description, requestedBy: i.requestedBy, additionalCostCents: i.additionalCost ?? 0, additionalDays: i.additionalDays } });
-      await logSpec(tx, i.projectId, ctx, `Scope change proposed: ${i.description.slice(0, 120)}`);
+      await logSpec(tx, i.projectId, ctx, ["Scope change proposed: {text}", { text: i.description.slice(0, 120) }]);
     });
-    await emit({ workspaceId: ctx.workspace.id, type: "SCOPE_CHANGE", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: project.id, clientId: project.clientId, entityType: "PROJECT", entityId: project.id, summary: `Scope change proposed` });
+    await emit({ workspaceId: ctx.workspace.id, type: "SCOPE_CHANGE", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: project.id, clientId: project.clientId, entityType: "PROJECT", entityId: project.id, summary: "Scope change proposed" });
     return null;
   }, "Scope change recorded.");
 }
@@ -229,7 +230,7 @@ export async function decideScopeChangeAction(fd: FormData) {
           await tx.project.update({ where: { id: sc.projectId }, data: { targetDate: new Date(sc.project.targetDate.getTime() + sc.additionalDays * 86400_000) } });
         await recalcProject(tx, sc.projectId);
       }
-      await logSpec(tx, sc.projectId, ctx, `Scope change ${i.decision.toLowerCase()}: ${sc.description.slice(0, 120)}`);
+      await logSpec(tx, sc.projectId, ctx, [i.decision === "APPROVED" ? "Scope change accepted: {text}" : "Scope change rejected: {text}", { text: sc.description.slice(0, 120) }]);
     });
     return null;
   }, "Scope change updated.");
