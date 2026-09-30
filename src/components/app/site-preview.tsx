@@ -14,8 +14,10 @@ type P = { url: string; label: string; embeddable: boolean | null; imageUrl: str
  * stay blank inside a frame. Sites known to block framing start on screenshots.
  */
 export function SitePreviewMini({ p, check }: { p: P; check?: { kind: "project" | "preview"; id: string } }) {
+  // An http:// page can never be shown live inside an https page (browsers block mixed content).
+  const insecure = /^http:\/\//i.test(p.url);
   const [blocked, setBlocked] = useState(p.embeddable === false);
-  const [mode, setMode] = useState<"live" | "shot">(blocked ? "shot" : "live");
+  const [mode, setMode] = useState<"live" | "shot">(blocked || insecure ? "shot" : "live");
   useFramingCheck(check, p.embeddable, () => { setBlocked(true); setMode("shot"); });
   const domain = (() => { try { return new URL(p.url).hostname; } catch { return p.url; } })();
   const frame = "absolute left-0 top-0 origin-top-left border-0 bg-white";
@@ -24,7 +26,7 @@ export function SitePreviewMini({ p, check }: { p: P; check?: { kind: "project" 
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex rounded-lg border border-line p-0.5 text-xs" role="radiogroup">
-          {!blocked && <button type="button" role="radio" aria-checked={live} onClick={() => setMode("live")} className={cn("rounded-md px-2.5 py-1", live ? "bg-white/[0.08] text-fg" : "text-muted")}><Tr>Live</Tr></button>}
+          {!insecure && <button type="button" role="radio" aria-checked={live} onClick={() => setMode("live")} className={cn("rounded-md px-2.5 py-1", live ? "bg-white/[0.08] text-fg" : "text-muted")}><Tr>Live</Tr></button>}
           <button type="button" role="radio" aria-checked={!live} onClick={() => setMode("shot")} className={cn("rounded-md px-2.5 py-1", !live ? "bg-white/[0.08] text-fg" : "text-muted")}><Tr>Screenshot</Tr></button>
         </div>
         <a href={p.url} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1.5 text-xs text-accent hover:underline"><ExternalLink className="size-3.5" /><Tr>Open the site</Tr></a>
@@ -61,7 +63,7 @@ export function SitePreviewMini({ p, check }: { p: P; check?: { kind: "project" 
           <figcaption className="mt-2 flex items-center gap-1.5 text-[11px] text-subtle"><Smartphone className="size-3.5" /><Tr>Mobile</Tr></figcaption>
         </figure>
       </div>
-      <p className="text-[11px] text-subtle">{blocked ? <Tr>This site blocks live display in another page, so screenshots are shown.</Tr> : <Tr>Blank frame? Some sites refuse to be displayed inside another page — switch to Screenshot.</Tr>}</p>
+      <p className="text-[11px] text-subtle">{insecure ? <Tr>Non-secure site (http): browsers only allow a screenshot here.</Tr> : blocked ? <Tr>This site refuses to be displayed inside another page, so a screenshot is shown. You can still try Live.</Tr> : <Tr>Blank frame? Some sites refuse to be displayed inside another page — switch to Screenshot.</Tr>}</p>
     </div>
   );
 }

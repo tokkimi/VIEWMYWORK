@@ -20,8 +20,10 @@ export function PreviewFrame({ p }: { p: PreviewDTO }) {
   const [device, setDevice] = useState<(typeof devices)[number]["k"]>(p.type === "MOBILE_APP" ? "mobile" : "desktop");
   const d = devices.find((x) => x.k === device)!;
   const domain = (() => { try { return new URL(p.url).hostname; } catch { return p.url; } })();
+  // An http:// page can never be shown live inside an https page (browsers block mixed content).
+  const insecure = /^http:\/\//i.test(p.url);
   const [blocked, setBlocked] = useState(p.embeddable === false);
-  const [mode, setMode] = useState<"live" | "shot">(blocked ? "shot" : "live");
+  const [mode, setMode] = useState<"live" | "shot">(blocked || insecure ? "shot" : "live");
   useFramingCheck({ kind: "preview", id: p.id }, p.embeddable, () => { setBlocked(true); setMode("shot"); });
 
   return (
@@ -34,7 +36,7 @@ export function PreviewFrame({ p }: { p: PreviewDTO }) {
             ))}
           </div>
           <div className="flex rounded-lg border border-line p-0.5 text-xs" role="radiogroup">
-            {!blocked && <button type="button" role="radio" aria-checked={mode === "live"} onClick={() => setMode("live")} className={cn("rounded-md px-2.5 py-1.5", mode === "live" ? "bg-white/[0.08] text-fg" : "text-muted")}>{t("Live")}</button>}
+            {!insecure && <button type="button" role="radio" aria-checked={mode === "live"} onClick={() => setMode("live")} className={cn("rounded-md px-2.5 py-1.5", mode === "live" ? "bg-white/[0.08] text-fg" : "text-muted")}>{t("Live")}</button>}
             <button type="button" role="radio" aria-checked={mode === "shot"} onClick={() => setMode("shot")} className={cn("rounded-md px-2.5 py-1.5", mode === "shot" ? "bg-white/[0.08] text-fg" : "text-muted")}>{t("Screenshot")}</button>
           </div>
         </div>
@@ -56,7 +58,7 @@ export function PreviewFrame({ p }: { p: PreviewDTO }) {
           )}
         </div>
       </div>
-      <p className="mt-2 text-xs text-muted">{blocked ? t("This site blocks live display in another page, so screenshots are shown.") : t("Blank frame? Some sites refuse to be displayed inside another page — switch to Screenshot.")}</p>
+      <p className="mt-2 text-xs text-muted">{insecure ? t("Non-secure site (http): browsers only allow a screenshot here.") : blocked ? t("This site refuses to be displayed inside another page, so a screenshot is shown. You can still try Live.") : t("Blank frame? Some sites refuse to be displayed inside another page — switch to Screenshot.")}</p>
     </div>
   );
 }

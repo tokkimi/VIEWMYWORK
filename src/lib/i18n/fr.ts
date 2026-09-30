@@ -1994,4 +1994,6 @@ export const fr: Record<string, string> = {
   "This site blocks live display in another page, so screenshots are shown.": "Ce site bloque l’affichage dans une autre page : des captures sont affichées.",
   "Blank frame? Some sites refuse to be displayed inside another page — switch to Screenshot.": "Cadre vide ? Certains sites refusent d’être affichés dans une autre page — passez en mode Capture.",
   "Screenshot unavailable for this site.": "Capture indisponible pour ce site.",
+  "Non-secure site (http): browsers only allow a screenshot here.": "Site non sécurisé (http) : les navigateurs n’autorisent qu’une capture ici.",
+  "This site refuses to be displayed inside another page, so a screenshot is shown. You can still try Live.": "Ce site refuse d’être affiché dans une autre page : une capture est affichée. Vous pouvez quand même essayer Direct.",
 };

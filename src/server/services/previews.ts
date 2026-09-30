@@ -1,3 +1,4 @@
+import { env } from "@/lib/env";
 import { safeFetch } from "@/lib/safe-fetch";
 
 function decodeEntities(s: string) {
@@ -14,11 +15,15 @@ export async function inspectUrl(url: string) {
     const xfo = (r.headers.get("x-frame-options") ?? "").toLowerCase();
     const csp = (r.headers.get("content-security-policy") ?? "").toLowerCase();
     const fa = csp.split(";").map((d) => d.trim()).find((d) => d.startsWith("frame-ancestors"));
-    const blockedByCsp = fa ? !/frame-ancestors\s+(\*|https:)/.test(fa) : false;
-    // Only an explicit refusal (X-Frame-Options / CSP frame-ancestors) means "blocked". An error status is
-    // often just bot protection against servers: the visitor's browser can usually display the site fine.
-    const refuses = xfo.includes("deny") || xfo.includes("sameorigin") || blockedByCsp;
-    const embeddable = refuses ? false : r.status < 400 && new URL(r.finalUrl).protocol === "https:" ? true : null;
+    const ourHost = (() => { try { return new URL(env.appUrl).hostname; } catch { return ""; } })();
+    const blockedByCsp = fa ? !(/frame-ancestors\s+.*(\*|https:)/.test(fa) || (ourHost && fa.includes(ourHost))) : false;
+    // Headers only count when we actually reached the site. An error status, or a redirect to another
+    // host (login wall such as Vercel Authentication, bot checkpoint…), says nothing about the site
+    // itself: the visitor's browser — often already logged in — can usually display it fine.
+    const sameHost = new URL(r.finalUrl).hostname.replace(/^www\./, "") === new URL(url).hostname.replace(/^www\./, "");
+    const reached = r.status < 400 && sameHost;
+    const refuses = reached && (xfo.includes("deny") || xfo.includes("sameorigin") || blockedByCsp);
+    const embeddable = refuses ? false : reached ? true : null;
     const title = r.status >= 400 ? undefined : r.body.match(/<title[^>]*>([^<]{1,200})<\/title>/i)?.[1];
     const og = r.body.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1] ?? r.body.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)?.[1];
     let imageUrl: string | null = null;
