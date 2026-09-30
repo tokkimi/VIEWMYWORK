@@ -1996,4 +1996,5 @@ export const fr: Record<string, string> = {
   "Screenshot unavailable for this site.": "Capture indisponible pour ce site.",
   "Non-secure site (http): browsers only allow a screenshot here.": "Site non sécurisé (http) : les navigateurs n’autorisent qu’une capture ici.",
   "This site refuses to be displayed inside another page, so a screenshot is shown. You can still try Live.": "Ce site refuse d’être affiché dans une autre page : une capture est affichée. Vous pouvez quand même essayer Direct.",
+  "Taking a screenshot…": "Capture en cours…",
 };

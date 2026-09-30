@@ -11,7 +11,7 @@ function isPrivateIp(ip: string) {
   return v === "::1" || v === "::" || v.startsWith("fc") || v.startsWith("fd") || v.startsWith("fe80") || v.startsWith("::ffff:127.") || v.startsWith("::ffff:10.") || v.startsWith("::ffff:192.168.");
 }
 
-async function assertPublicUrl(raw: string) {
+export async function assertPublicUrl(raw: string) {
   const u = new URL(raw);
   if (!["http:", "https:"].includes(u.protocol)) throw new Error("Only http(s) URLs are allowed.");
   if (u.port && !["80", "443"].includes(u.port)) throw new Error("Non-standard ports are not allowed.");

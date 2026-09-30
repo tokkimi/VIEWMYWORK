@@ -15,6 +15,9 @@ async function alreadyEmitted(type: string, entityId: string, since?: Date) {
 export async function runDailyJobs(now = new Date()) {
   const report = { overdue: 0, dueSoon: 0, reminders: 0, taskAlerts: 0, cleaned: 0, driveChecked: 0 };
 
+  // 0. Website screenshots are a cache: drop the ones nobody has refreshed for a week.
+  await db.siteShot.deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - 7 * 86400_000) } } });
+
   // 1. Invoice statuses & overdue alerts (status is derived from due date + balance, never from the UI).
   const open = await db.invoice.findMany({ where: { status: { in: ["SENT", "VIEWED", "PARTIALLY_PAID", "OVERDUE"] } }, include: { client: true } });
   for (const inv of open) {

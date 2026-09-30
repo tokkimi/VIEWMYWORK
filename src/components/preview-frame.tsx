@@ -52,7 +52,7 @@ export function PreviewFrame({ p }: { p: PreviewDTO }) {
           )}
           {mode === "shot" ? (
             // Screenshot at the selected device size: works for sites that forbid framing or stay blank in a frame.
-            <SiteShotImg key={device} url={p.url} w={d.px} h={device === "desktop" ? 800 : d.h} alt={p.pageTitle || p.label} className={cn("block w-full bg-white object-cover object-top", device !== "desktop" && "rounded-[26px]")} style={device === "desktop" ? { aspectRatio: "1280 / 800" } : { height: d.h }} />
+            <SiteShotImg key={device} url={p.url} device={device === "mobile" ? "mobile" : "desktop"} alt={p.pageTitle || p.label} className={cn(device !== "desktop" && "rounded-[26px]")} style={device === "desktop" ? { aspectRatio: "1280 / 800" } : { height: d.h }} />
           ) : (
           <iframe src={p.url} title={p.label} loading="lazy" referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" className={cn("block w-full bg-white", device !== "desktop" && "rounded-[26px]")} style={{ height: d.h }} />
           )}

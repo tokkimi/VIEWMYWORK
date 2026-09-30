@@ -12,7 +12,9 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Lets the client detect a new deployment and do a full reload instead of failing a navigation.
   deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
-  serverExternalPackages: ["@prisma/client"],
+  serverExternalPackages: ["@prisma/client", "@sparticuz/chromium", "puppeteer-core"],
+  // The headless browser used for website screenshots ships as compressed files read at runtime.
+  outputFileTracingIncludes: { "/api/site-shot": ["./node_modules/@sparticuz/chromium/bin/**"] },
   experimental: { serverActions: { bodySizeLimit: "2mb" } },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

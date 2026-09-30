@@ -43,7 +43,7 @@ export function SitePreviewMini({ p, check }: { p: P; check?: { kind: "project" 
               {live ? (
                 <iframe src={p.url} title={`${p.label} — desktop`} loading="lazy" referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms" className={frame} style={{ width: 1280, height: 800, transform: "scale(0.35)" }} />
               ) : (
-                <SiteShotImg url={p.url} w={1280} h={800} alt={`${p.label} — desktop`} className="size-full object-cover object-left-top" />
+                <SiteShotImg url={p.url} device="desktop" alt={`${p.label} — desktop`} className="size-full" />
               )}
             </div>
           </div>
@@ -56,7 +56,7 @@ export function SitePreviewMini({ p, check }: { p: P; check?: { kind: "project" 
               {live ? (
                 <iframe src={p.url} title={`${p.label} — mobile`} loading="lazy" referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms" className={frame} style={{ width: 390, height: 844, transform: "scale(0.5)" }} />
               ) : (
-                <SiteShotImg url={p.url} w={390} h={844} alt={`${p.label} — mobile`} className="size-full object-cover object-top" />
+                <SiteShotImg url={p.url} device="mobile" alt={`${p.label} — mobile`} className="size-full" />
               )}
             </div>
           </div>

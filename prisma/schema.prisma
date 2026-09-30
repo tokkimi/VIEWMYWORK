@@ -1215,3 +1215,13 @@ model PlatformPayment {
 
   @@index([createdAt])
 }
+
+/// Cached website screenshots taken by our own headless browser (see /api/site-shot).
+model SiteShot {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  url       String
+  device    String
+  data      Bytes
+  createdAt DateTime @default(now())
+}
