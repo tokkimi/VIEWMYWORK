@@ -20,7 +20,7 @@ export default async function Preview({ params }: { params: Promise<{ id: string
     <div className="space-y-10">
       {project.websiteUrl && (
         <Section title="Client website" description={project.websiteUrl} action={hasLevel(perms, "projects", "manage") ? <Link href={`/app/projects/${id}/settings`} className="text-xs text-muted hover:text-fg"><Tr>Change website</Tr></Link> : undefined}>
-          <SitePreviewMini p={{ url: project.websiteUrl, label: project.name, embeddable: project.websiteEmbeddable, imageUrl: null, pageTitle: null }} />
+          <SitePreviewMini p={{ url: project.websiteUrl, label: project.name, embeddable: project.websiteEmbeddable, imageUrl: null, pageTitle: null }} check={{ kind: "project", id }} />
         </Section>
       )}
       <Section title="Live previews" description="Websites, apps and prototypes your client can open from their portal." action={canEdit ? <AddPreviewDialog projectId={id} /> : undefined}>

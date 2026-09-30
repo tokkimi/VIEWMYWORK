@@ -68,3 +68,29 @@ export async function deleteLinkAction(id: string) {
     return null;
   }, "Link removed.");
 }
+
+/**
+ * Background re-check for a site whose framing verdict is unknown (null): the page calls this and
+ * switches to screenshots if the site explicitly refuses to be displayed inside another page.
+ */
+export async function checkFramingAction(kind: "project" | "preview", id: string) {
+  return runAction(async () => {
+    const ctx = await requireWorkspace();
+    if (!isUuid(id)) throw notFound();
+    await rateLimit("framing-check", 120, 3600, ctx.workspace.id);
+    if (kind === "project") {
+      const p = await db.project.findFirst({ where: { id, workspaceId: ctx.workspace.id }, select: { id: true, websiteUrl: true } });
+      if (!p?.websiteUrl) throw notFound();
+      await requireProjectPerm(ctx, p.id, "projects", "view");
+      const { embeddable } = await inspectUrl(p.websiteUrl);
+      if (embeddable !== null) await db.project.update({ where: { id }, data: { websiteEmbeddable: embeddable } });
+      return { embeddable };
+    }
+    const p = await db.preview.findFirst({ where: { id, project: { workspaceId: ctx.workspace.id } } });
+    if (!p) throw notFound();
+    await requireProjectPerm(ctx, p.projectId, "projects", "view");
+    const meta = await inspectUrl(p.url);
+    if (meta.embeddable !== null) await db.preview.update({ where: { id }, data: { ...meta, checkedAt: new Date() } });
+    return { embeddable: meta.embeddable };
+  });
+}

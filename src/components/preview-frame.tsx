@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Monitor, Tablet, Smartphone, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { SiteShotImg } from "@/components/site-shot-img";
+import { SiteShotImg, useFramingCheck } from "@/components/site-shot-img";
 import { useI18n } from "@/lib/i18n/client";
 
 export type PreviewDTO = { id: string; label: string; url: string; type: string; embeddable: boolean | null; pageTitle: string | null; imageUrl: string | null };
@@ -20,8 +20,9 @@ export function PreviewFrame({ p }: { p: PreviewDTO }) {
   const [device, setDevice] = useState<(typeof devices)[number]["k"]>(p.type === "MOBILE_APP" ? "mobile" : "desktop");
   const d = devices.find((x) => x.k === device)!;
   const domain = (() => { try { return new URL(p.url).hostname; } catch { return p.url; } })();
-  const blocked = p.embeddable === false;
+  const [blocked, setBlocked] = useState(p.embeddable === false);
   const [mode, setMode] = useState<"live" | "shot">(blocked ? "shot" : "live");
+  useFramingCheck({ kind: "preview", id: p.id }, p.embeddable, () => { setBlocked(true); setMode("shot"); });
 
   return (
     <div>

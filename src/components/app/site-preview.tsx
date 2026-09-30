@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ExternalLink, Monitor, Smartphone } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Tr } from "@/lib/i18n/client";
-import { SiteShotImg } from "@/components/site-shot-img";
+import { SiteShotImg, useFramingCheck } from "@/components/site-shot-img";
 
 type P = { url: string; label: string; embeddable: boolean | null; imageUrl: string | null; pageTitle: string | null };
 
@@ -13,9 +13,10 @@ type P = { url: string; label: string; embeddable: boolean | null; imageUrl: str
  * iframes (they scroll); "Screenshot" works for every site, including those that forbid framing or
  * stay blank inside a frame. Sites known to block framing start on screenshots.
  */
-export function SitePreviewMini({ p }: { p: P }) {
-  const blocked = p.embeddable === false;
+export function SitePreviewMini({ p, check }: { p: P; check?: { kind: "project" | "preview"; id: string } }) {
+  const [blocked, setBlocked] = useState(p.embeddable === false);
   const [mode, setMode] = useState<"live" | "shot">(blocked ? "shot" : "live");
+  useFramingCheck(check, p.embeddable, () => { setBlocked(true); setMode("shot"); });
   const domain = (() => { try { return new URL(p.url).hostname; } catch { return p.url; } })();
   const frame = "absolute left-0 top-0 origin-top-left border-0 bg-white";
   const live = mode === "live";

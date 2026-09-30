@@ -41,7 +41,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ id
   const left = project.targetDate ? daysBetween(now, project.targetDate) : null;
   const overdueInvoices = invoices.filter((i) => deriveStatus(i) === "OVERDUE");
   const openRequests = await db.changeRequest.count({ where: { projectId: id, status: "OPEN" } });
-  const preview = await db.preview.findFirst({ where: { projectId: id }, orderBy: [{ type: "desc" }, { createdAt: "asc" }], select: { url: true, label: true, embeddable: true, imageUrl: true, pageTitle: true } });
+  const preview = await db.preview.findFirst({ where: { projectId: id }, orderBy: [{ type: "desc" }, { createdAt: "asc" }], select: { id: true, url: true, label: true, embeddable: true, imageUrl: true, pageTitle: true } });
   const waitingApprovals = approvals.filter((a) => a.status === "WAITING_FOR_CLIENT").length;
   const changeRequests = approvals.filter((a) => a.status === "CHANGES_REQUESTED").length;
   const attention = [
@@ -75,7 +75,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ id
 
       <Section title="Website preview" description={site ? "Desktop and mobile — scroll inside each frame." : "Add the client's website in the project settings to see it here in desktop and mobile versions."} action={site ? <Link href={canManage ? `/app/projects/${id}/settings` : `/app/projects/${id}/preview`} className="text-xs text-muted hover:text-fg"><Tr>{canManage ? "Change website" : "Manage previews"}</Tr></Link> : undefined}>
         {site ? (
-          <SitePreviewMini p={site} />
+          <SitePreviewMini p={site} check={project.websiteUrl ? { kind: "project", id } : preview ? { kind: "preview", id: preview.id } : undefined} />
         ) : (
           <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-line px-6 py-10 text-center">
             <Monitor className="size-6 text-muted" />

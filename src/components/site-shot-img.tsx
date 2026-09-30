@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { checkFramingAction } from "@/server/actions/previews";
 import { ImageOff } from "lucide-react";
 import { siteShot } from "@/lib/site-shot";
 import { Tr } from "@/lib/i18n/client";
@@ -39,4 +40,15 @@ export function SiteShotImg({ url, w, h, alt, className, style }: { url: string;
       onError={retry}
     />
   );
+}
+
+/** When the framing verdict is unknown, ask the server once; if the site refuses frames, switch to screenshots. */
+export function useFramingCheck(check: { kind: "project" | "preview"; id: string } | undefined, embeddable: boolean | null, onBlocked: () => void) {
+  useEffect(() => {
+    if (!check || embeddable !== null) return;
+    let alive = true;
+    checkFramingAction(check.kind, check.id).then((r) => { if (alive && r.ok && r.data?.embeddable === false) onBlocked(); }).catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [check?.kind, check?.id, embeddable]);
 }
