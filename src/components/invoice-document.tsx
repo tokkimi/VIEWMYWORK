@@ -32,14 +32,14 @@ export async function InvoiceDocument({ inv, seller, client, lines, status, proj
           <div className="eyebrow mb-2"><Tr>From</Tr></div>
           <div className="font-medium">{seller.legalName || seller.name}</div>
           <div className="whitespace-pre-line text-muted">{[seller.address, seller.country, seller.email, seller.phone].filter(Boolean).join("\n")}</div>
-          {seller.vatNumber && <div className="text-muted">VAT: {seller.vatNumber}</div>}
-          {seller.registration && <div className="text-muted">Reg: {seller.registration}</div>}
+          {seller.vatNumber && <div className="text-muted">{t("VAT")}: {seller.vatNumber}</div>}
+          {seller.registration && <div className="text-muted">{t("Reg.")}: {seller.registration}</div>}
         </div>
         <div className="sm:text-right">
           <div className="eyebrow mb-2"><Tr>Bill to</Tr></div>
           <div className="font-medium">{client.company || client.name}</div>
           <div className="whitespace-pre-line text-muted">{[client.company ? client.name : null, client.address, client.country, client.email].filter(Boolean).join("\n")}</div>
-          {client.vatNumber && <div className="text-muted">VAT: {client.vatNumber}</div>}
+          {client.vatNumber && <div className="text-muted">{t("VAT")}: {client.vatNumber}</div>}
         </div>
       </div>
       <dl className="grid grid-cols-2 gap-4 border-b border-line px-6 py-4 text-sm sm:grid-cols-4 sm:px-8">

@@ -13,6 +13,7 @@ import { toFileDTO } from "@/lib/file-dto";
 import { daysBetween } from "@/lib/format";
 import { deriveStatus, outstandingCents } from "@/lib/invoices/status";
 import { Tr } from "@/lib/i18n/client";
+import { SitePreviewMini } from "@/components/app/site-preview";
 import { getI18n } from "@/lib/i18n/server";
 
 export default async function ProjectOverview({ params }: { params: Promise<{ id: string }> }) {
@@ -39,6 +40,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ id
   const left = project.targetDate ? daysBetween(now, project.targetDate) : null;
   const overdueInvoices = invoices.filter((i) => deriveStatus(i) === "OVERDUE");
   const openRequests = await db.changeRequest.count({ where: { projectId: id, status: "OPEN" } });
+  const preview = await db.preview.findFirst({ where: { projectId: id }, orderBy: [{ type: "desc" }, { createdAt: "asc" }], select: { url: true, label: true, embeddable: true, imageUrl: true, pageTitle: true } });
   const waitingApprovals = approvals.filter((a) => a.status === "WAITING_FOR_CLIENT").length;
   const changeRequests = approvals.filter((a) => a.status === "CHANGES_REQUESTED").length;
   const attention = [
@@ -63,10 +65,16 @@ export default async function ProjectOverview({ params }: { params: Promise<{ id
         <Stat label="Overall progress" value={`${project.progress}%`} tone="accent" />
         <Stat label="Current phase" value={<span className="text-base">{current?.title ?? "—"}</span>} />
         <Stat label="Next milestone" value={<span className="text-base">{nextMilestone?.title ?? "—"}</span>} hint={nextMilestone?.dueDate ? fmt.short(nextMilestone.dueDate) : undefined} />
-        <Stat label="Days remaining" value={left === null ? "—" : left < 0 ? `${-left} late` : left} tone={left !== null && left < 0 ? "danger" : undefined} />
+        <Stat label="Days remaining" value={left === null ? "—" : left < 0 ? t("{n}d late", { n: -left }) : left} tone={left !== null && left < 0 ? "danger" : undefined} />
         <Stat label="Tasks" value={`${completed}/${total}`} hint={t("{n} remaining", { n: total - completed })} />
         <Stat label="Waiting for client" value={waits.length} tone={waits.length ? "warning" : undefined} />
       </div>
+
+      {preview && (
+        <Section title="Website preview" description="Desktop and mobile — scroll inside each frame." action={<Link href={`/app/projects/${id}/preview`} className="text-xs text-muted hover:text-fg"><Tr>Manage previews</Tr></Link>}>
+          <SitePreviewMini p={preview} />
+        </Section>
+      )}
 
       {project.phases.length > 0 ? (
         <Section title="Timeline">
@@ -103,7 +111,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ id
                 {approvals.map((d) => <Link key={d.id} href={`/app/projects/${id}/deliverables#${d.id}`} className="flex items-center justify-between gap-3 px-4 py-3 text-sm hover:bg-white/[0.02]"><span className="truncate">{d.title}</span><DeliverableStatusBadge s={d.status} /></Link>)}
                 {waits.map((w) => (
                   <div key={w.id} className="flex items-center gap-3 px-4 py-3 text-sm">
-                    <div className="min-w-0 flex-1"><div className="truncate">{w.label}</div><div className="flex items-center gap-1 text-xs text-warning"><Clock className="size-3" /><Tr>Waiting for client for</Tr> {Math.max(0, daysBetween(w.startedAt, now))} <Tr>days</Tr></div></div>
+                    <div className="min-w-0 flex-1"><div className="truncate">{w.label}</div><div className="flex items-center gap-1 text-xs text-warning"><Clock className="size-3" />{t("Waiting for client for {n} days", { n: Math.max(0, daysBetween(w.startedAt, now)) })}</div></div>
                     {canEdit && w.entityType !== "INVOICE" && <ResolveWaitButton id={w.id} />}
                   </div>
                 ))}

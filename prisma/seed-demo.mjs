@@ -20,7 +20,14 @@ async function main() {
   const adminPw = process.env.DEMO_ADMIN_PASSWORD;
   const clientPw = process.env.DEMO_CLIENT_PASSWORD;
   if (!adminPw || !clientPw) return console.log("demo: DEMO_ADMIN_PASSWORD / DEMO_CLIENT_PASSWORD not set — skipped");
-  if (await db.workspace.findUnique({ where: { slug: "studio-demo" } })) return console.log("demo: already present");
+  const existing = await db.workspace.findUnique({ where: { slug: "studio-demo" } });
+  if (existing) {
+    // Keep the demo content in a single language (French); credentials are never touched here.
+    await db.phase.updateMany({ where: { title: "Discovery", project: { workspaceId: existing.id } }, data: { title: "Découverte" } });
+    await db.workspace.update({ where: { id: existing.id }, data: { locale: "fr" } });
+    await db.client.updateMany({ where: { workspaceId: existing.id }, data: { preferredLanguage: "fr" } });
+    return console.log("demo: already present (content normalised)");
+  }
 
   const now = new Date();
   const days = (n) => new Date(now.getTime() + n * 86400_000);
@@ -48,7 +55,7 @@ async function main() {
 
   const project = await db.project.create({ data: { workspaceId: ws.id, clientId: client.id, name: "Refonte du site web", type: "Website", description: "Nouveau site vitrine et boutique.", startDate: days(-30), targetDate: days(45), managerId: admin.id, budgetCents: 480000, currency: "EUR" } });
   const spec = [
-    ["Discovery", 10, [["Réunion de lancement", "COMPLETED"], ["Collecte des contenus", "COMPLETED"], ["Arborescence", "COMPLETED"]]],
+    ["Découverte", 10, [["Réunion de lancement", "COMPLETED"], ["Collecte des contenus", "COMPLETED"], ["Arborescence", "COMPLETED"]]],
     ["Design", 25, [["Wireframes", "COMPLETED"], ["Maquette page d'accueil", "COMPLETED"], ["Maquettes pages internes", "IN_REVIEW"]]],
     ["Développement", 45, [["Mise en place technique", "COMPLETED"], ["Intégration page d'accueil", "IN_PROGRESS"], ["Intégration pages internes", "NOT_STARTED"], ["Marge & coûts internes", "IN_PROGRESS", "INTERNAL"]]],
     ["Tests", 15, [["Recette navigateurs", "NOT_STARTED"], ["Recette mobile", "NOT_STARTED"]]],

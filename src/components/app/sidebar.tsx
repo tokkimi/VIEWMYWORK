@@ -7,7 +7,7 @@ import { LayoutGrid, FolderKanban, Users, CheckSquare, CalendarDays, Files, Rece
 import { cn } from "@/lib/cn";
 import { LogoMark } from "@/components/logo";
 import { WorkspaceSwitcher } from "./workspace-switcher";
-import { LanguageSwitcher } from "@/components/language-switcher";
+
 import { useI18n } from "@/lib/i18n/client";
 
 type Item = { href: string; label: string; icon: React.ComponentType<{ className?: string }>; show?: boolean };
@@ -62,7 +62,7 @@ export function Sidebar({ workspaces, current, can, isSuperAdmin, unread }: { wo
             </Link>
           </li>
         ))}
-        <li className="px-2.5 pt-2"><LanguageSwitcher withIcon /></li>
+
       </ul>
     </nav>
   );

@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { Search, Plus, Bell, FolderKanban, Users, CheckSquare, Receipt, Wallet, Upload, CornerDownLeft, FileText, Package } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Tr, useI18n } from "@/lib/i18n/client";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { useToast } from "@/components/ui/toast";
 
 type Hit = { type: string; id: string; title: string; subtitle?: string; href: string };
 
@@ -42,6 +44,7 @@ export function Topbar({ allowed }: { allowed: Record<string, boolean> }) {
         <kbd className="hidden rounded border border-line px-1.5 py-0.5 font-mono text-[10px] sm:inline">⌘K</kbd>
       </button>
       <div className="ml-auto flex items-center gap-1.5">
+        <LanguageSwitcher className="mr-1" />
         <div className="relative">
           <button onClick={() => setPlusOpen(!plusOpen)} aria-haspopup="menu" aria-expanded={plusOpen} aria-label={t("Quick create")} className="flex size-9 items-center justify-center rounded-[10px] bg-accent text-white hover:bg-accent-hover">
             <Plus className="size-4" />
@@ -156,6 +159,7 @@ type N = { id: string; title: string; message: string; actionUrl: string | null;
 
 export function NotificationBell({ base = "/app" }: { base?: string }) {
   const { t, fmt } = useI18n();
+  const toast = useToast();
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<{ unread: number; items: N[] }>({ unread: 0, items: [] });
   const router = useRouter();
@@ -181,6 +185,7 @@ export function NotificationBell({ base = "/app" }: { base?: string }) {
     if (!n.readAt) await fetch("/api/notifications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [n.id] }) });
     load();
     if (n.actionUrl) router.push(n.actionUrl);
+    else toast.success("Nothing linked yet");
   };
   return (
     <div className="relative">

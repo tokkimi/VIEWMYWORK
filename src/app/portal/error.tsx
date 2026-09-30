@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tr, useI18n } from "@/lib/i18n/client";
 import { useAutoRecover } from "@/components/recover-error";
 
-export default function AppError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function PortalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const denied = /permission|not found/i.test(error.message);
   const { t } = useI18n();
   useAutoRecover(error);

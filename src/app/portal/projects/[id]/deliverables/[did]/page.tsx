@@ -34,7 +34,7 @@ export default async function ReviewDeliverable({ params }: { params: Promise<{ 
         <div>
           <div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-semibold">{d.title}</h2><Badge>V{d.currentVersion}</Badge><DeliverableStatusBadge s={d.status} /></div>
           {d.description && <p className="mt-2 whitespace-pre-line text-sm text-muted">{d.description}</p>}
-          {current?.notes && <p className="mt-3 rounded-xl border border-line p-3 text-sm"><span className="text-subtle">What&apos;s new in V{current.version}: </span>{current.notes}</p>}
+          {current?.notes && <p className="mt-3 rounded-xl border border-line p-3 text-sm"><span className="text-subtle">{t("What's new in V{v}:", { v: current.version })} </span>{current.notes}</p>}
           {current?.previewUrl && <a href={current.previewUrl} target="_blank" rel="noreferrer noopener" className="mt-3 inline-flex items-center gap-1.5 text-sm text-accent hover:underline"><ExternalLink className="size-4" /><Tr>Open preview</Tr></a>}
         </div>
         {current && current.files.length > 0 && <FileGrid files={current.files.map(toFileDTO)} showVisibility={false} />}

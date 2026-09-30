@@ -10,6 +10,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Lets the client detect a new deployment and do a full reload instead of failing a navigation.
+  deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
   serverExternalPackages: ["@prisma/client"],
   experimental: { serverActions: { bodySizeLimit: "2mb" } },
   async headers() {
