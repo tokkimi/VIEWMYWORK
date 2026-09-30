@@ -1,3 +1,4 @@
+import { LiveSync } from "@/components/live-sync";
 import { db } from "@/lib/db";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -26,6 +27,7 @@ export default async function ProjectLayout({ children, params }: { children: Re
 
   return (
     <>
+      <LiveSync project={id} />
       <div className="mb-6">
         <div className="eyebrow mb-2 flex items-center gap-2"><Link href="/app/projects" className="hover:text-fg"><Tr>Projects</Tr></Link><span>/</span><Link href={`/app/clients/${project.clientId}`} className="truncate hover:text-fg">{clientName}</Link></div>
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">

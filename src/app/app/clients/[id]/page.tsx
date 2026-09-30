@@ -178,7 +178,7 @@ export default async function ClientProfile({ params, searchParams }: { params: 
     const files = await db.file.findMany({ where: { workspaceId: ctx.workspace.id, deletedAt: null, status: "READY", OR: [{ clientId: id }, { projectId: { in: projectIds } }] }, orderBy: { createdAt: "desc" }, take: 200 });
     return (
       <div className="space-y-6">
-        {can(ctx, "files", "upload") && <Uploader target={{ clientId: id }} configured={integrations.storage()} maxMb={uploadLimitMb()} />}
+        {can(ctx, "files", "upload") && <Uploader target={{ clientId: id }} configured={integrations.storage()} maxMb={uploadLimitMb()} defaultVisibility="CLIENT_VISIBLE" />}
         {files.length === 0 ? <EmptyState title="No files yet" description="Contracts, briefs and assets for this client will appear here." /> : <FileGrid files={files.map(toFileDTO)} canManage={can(ctx, "files", "upload")} />}
       </div>
     );

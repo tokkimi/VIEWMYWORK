@@ -1,3 +1,4 @@
+import { LiveSync } from "@/components/live-sync";
 import { db } from "@/lib/db";
 import { requirePortal, portalProjectWhere } from "@/lib/auth/portal";
 import { PortalNav } from "@/components/portal/nav";
@@ -8,6 +9,7 @@ export default async function PortalLayout({ children }: { children: React.React
   const s = ctx.workspace.settings;
   return (
     <div className="min-h-dvh pb-20 sm:pb-0">
+      <LiveSync />
       <PortalNav
         brand={{ name: ctx.workspace.name, logoUrl: s?.portalLogoUrl ?? ctx.workspace.logoUrl }}
         projects={projects}

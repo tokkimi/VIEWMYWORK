@@ -43,7 +43,7 @@ export default async function Files({ searchParams }: { searchParams: Promise<{ 
         actions={quota.limit ? <div className="w-40"><ProgressBar value={pct} size="sm" label={t("Storage used")} /></div> : undefined}
       />
       <div className="space-y-6">
-        {can(ctx, "files", "upload") && <Uploader target={sp.project ? { projectId: sp.project } : {}} configured={integrations.storage()} maxMb={uploadLimitMb()} />}
+        {can(ctx, "files", "upload") && <Uploader target={sp.project ? { projectId: sp.project } : {}} configured={integrations.storage()} maxMb={uploadLimitMb()} defaultVisibility={sp.project ? "CLIENT_VISIBLE" : "INTERNAL"} />}
         <form className="flex flex-wrap gap-2" aria-label={t("Filter")}>
           <input name="q" defaultValue={sp.q} placeholder={t("Search files…")} aria-label={t("Search files")} className={`${inputClass} w-56`} />
           <select name="project" defaultValue={sp.project ?? ""} aria-label={t("Project")} className={`${inputClass} w-auto`}><option value="">{t("All files")}</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>

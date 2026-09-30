@@ -152,7 +152,7 @@ export function TaskPanel({ task, members, phases, milestones, siblings, files, 
 
           <section>
             <h3 className="mb-2 text-[13px] font-semibold"><Tr>Files & links</Tr></h3>
-            {canUpload && <div className="mb-3"><Uploader target={{ taskId: task.id }} configured={storageConfigured} compact defaultVisibility={task.visibility === "INTERNAL" ? "INTERNAL" : "INTERNAL"} /></div>}
+            {canUpload && <div className="mb-3"><Uploader target={{ taskId: task.id }} configured={storageConfigured} compact defaultVisibility={task.visibility === "INTERNAL" ? "INTERNAL" : "CLIENT_VISIBLE"} /></div>}
             {files.length ? <FileGrid files={files} canManage={canUpload} /> : <p className="text-sm text-subtle"><Tr>No files attached.</Tr></p>}
           </section>
 

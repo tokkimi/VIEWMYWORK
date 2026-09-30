@@ -22,7 +22,7 @@ export default async function ProjectFiles({ params }: { params: Promise<{ id: s
     <div className="space-y-6">
       {canUpload && (
         <div className="space-y-2">
-          <Uploader target={{ projectId: id }} configured={integrations.storage()} maxMb={uploadLimitMb()} />
+          <Uploader target={{ projectId: id }} configured={integrations.storage()} maxMb={uploadLimitMb()} defaultVisibility="CLIENT_VISIBLE" />
           {drive?.status === "CONNECTED" && <DriveLinkDialog projectId={id} />}
         </div>
       )}
