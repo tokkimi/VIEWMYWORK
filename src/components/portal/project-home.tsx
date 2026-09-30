@@ -1,3 +1,5 @@
+import { db } from "@/lib/db";
+import { SitePreviewMini } from "@/components/app/site-preview";
 import Link from "next/link";
 import { Check, Circle, Eye, CreditCard, Upload, MessageSquare, ChevronRight, FileText } from "lucide-react";
 import type { TaskStatus } from "@prisma/client";
@@ -104,6 +106,10 @@ function MaybeLink({ preview, ...props }: { preview?: boolean; href: string; cla
 export async function PortalProjectHome({ project, home, waiting, base, preview }: { project: { id: string; name: string; progress: number; status: string; targetDate: Date | null; completedAt: Date | null }; home: Home; waiting: WaitingItem[]; base: string; preview?: boolean }) {
   const { t, fmt, p } = await getI18n();
   const latest = home.updates[0];
+  // The client's website: the project's site, else the first preview shared with the client.
+  const row = await db.project.findUnique({ where: { id: project.id }, select: { websiteUrl: true, websiteEmbeddable: true } });
+  const shared = row?.websiteUrl ? null : await db.preview.findFirst({ where: { projectId: project.id, visibility: "CLIENT_VISIBLE" }, orderBy: [{ type: "desc" }, { createdAt: "asc" }], select: { url: true, label: true, embeddable: true, imageUrl: true, pageTitle: true } });
+  const site = row?.websiteUrl ? { url: row.websiteUrl, label: project.name, embeddable: row.websiteEmbeddable, imageUrl: null, pageTitle: null } : shared;
   const left = project.targetDate ? daysBetween(new Date(), project.targetDate) : null;
   return (
     <div className="space-y-8 sm:space-y-10">
@@ -128,6 +134,13 @@ export async function PortalProjectHome({ project, home, waiting, base, preview 
       </section>
 
       <WaitingForYou items={waiting} preview={preview} />
+
+      {site && (
+        <section aria-label={t("Your website")}>
+          <h2 className="mb-3 text-[13px] font-semibold tracking-tight"><Tr>Your website</Tr></h2>
+          <SitePreviewMini p={site} />
+        </section>
+      )}
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:gap-10">
         <div className="space-y-8">
