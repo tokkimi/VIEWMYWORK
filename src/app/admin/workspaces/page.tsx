@@ -2,7 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/auth/context";
 import { PageHeader, Badge, Table, th, td } from "@/components/ui/primitives";
-import { Pagination } from "@/components/ui/tabs";
+import { Pagination } from "@/components/ui/pagination";
 import { inputClass } from "@/components/ui/form";
 import { fmtDate } from "@/lib/format";
 import { formatBytes } from "@/lib/plans";

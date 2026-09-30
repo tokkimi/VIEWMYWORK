@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/auth/context";
 import { PageHeader, Table, th, td, EmptyState } from "@/components/ui/primitives";
-import { Pagination } from "@/components/ui/tabs";
+import { Pagination } from "@/components/ui/pagination";
 import { fmtDateTime } from "@/lib/format";
 
 export const metadata = { title: "Audit log" };

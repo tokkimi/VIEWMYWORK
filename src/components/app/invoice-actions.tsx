@@ -121,7 +121,7 @@ export function RecordPaymentDialog({ invoiceId, outstanding }: { invoiceId: str
 
 export function EditIssuedDialog({ id, dueDate, notes }: { id: string; dueDate: Date; notes: string | null }) {
   return (
-    <Dialog title="Update invoice" description="Issued invoices are frozen financial documents. Only the due date and notes can change." trigger={(open) => <Button onClick={open}>Update due date</Button>}>
+    <Dialog title="Update invoice" description="Issued invoices are frozen financial documents. Only the due date and notes can change." trigger={(open) => <Button size="sm" onClick={open}>Update due date</Button>}>
       {(close) => (
         <Form action={updateIssuedInvoiceAction} onSuccess={close} className="space-y-4">
           <input type="hidden" name="id" value={id} />

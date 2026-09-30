@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { fmtShortDate } from "@/lib/format";
 import { deriveStatus, outstandingCents, isPayable } from "@/lib/invoices/status";
 
 /**
@@ -19,7 +20,7 @@ export async function waitingForClient(workspaceId: string, clientId: string, pr
   const visibleTasks = new Set((await db.task.findMany({ where: { id: { in: taskIds }, visibility: "CLIENT_VISIBLE" }, select: { id: true } })).map((t) => t.id));
   const items: WaitingItem[] = [
     ...deliverables.map((d) => ({ key: `d-${d.id}`, kind: "REVIEW" as const, title: `${d.title} V${d.currentVersion}`, subtitle: `Review & approve · ${d.project.name}`, href: `${base}/projects/${d.projectId}/deliverables/${d.id}`, cta: "Review", since: d.updatedAt })),
-    ...invoices.filter((i) => isPayable(deriveStatus(i)) && outstandingCents(i) > 0).map((i) => ({ key: `i-${i.id}`, kind: "PAY" as const, title: `Invoice ${i.number}`, subtitle: deriveStatus(i) === "OVERDUE" ? "Overdue" : `Due ${i.dueDate.toISOString().slice(0, 10)}`, href: `${base}/invoices/${i.id}`, cta: "Pay", since: i.issuedAt ?? i.createdAt, amount: `${outstandingCents(i)}|${i.currency}` })),
+    ...invoices.filter((i) => isPayable(deriveStatus(i)) && outstandingCents(i) > 0).map((i) => ({ key: `i-${i.id}`, kind: "PAY" as const, title: `Invoice ${i.number}`, subtitle: deriveStatus(i) === "OVERDUE" ? "Overdue" : `Due ${fmtShortDate(i.dueDate)}`, href: `${base}/invoices/${i.id}`, cta: "Pay", since: i.issuedAt ?? i.createdAt, amount: `${outstandingCents(i)}|${i.currency}` })),
     ...waits.filter((w) => w.entityType !== "TASK" || visibleTasks.has(w.entityId!)).map((w) => ({ key: `w-${w.id}`, kind: w.reason === "DOCUMENT" ? ("UPLOAD" as const) : ("INFO" as const), title: w.label, subtitle: `${w.reason === "DOCUMENT" ? "Upload requested" : "Information requested"} · ${w.project.name}`, href: `${base}/projects/${w.projectId}${w.reason === "DOCUMENT" ? "/files" : "/messages"}`, cta: w.reason === "DOCUMENT" ? "Upload" : "Reply", since: w.startedAt })),
   ];
   return items;

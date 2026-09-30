@@ -3,7 +3,7 @@ import { Bell, FolderKanban, Users, Receipt, UsersRound, Settings2 } from "lucid
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { EmptyState } from "@/components/ui/primitives";
-import { Pagination } from "@/components/ui/tabs";
+import { Pagination } from "@/components/ui/pagination";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { MarkAllRead, NotificationLink } from "./notification-actions";

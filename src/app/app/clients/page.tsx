@@ -6,7 +6,8 @@ import { db } from "@/lib/db";
 import { requireWorkspace, requirePerm, can } from "@/lib/auth/context";
 import { PageHeader, EmptyState, Avatar, Badge, Table, th, td } from "@/components/ui/primitives";
 import { ButtonLink } from "@/components/ui/button";
-import { LinkTabs, Pagination } from "@/components/ui/tabs";
+import { LinkTabs } from "@/components/ui/tabs";
+import { Pagination } from "@/components/ui/pagination";
 import { inputClass } from "@/components/ui/form";
 import { formatMoney } from "@/lib/money";
 

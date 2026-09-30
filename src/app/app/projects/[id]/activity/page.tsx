@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { loadProject } from "@/server/queries/project";
 import { ActivityFeed } from "@/components/app/blocks";
-import { Pagination } from "@/components/ui/tabs";
+import { Pagination } from "@/components/ui/pagination";
 
 const PER = 50;
 

@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/auth/context";
 import { PageHeader, Badge, Table, th, td } from "@/components/ui/primitives";
-import { Pagination } from "@/components/ui/tabs";
+import { Pagination } from "@/components/ui/pagination";
 import { inputClass } from "@/components/ui/form";
 import { fmtDate, relativeTime } from "@/lib/format";
 
