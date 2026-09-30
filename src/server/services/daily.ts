@@ -80,6 +80,13 @@ export async function runDailyJobs(now = new Date()) {
     await db.file.delete({ where: { id: f.id } }).catch(() => {});
     report.cleaned++;
   }
+  // Deleted files stay recoverable for 30 days, then their bytes are purged.
+  const purge = await db.file.findMany({ where: { deletedAt: { lt: new Date(now.getTime() - 30 * 86400_000) }, storageKey: { not: null } }, take: 500 });
+  for (const f of purge) {
+    if (f.source === "UPLOAD" && f.storageKey) await deleteObject(f.storageKey).catch(() => {});
+    await db.file.update({ where: { id: f.id }, data: { storageKey: null } }).catch(() => {});
+    report.cleaned++;
+  }
   await db.session.deleteMany({ where: { expiresAt: { lt: now } } });
   await db.authToken.deleteMany({ where: { expiresAt: { lt: new Date(now.getTime() - 7 * 86400_000) } } });
   await db.rateLimit.deleteMany({ where: { resetAt: { lt: now } } });

@@ -39,6 +39,8 @@ export const EVENT_DEFS = {
   DEADLINE_APPROACHING: { category: "PROJECT", topic: "DEADLINES" },
   TASK_OVERDUE: { category: "PROJECT", topic: "DEADLINES" },
   FILE_UPLOADED: { category: "PROJECT", topic: "FILES" },
+  FILE_DELETED: { category: "PROJECT", topic: "FILES" },
+  FILE_RESTORED: { category: "PROJECT", topic: "FILES" },
   DELIVERABLE_SUBMITTED: { category: "PROJECT", topic: "APPROVALS" },
   APPROVAL_REQUESTED: { category: "PROJECT", topic: "APPROVALS" },
   SCOPE_CHANGE: { category: "PROJECT", topic: "UPDATES" },

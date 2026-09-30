@@ -91,13 +91,34 @@ export async function deleteFileAction(id: string) {
   return runAction(async () => {
     const ctx = await requireWorkspace();
     const file = await loadManageableFile(ctx, id);
+    // Recoverable: the bytes are kept 30 days ("Recently deleted"), then purged by the daily job.
     await db.file.update({ where: { id: file.id }, data: { deletedAt: new Date() } });
-    if (file.source === "UPLOAD" && file.storageKey && file.status === "READY") {
-      await deleteObject(file.storageKey).catch((e) => console.error("[files] delete object", e));
-      await adjustStorage(ctx.workspace.id, -Number(file.sizeBytes));
-    }
+    if (file.source === "UPLOAD" && file.storageKey && file.status === "READY") await adjustStorage(ctx.workspace.id, -Number(file.sizeBytes));
+    await emit({ workspaceId: ctx.workspace.id, type: "FILE_DELETED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: file.projectId, clientId: file.clientId, entityType: "FILE", entityId: file.id, summary: ["Deleted {name}", { name: file.name }] });
     return null;
-  }, "File deleted.");
+  }, "File deleted. You can restore it for 30 days.");
+}
+
+/** Bring back a file deleted less than 30 days ago. */
+export async function restoreFileAction(id: string) {
+  return runAction(async () => {
+    const ctx = await requireWorkspace();
+    if (!isUuid(id)) throw notFound();
+    const file = await db.file.findFirst({ where: { id, workspaceId: ctx.workspace.id, deletedAt: { not: null } } });
+    if (!file) throw notFound("File not found.");
+    if (file.projectId) {
+      const { perms } = await getProjectAccess(ctx, file.projectId);
+      if (!hasLevel(perms, "files", "upload")) throw new AppError("You can't manage this file.", "FORBIDDEN");
+    } else if (!hasLevel(ctx.perms, "files", "upload")) throw new AppError("You can't manage this file.", "FORBIDDEN");
+    if (file.source === "UPLOAD" && file.storageKey && file.status === "READY") {
+      const ok = await headObject(file.storageKey).then(() => true, () => false);
+      if (!ok) throw new AppError("This file can no longer be recovered.");
+      await adjustStorage(ctx.workspace.id, Number(file.sizeBytes));
+    }
+    await db.file.update({ where: { id: file.id }, data: { deletedAt: null } });
+    await emit({ workspaceId: ctx.workspace.id, type: "FILE_RESTORED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: file.projectId, clientId: file.clientId, entityType: "FILE", entityId: file.id, summary: ["Restored {name}", { name: file.name }] });
+    return null;
+  }, "File restored.");
 }
 
 async function loadManageableFile(ctx: Awaited<ReturnType<typeof requireWorkspace>>, id: string) {

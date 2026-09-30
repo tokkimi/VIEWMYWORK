@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import type { FileDTO } from "@/lib/file-dto";
-import { FileText, FileImage, FileVideo, FileArchive, FileSpreadsheet, Presentation, File as FileIcon, LayoutGrid, List, Download, Trash2, Eye, EyeOff, Link2, AlertTriangle } from "lucide-react";
+import { FileText, FileImage, FileVideo, FileArchive, FileSpreadsheet, Presentation, File as FileIcon, LayoutGrid, List, Download, Trash2, Eye, EyeOff, Link2, AlertTriangle, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { formatBytes } from "@/lib/format-bytes";
 import { useActionButton } from "./invoice-actions";
-import { deleteFileAction, setFileVisibilityAction, moveFileAction } from "@/server/actions/files";
+import { deleteFileAction, setFileVisibilityAction, moveFileAction, restoreFileAction } from "@/server/actions/files";
 import { Badge } from "@/components/ui/primitives";
 import { Tr, useI18n } from "@/lib/i18n/client";
 
@@ -114,7 +114,7 @@ export function FileGrid({ files, canManage, showVisibility = true, projects }: 
                 ))}
                 {canManage && projects && <div className="px-3 pb-2.5"><FileProjectSelect f={f} projects={projects} /></div>}
                 {canManage && (
-                  <button aria-label={t("Delete {name}", { name: f.name })} disabled={pending} onClick={() => confirm(t("Delete {name}?", { name: f.name })) && run(() => deleteFileAction(f.id))} className="absolute right-2 top-2 rounded-md bg-black/60 p-1.5 text-muted opacity-0 transition-opacity hover:text-danger focus:opacity-100 group-hover:opacity-100">
+                  <button aria-label={t("Delete {name}", { name: f.name })} disabled={pending} onClick={() => confirm(t("Delete {name}?", { name: f.name })) && run(() => deleteFileAction(f.id))} className="absolute right-2 top-2 rounded-md bg-black/60 p-1.5 text-muted transition-opacity hover:text-danger focus:opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
                     <Trash2 className="size-3.5" />
                   </button>
                 )}
@@ -146,5 +146,27 @@ export function FileGrid({ files, canManage, showVisibility = true, projects }: 
         </ul>
       )}
     </div>
+  );
+}
+
+/** Files deleted in the last 30 days, with a one-click restore. */
+export function DeletedFiles({ files }: { files: { id: string; name: string; deletedAt: string }[] }) {
+  const { t, fmt } = useI18n();
+  const { pending, run } = useActionButton();
+  if (!files.length) return null;
+  return (
+    <details className="rounded-2xl border border-line">
+      <summary className="cursor-pointer px-4 py-3 text-[13px] text-muted">{t("Recently deleted ({n}) — restorable for 30 days", { n: files.length })}</summary>
+      <ul className="divide-y divide-line border-t border-line">
+        {files.map((f) => (
+          <li key={f.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+            <Trash2 className="size-4 shrink-0 text-subtle" />
+            <span className="min-w-0 flex-1 truncate">{f.name}</span>
+            <span className="hidden text-xs text-subtle sm:block">{t("Deleted {date}", { date: fmt.dateTime(f.deletedAt) })}</span>
+            <button type="button" disabled={pending} onClick={() => run(() => restoreFileAction(f.id))} className="flex items-center gap-1 rounded-md border border-line px-2 py-1 text-xs text-fg hover:bg-white/[0.05]"><RotateCcw className="size-3.5" />{t("Restore")}</button>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }

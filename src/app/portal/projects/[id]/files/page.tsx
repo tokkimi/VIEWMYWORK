@@ -13,7 +13,17 @@ export default async function PortalProjectFiles({ params }: { params: Promise<{
   const ctx = await requirePortal();
   await getPortalProject(ctx, id);
   const [files, requests] = await Promise.all([
-    db.file.findMany({ where: { projectId: id, visibility: "CLIENT_VISIBLE", deletedAt: null, status: "READY", OR: [{ deliverableVersionId: null }, { deliverableVersion: { deliverable: { visibility: "CLIENT_VISIBLE" } } }] }, orderBy: { createdAt: "desc" } }),
+    db.file.findMany({
+      where: {
+        visibility: "CLIENT_VISIBLE", deletedAt: null, status: "READY",
+        OR: [
+          { projectId: id, OR: [{ deliverableVersionId: null }, { deliverableVersion: { deliverable: { visibility: "CLIENT_VISIBLE" } } }] },
+          // Documents shared with the client that aren't tied to a specific project.
+          { projectId: null, clientId: ctx.client.id, workspaceId: ctx.workspace.id, invoiceId: null, expenseId: null, taskId: null },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+    }),
     db.clientWait.findMany({ where: { projectId: id, reason: "DOCUMENT", resolvedAt: null, entityType: null } }),
   ]);
   return (

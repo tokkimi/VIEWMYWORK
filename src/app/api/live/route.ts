@@ -16,7 +16,9 @@ async function stamp(projectIds: string[], clientOnly: boolean) {
   if (!projectIds.length) return "none";
   const inProjects = { projectId: { in: projectIds } };
   const vis = clientOnly ? { visibility: "CLIENT_VISIBLE" as const } : {};
-  const files: Prisma.FileWhereInput = { ...inProjects, ...vis, status: "READY" };
+  const clientIds = (await db.project.findMany({ where: { id: { in: projectIds } }, select: { clientId: true } })).map((p) => p.clientId);
+  // Project files + documents attached to the client itself (shown in every project of that client).
+  const files: Prisma.FileWhereInput = { ...vis, status: "READY", OR: [inProjects, { projectId: null, clientId: { in: clientIds }, invoiceId: null, expenseId: null, taskId: null }] };
   const [act, fileAgg, fileGone, msg, cr, del, task, proj, inv] = await Promise.all([
     db.activityLog.aggregate({ where: { ...inProjects, ...(clientOnly ? { clientVisible: true } : {}) }, _max: { createdAt: true }, _count: true }),
     db.file.aggregate({ where: { ...files, deletedAt: null }, _max: { createdAt: true }, _count: true }),

@@ -3,7 +3,7 @@ import { FolderOpen } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireWorkspace, projectScope, can } from "@/lib/auth/context";
 import { PageHeader, EmptyState, ProgressBar } from "@/components/ui/primitives";
-import { FileGrid } from "@/components/app/files";
+import { FileGrid, DeletedFiles } from "@/components/app/files";
 import { Uploader } from "@/components/app/uploader";
 import { toFileDTO } from "@/lib/file-dto";
 import { integrations } from "@/lib/env";
@@ -19,7 +19,7 @@ export default async function Files({ searchParams }: { searchParams: Promise<{ 
   const ctx = await requireWorkspace();
   const sp = await searchParams;
   const scope = projectScope(ctx);
-  const [files, projects, quota] = await Promise.all([
+  const [files, projects, quota, deleted] = await Promise.all([
     db.file.findMany({
       where: {
         workspaceId: ctx.workspace.id, deletedAt: null, status: "READY",
@@ -33,6 +33,7 @@ export default async function Files({ searchParams }: { searchParams: Promise<{ 
     }),
     db.project.findMany({ where: { ...scope, archivedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     storageQuota(ctx.workspace.id),
+    db.file.findMany({ where: { workspaceId: ctx.workspace.id, deletedAt: { gte: new Date(Date.now() - 30 * 86400_000) }, storageKey: { not: null }, OR: [{ projectId: null }, { project: scope }] }, orderBy: { deletedAt: "desc" }, take: 100, select: { id: true, name: true, deletedAt: true } }),
   ]);
   const pct = quota.limit ? Number((quota.used * 1000n) / quota.limit) / 10 : 0;
   return (
@@ -51,6 +52,7 @@ export default async function Files({ searchParams }: { searchParams: Promise<{ 
           <button className="h-9 rounded-[10px] border border-line px-3 text-sm text-muted hover:text-fg"><Tr>Apply</Tr></button>
         </form>
         {files.length === 0 ? <EmptyState icon={<FolderOpen />} title="No files yet" description="Upload documents, images and deliverables — or link them from Google Drive." /> : <FileGrid files={files.map(toFileDTO)} canManage={can(ctx, "files", "upload")} projects={projects} />}
+        {can(ctx, "files", "upload") && <DeletedFiles files={deleted.map((f) => ({ id: f.id, name: f.name, deletedAt: f.deletedAt!.toISOString() }))} />}
       </div>
     </>
   );

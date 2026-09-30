@@ -2027,4 +2027,12 @@ export const fr: Record<string, string> = {
   "File moved.": "Fichier déplacé.",
   "Shared {name}": "{name} partagé",
   "Files added here are not linked to a project and stay internal. To share a file with a client, choose its project in the filter below (or use the project's Files tab) — you can also move a file with the selector under it.": "Les fichiers ajoutés ici ne sont liés à aucun projet et restent internes. Pour partager un fichier avec un client, choisissez son projet dans le filtre ci-dessous (ou passez par l’onglet Fichiers du projet) — vous pouvez aussi déplacer un fichier avec le sélecteur sous celui-ci.",
+  "Recently deleted ({n}) — restorable for 30 days": "Supprimés récemment ({n}) — récupérables pendant 30 jours",
+  "Deleted {date}": "Supprimé le {date}",
+  "Restore": "Restaurer",
+  "File restored.": "Fichier restauré.",
+  "This file can no longer be recovered.": "Ce fichier ne peut plus être récupéré.",
+  "File deleted. You can restore it for 30 days.": "Fichier supprimé. Vous pouvez le restaurer pendant 30 jours.",
+  "Deleted {name}": "{name} supprimé",
+  "Restored {name}": "{name} restauré",
 };

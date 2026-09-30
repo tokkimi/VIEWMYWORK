@@ -12,7 +12,7 @@ import { ProjectRow, ActivityFeed, ListCard } from "@/components/app/blocks";
 import { InvoiceStatusBadge, DeliverableStatusBadge } from "@/components/status";
 import { EditClientDialog, InviteToPortalDialog, SendEmailDialog, AddContactDialog } from "@/components/app/client-form";
 import { ArchiveClientButton, RevokeAccessButton, RemoveContactButton } from "@/components/app/client-actions";
-import { FileGrid } from "@/components/app/files";
+import { FileGrid, DeletedFiles } from "@/components/app/files";
 import { toFileDTO } from "@/lib/file-dto";
 import { Uploader } from "@/components/app/uploader";
 import { MessageThread } from "@/components/app/messages";
@@ -175,11 +175,15 @@ export default async function ClientProfile({ params, searchParams }: { params: 
   }
 
   async function Files() {
-    const files = await db.file.findMany({ where: { workspaceId: ctx.workspace.id, deletedAt: null, status: "READY", OR: [{ clientId: id }, { projectId: { in: projectIds } }] }, orderBy: { createdAt: "desc" }, take: 200 });
+    const [files, deleted] = await Promise.all([
+      db.file.findMany({ where: { workspaceId: ctx.workspace.id, deletedAt: null, status: "READY", OR: [{ clientId: id }, { projectId: { in: projectIds } }] }, orderBy: { createdAt: "desc" }, take: 200 }),
+      db.file.findMany({ where: { workspaceId: ctx.workspace.id, deletedAt: { gte: new Date(Date.now() - 30 * 86400_000) }, storageKey: { not: null }, OR: [{ clientId: id }, { projectId: { in: projectIds } }] }, orderBy: { deletedAt: "desc" }, take: 50, select: { id: true, name: true, deletedAt: true } }),
+    ]);
     return (
       <div className="space-y-6">
         {can(ctx, "files", "upload") && <Uploader target={{ clientId: id }} configured={integrations.storage()} maxMb={uploadLimitMb()} defaultVisibility="CLIENT_VISIBLE" />}
         {files.length === 0 ? <EmptyState title="No files yet" description="Contracts, briefs and assets for this client will appear here." /> : <FileGrid files={files.map(toFileDTO)} canManage={can(ctx, "files", "upload")} />}
+        {can(ctx, "files", "upload") && <DeletedFiles files={deleted.map((f) => ({ id: f.id, name: f.name, deletedAt: f.deletedAt!.toISOString() }))} />}
       </div>
     );
   }
