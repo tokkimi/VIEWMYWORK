@@ -1,5 +1,6 @@
 import { ExternalLink, Monitor, Smartphone } from "lucide-react";
 import { Tr } from "@/lib/i18n/client";
+import { siteShot } from "@/lib/site-shot";
 
 type P = { url: string; label: string; embeddable: boolean | null; imageUrl: string | null; pageTitle: string | null };
 
@@ -39,8 +40,6 @@ export function SitePreviewMini({ p }: { p: P }) {
   );
 }
 
-/** Screenshot service for sites that refuse to be framed (X-Frame-Options / CSP frame-ancestors). */
-const shot = (url: string, w: number, h: number) => `https://s0.wp.com/mshots/v1/${encodeURIComponent(url)}?w=${w}&h=${h}&vpw=${w}&vph=${h}`;
 
 function SiteShots({ url, label, domain }: { url: string; label: string; domain: string }) {
   return (
@@ -53,14 +52,14 @@ function SiteShots({ url, label, domain }: { url: string; label: string; domain:
               <span className="ml-2 truncate text-[10px] text-subtle">{domain}</span>
             </div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={shot(url, 1280, 800)} alt={`${label} — desktop`} loading="lazy" referrerPolicy="no-referrer" className="h-[280px] w-[448px] max-w-[calc(100vw-5rem)] bg-white object-cover object-top" />
+            <img src={siteShot(url, 1280, 800)} alt={`${label} — desktop`} loading="lazy" referrerPolicy="no-referrer" className="h-[280px] w-[448px] max-w-[calc(100vw-5rem)] bg-white object-cover object-top" />
           </a>
           <figcaption className="mt-2 flex items-center gap-1.5 text-[11px] text-subtle"><Monitor className="size-3.5" /><Tr>Desktop</Tr></figcaption>
         </figure>
         <figure>
           <a href={url} target="_blank" rel="noreferrer noopener" className="block rounded-[26px] border border-line-strong bg-surface p-1.5 shadow-2xl">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={shot(url, 390, 844)} alt={`${label} — mobile`} loading="lazy" referrerPolicy="no-referrer" className="h-[422px] w-[195px] rounded-[20px] bg-white object-cover object-top" />
+            <img src={siteShot(url, 390, 844)} alt={`${label} — mobile`} loading="lazy" referrerPolicy="no-referrer" className="h-[422px] w-[195px] rounded-[20px] bg-white object-cover object-top" />
           </a>
           <figcaption className="mt-2 flex items-center gap-1.5 text-[11px] text-subtle"><Smartphone className="size-3.5" /><Tr>Mobile</Tr></figcaption>
         </figure>

@@ -14,8 +14,8 @@ export function Card({ className, children, ...p }: ComponentProps<"div">) {
 export function Section({ title, action, children, className, description }: { title: ReactNode; action?: ReactNode; children: ReactNode; className?: string; description?: ReactNode }) {
   return (
     <section className={cn("min-w-0", className)}>
-      <div className="mb-3 flex items-end justify-between gap-3">
-        <div>
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-[13px] font-semibold tracking-tight text-fg"><Tx>{title}</Tx></h2>
           {description && <p className="mt-0.5 text-xs text-muted"><Tx>{description}</Tx></p>}
         </div>

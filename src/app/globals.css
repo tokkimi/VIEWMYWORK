@@ -36,9 +36,22 @@
     background: var(--color-bg);
     -webkit-text-size-adjust: 100%;
   }
+  html,
+  body {
+    /* Never let a wide element shift the whole page sideways on phones. */
+    overflow-x: clip;
+  }
   body {
     @apply bg-bg text-fg font-sans antialiased;
     font-feature-settings: "cv11", "ss01";
+  }
+  /* iOS zooms into any field under 16px when it gets focus: keep fields at 16px on phones. */
+  @media (max-width: 640px) {
+    input:not([type="checkbox"]):not([type="radio"]),
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
   }
   ::selection {
     background: rgba(77, 124, 254, 0.35);
