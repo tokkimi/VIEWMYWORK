@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Monitor, Tablet, Smartphone, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { SiteShotImg } from "@/components/site-shot-img";
@@ -22,8 +22,6 @@ export function PreviewFrame({ p }: { p: PreviewDTO }) {
   const domain = (() => { try { return new URL(p.url).hostname; } catch { return p.url; } })();
   const blocked = p.embeddable === false;
   const [mode, setMode] = useState<"live" | "shot">(blocked ? "shot" : "live");
-  // On phones and tablets live frames hijack swipes and scale poorly: start on screenshots there.
-  useEffect(() => { if (window.matchMedia("(pointer: coarse)").matches) setMode("shot"); }, []);
 
   return (
     <div>

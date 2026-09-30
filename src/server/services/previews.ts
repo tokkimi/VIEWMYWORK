@@ -15,8 +15,11 @@ export async function inspectUrl(url: string) {
     const csp = (r.headers.get("content-security-policy") ?? "").toLowerCase();
     const fa = csp.split(";").map((d) => d.trim()).find((d) => d.startsWith("frame-ancestors"));
     const blockedByCsp = fa ? !/frame-ancestors\s+(\*|https:)/.test(fa) : false;
-    const embeddable = r.status < 400 && !xfo.includes("deny") && !xfo.includes("sameorigin") && !blockedByCsp && new URL(r.finalUrl).protocol === "https:";
-    const title = r.body.match(/<title[^>]*>([^<]{1,200})<\/title>/i)?.[1];
+    // Only an explicit refusal (X-Frame-Options / CSP frame-ancestors) means "blocked". An error status is
+    // often just bot protection against servers: the visitor's browser can usually display the site fine.
+    const refuses = xfo.includes("deny") || xfo.includes("sameorigin") || blockedByCsp;
+    const embeddable = refuses ? false : r.status < 400 && new URL(r.finalUrl).protocol === "https:" ? true : null;
+    const title = r.status >= 400 ? undefined : r.body.match(/<title[^>]*>([^<]{1,200})<\/title>/i)?.[1];
     const og = r.body.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1] ?? r.body.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)?.[1];
     let imageUrl: string | null = null;
     if (og) {
@@ -27,6 +30,7 @@ export async function inspectUrl(url: string) {
     }
     return { embeddable, pageTitle: title ? decodeEntities(title) : null, imageUrl };
   } catch {
-    return { embeddable: false, pageTitle: null, imageUrl: null };
+    // Unreachable from our servers (timeout, bot protection…): unknown, let the browser try.
+    return { embeddable: null, pageTitle: null, imageUrl: null };
   }
 }

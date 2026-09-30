@@ -29,7 +29,7 @@ const projectSchema = z.object({
 /** Whether the project's website can be shown live in a frame (checked once when the address changes). */
 async function websiteMeta(url: string | undefined, prev?: { websiteUrl: string | null; websiteEmbeddable: boolean | null }) {
   if (!url) return { websiteUrl: null, websiteEmbeddable: null };
-  if (prev && prev.websiteUrl === url) return { websiteUrl: url, websiteEmbeddable: prev.websiteEmbeddable };
+  if (prev && prev.websiteUrl === url && prev.websiteEmbeddable !== null) return { websiteUrl: url, websiteEmbeddable: prev.websiteEmbeddable };
   return { websiteUrl: url, websiteEmbeddable: (await inspectUrl(url)).embeddable };
 }
 

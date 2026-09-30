@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ExternalLink, Monitor, Smartphone } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Tr } from "@/lib/i18n/client";
@@ -16,8 +16,6 @@ type P = { url: string; label: string; embeddable: boolean | null; imageUrl: str
 export function SitePreviewMini({ p }: { p: P }) {
   const blocked = p.embeddable === false;
   const [mode, setMode] = useState<"live" | "shot">(blocked ? "shot" : "live");
-  // On phones and tablets live frames hijack swipes and scale poorly: start on screenshots there.
-  useEffect(() => { if (window.matchMedia("(pointer: coarse)").matches) setMode("shot"); }, []);
   const domain = (() => { try { return new URL(p.url).hostname; } catch { return p.url; } })();
   const frame = "absolute left-0 top-0 origin-top-left border-0 bg-white";
   const live = mode === "live";
