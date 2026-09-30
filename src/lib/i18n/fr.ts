@@ -1983,4 +1983,9 @@ export const fr: Record<string, string> = {
   "This site blocks live embedding — screenshots shown. Open the site": "Ce site bloque l’affichage en direct — captures affichées. Ouvrir le site",
   "Website address": "Adresse du site",
   "e.g. monsite.fr or https://staging.monsite.fr": "ex. monsite.fr ou https://recette.monsite.fr",
+  "Client website": "Site web du client",
+  "The site you build or maintain for this client — shown as a desktop and mobile preview on the overview.": "Le site que vous réalisez ou maintenez pour ce client — affiché en aperçu ordinateur et mobile sur la vue d’ensemble.",
+  "Add the client's website in the project settings to see it here in desktop and mobile versions.": "Ajoutez le site du client dans les réglages du projet pour le voir ici en version ordinateur et mobile.",
+  "Change website": "Modifier le site",
+  "Add the website address": "Ajouter l’adresse du site",
 };

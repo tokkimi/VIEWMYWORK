@@ -1,5 +1,7 @@
 import { MonitorSmartphone, Link2 } from "lucide-react";
+import Link from "next/link";
 import { db } from "@/lib/db";
+import { SitePreviewMini } from "@/components/app/site-preview";
 import { loadProject } from "@/server/queries/project";
 import { hasLevel } from "@/lib/auth/permissions";
 import { EmptyState, Section, Badge } from "@/components/ui/primitives";
@@ -11,11 +13,16 @@ import { getI18n } from "@/lib/i18n/server";
 export default async function Preview({ params }: { params: Promise<{ id: string }> }) {
   const { t, fmt } = await getI18n();
   const { id } = await params;
-  const { perms } = await loadProject(id);
+  const { project, perms } = await loadProject(id);
   const [previews, links] = await Promise.all([db.preview.findMany({ where: { projectId: id }, orderBy: { createdAt: "asc" } }), db.projectLink.findMany({ where: { projectId: id }, orderBy: { createdAt: "asc" } })]);
   const canEdit = hasLevel(perms, "projects", "edit");
   return (
     <div className="space-y-10">
+      {project.websiteUrl && (
+        <Section title="Client website" description={project.websiteUrl} action={hasLevel(perms, "projects", "manage") ? <Link href={`/app/projects/${id}/settings`} className="text-xs text-muted hover:text-fg"><Tr>Change website</Tr></Link> : undefined}>
+          <SitePreviewMini p={{ url: project.websiteUrl, label: project.name, embeddable: project.websiteEmbeddable, imageUrl: null, pageTitle: null }} />
+        </Section>
+      )}
       <Section title="Live previews" description="Websites, apps and prototypes your client can open from their portal." action={canEdit ? <AddPreviewDialog projectId={id} /> : undefined}>
         {previews.length === 0 ? (
           <EmptyState icon={<MonitorSmartphone />} title="No previews yet" description="Add a staging URL or prototype link. We'll show it in a device frame — or a clean preview card when the site blocks embedding." />

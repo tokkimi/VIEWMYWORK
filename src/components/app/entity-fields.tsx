@@ -89,6 +89,7 @@ export type ProjectValues = {
   currency?: string;
   portalEnabled?: boolean;
   status?: string;
+  websiteUrl?: string | null;
 };
 
 export function ProjectFields({ v = {}, clients, members, templates, lockedClient }: { v?: ProjectValues; clients: { id: string; name: string }[]; members?: { id: string; name: string }[]; templates?: { id: string; name: string; phases: number }[]; lockedClient?: boolean }) {
@@ -115,6 +116,7 @@ export function ProjectFields({ v = {}, clients, members, templates, lockedClien
             ))}
           </Select>
         </Field>
+        <Field label="Client website" name="websiteUrl" optional className="sm:col-span-2" hint="The site you build or maintain for this client — shown as a desktop and mobile preview on the overview."><Input name="websiteUrl" inputMode="url" autoComplete="url" defaultValue={v.websiteUrl ?? ""} placeholder="monsite.fr" /></Field>
         <Field label="Description" name="description" optional className="sm:col-span-2"><Textarea name="description" rows={3} defaultValue={v.description ?? ""} /></Field>
         <Field label="Start date" name="startDate" optional><Input name="startDate" type="date" defaultValue={toDateInput(v.startDate)} /></Field>
         <Field label="Target date" name="targetDate" optional><Input name="targetDate" type="date" defaultValue={toDateInput(v.targetDate)} /></Field>

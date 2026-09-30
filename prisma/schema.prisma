@@ -310,6 +310,8 @@ model Project {
   name           String
   type           String?
   description    String?
+  websiteUrl        String?
+  websiteEmbeddable Boolean?
   status         ProjectStatus @default(ACTIVE)
   startDate      DateTime?
   targetDate     DateTime?

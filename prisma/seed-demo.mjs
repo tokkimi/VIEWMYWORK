@@ -26,8 +26,8 @@ async function main() {
     await db.phase.updateMany({ where: { title: "Discovery", project: { workspaceId: existing.id } }, data: { title: "Découverte" } });
     await db.workspace.update({ where: { id: existing.id }, data: { locale: "fr" } });
     await db.client.updateMany({ where: { workspaceId: existing.id }, data: { preferredLanguage: "fr" } });
-    for (const p of await db.project.findMany({ where: { workspaceId: existing.id, previews: { none: {} } }, select: { id: true } }))
-      await db.preview.create({ data: { projectId: p.id, label: "Site de recette", url: "https://example.com", embeddable: true, pageTitle: "Example Domain", checkedAt: new Date() } });
+    // Placeholder previews pointing at example.com are confusing: the project's website is set in its settings.
+    await db.preview.deleteMany({ where: { url: { startsWith: "https://example.com" }, project: { workspaceId: existing.id } } });
     return console.log("demo: already present (content normalised)");
   }
 
@@ -85,7 +85,6 @@ async function main() {
 
   await db.projectUpdate.create({ data: { projectId: project.id, title: "Design validé, développement lancé", body: "Les maquettes principales sont prêtes et la mise en place technique est terminée.", nextSteps: "Intégration de la page d'accueil puis recette mobile.", authorId: admin.id, authorName: admin.name, publishedAt: days(-2) } });
   await db.message.create({ data: { workspaceId: ws.id, projectId: project.id, entityType: "PROJECT", entityId: project.id, body: "Bonjour Claire, la V2 de la page d'accueil est en ligne pour validation.", authorId: admin.id, authorName: admin.name, createdAt: days(-1) } });
-  await db.preview.create({ data: { projectId: project.id, label: "Site de recette", url: "https://example.com", embeddable: true, pageTitle: "Example Domain", checkedAt: now } });
 
   // Issued invoice: 4 800 € HT deposit share, partially paid.
   const year = now.getUTCFullYear();

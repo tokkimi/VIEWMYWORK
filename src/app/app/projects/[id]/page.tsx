@@ -14,7 +14,7 @@ import { daysBetween } from "@/lib/format";
 import { deriveStatus, outstandingCents } from "@/lib/invoices/status";
 import { Tr } from "@/lib/i18n/client";
 import { SitePreviewMini } from "@/components/app/site-preview";
-import { AddPreviewDialog } from "@/components/app/preview-forms";
+import { buttonClass } from "@/components/ui/button";
 import { getI18n } from "@/lib/i18n/server";
 
 export default async function ProjectOverview({ params }: { params: Promise<{ id: string }> }) {
@@ -52,6 +52,8 @@ export default async function ProjectOverview({ params }: { params: Promise<{ id
     openRequests ? tp(openRequests, "{n} client change request open", "{n} client change requests open") : null,
   ].filter(Boolean);
   const canEdit = hasLevel(perms, "projects", "edit");
+  const canManage = hasLevel(perms, "projects", "manage");
+  const site = project.websiteUrl ? { url: project.websiteUrl, label: project.name, embeddable: project.websiteEmbeddable, imageUrl: null, pageTitle: null } : preview;
 
   return (
     <div className="space-y-10">
@@ -71,14 +73,14 @@ export default async function ProjectOverview({ params }: { params: Promise<{ id
         <Stat label="Waiting for client" value={waits.length} tone={waits.length ? "warning" : undefined} />
       </div>
 
-      <Section title="Website preview" description={preview ? "Desktop and mobile — scroll inside each frame." : "Add the site's address to see it here in desktop and mobile versions."} action={preview ? <Link href={`/app/projects/${id}/preview`} className="text-xs text-muted hover:text-fg"><Tr>Manage previews</Tr></Link> : undefined}>
-        {preview ? (
-          <SitePreviewMini p={preview} />
+      <Section title="Website preview" description={site ? "Desktop and mobile — scroll inside each frame." : "Add the client's website in the project settings to see it here in desktop and mobile versions."} action={site ? <Link href={canManage ? `/app/projects/${id}/settings` : `/app/projects/${id}/preview`} className="text-xs text-muted hover:text-fg"><Tr>{canManage ? "Change website" : "Manage previews"}</Tr></Link> : undefined}>
+        {site ? (
+          <SitePreviewMini p={site} />
         ) : (
           <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-line px-6 py-10 text-center">
             <Monitor className="size-6 text-muted" />
             <p className="max-w-sm text-sm text-muted"><Tr>No website linked to this project yet.</Tr></p>
-            {canEdit && <AddPreviewDialog projectId={id} />}
+            {canManage && <Link href={`/app/projects/${id}/settings`} className={buttonClass("secondary", "sm")}><Tr>Add the website address</Tr></Link>}
           </div>
         )}
       </Section>

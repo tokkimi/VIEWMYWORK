@@ -4,12 +4,13 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { runAction, AppError, notFound } from "@/lib/errors";
 import { requireWorkspace, requirePerm, requireProjectPerm, isUuid } from "@/lib/auth/context";
-import { formToObject, zOptStr, zOptDate, zCurrency, zId, zOptMoney, zOptId, zBool } from "@/lib/validation";
+import { formToObject, zOptStr, zOptDate, zCurrency, zId, zOptMoney, zOptId, zBool, zSiteUrl } from "@/lib/validation";
 import { assertWithinLimit, requireActiveSubscription } from "@/lib/plans";
 import { emit } from "@/lib/events";
 import { recalcProject } from "@/lib/progress";
 import { getLocale } from "@/lib/i18n/server";
 import { applyTemplate, assertAssignable, logSpec, snapshotSpec } from "@/server/services/spec";
+import { inspectUrl } from "@/server/services/previews";
 
 const projectSchema = z.object({
   name: z.string().trim().min(1, "Project name is required.").max(140),
@@ -22,7 +23,15 @@ const projectSchema = z.object({
   budget: zOptMoney,
   currency: zCurrency.default("EUR"),
   portalEnabled: zBool, // unchecked checkbox → false
+  websiteUrl: z.preprocess((v) => (v === "" ? undefined : v), zSiteUrl.optional()),
 });
+
+/** Whether the project's website can be shown live in a frame (checked once when the address changes). */
+async function websiteMeta(url: string | undefined, prev?: { websiteUrl: string | null; websiteEmbeddable: boolean | null }) {
+  if (!url) return { websiteUrl: null, websiteEmbeddable: null };
+  if (prev && prev.websiteUrl === url) return { websiteUrl: url, websiteEmbeddable: prev.websiteEmbeddable };
+  return { websiteUrl: url, websiteEmbeddable: (await inspectUrl(url)).embeddable };
+}
 
 export async function createProjectAction(fd: FormData) {
   return runAction(async () => {
@@ -38,9 +47,10 @@ export async function createProjectAction(fd: FormData) {
     await assertAssignable(ctx.workspace.id, input.managerId);
     if (input.startDate && input.targetDate && input.targetDate < input.startDate) throw new AppError("Target date must be after the start date.");
 
+    const site = await websiteMeta(input.websiteUrl);
     const project = await db.$transaction(async (tx) => {
-      const { budget, ...rest } = input;
-      const p = await tx.project.create({ data: { ...rest, budgetCents: budget ?? null, managerId: input.managerId ?? ctx.user.id, workspaceId: ctx.workspace.id, status: "ACTIVE" } });
+      const { budget, websiteUrl: _w, ...rest } = input;
+      const p = await tx.project.create({ data: { ...rest, ...site, budgetCents: budget ?? null, managerId: input.managerId ?? ctx.user.id, workspaceId: ctx.workspace.id, status: "ACTIVE" } });
       if (!ctx.isAdmin && !ctx.member.allProjects) await tx.projectMember.create({ data: { projectId: p.id, memberId: ctx.member.id } });
       if (templateId) {
         const tpl = await applyTemplate(tx, ctx.workspace.id, p.id, templateId, locale);
@@ -64,9 +74,10 @@ export async function updateProjectAction(fd: FormData) {
     const client = await db.client.findFirst({ where: { id: input.clientId, workspaceId: ctx.workspace.id } });
     if (!client) throw new AppError("Client not found.");
     await assertAssignable(ctx.workspace.id, input.managerId);
-    const { budget, ...rest } = input;
+    const { budget, websiteUrl: _w, ...rest } = input;
+    const site = await websiteMeta(input.websiteUrl, project);
     await db.$transaction(async (tx) => {
-      await tx.project.update({ where: { id }, data: { ...rest, budgetCents: budget ?? null, managerId: input.managerId ?? null } });
+      await tx.project.update({ where: { id }, data: { ...rest, ...site, budgetCents: budget ?? null, managerId: input.managerId ?? null } });
       if ((project.targetDate?.getTime() ?? 0) !== (input.targetDate?.getTime() ?? 0))
         await logSpec(tx, id, ctx, ["Target date changed from {from} to {to}", { from: project.targetDate ? { date: project.targetDate } : "—", to: input.targetDate ? { date: input.targetDate } : "—" }]);
     });
