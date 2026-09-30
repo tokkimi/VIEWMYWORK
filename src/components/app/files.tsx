@@ -6,7 +6,7 @@ import { FileText, FileImage, FileVideo, FileArchive, FileSpreadsheet, Presentat
 import { cn } from "@/lib/cn";
 import { formatBytes } from "@/lib/format-bytes";
 import { useActionButton } from "./invoice-actions";
-import { deleteFileAction } from "@/server/actions/files";
+import { deleteFileAction, setFileVisibilityAction, moveFileAction } from "@/server/actions/files";
 import { Badge } from "@/components/ui/primitives";
 import { Tr, useI18n } from "@/lib/i18n/client";
 
@@ -36,7 +36,19 @@ const FILTERS = [
 ] as const;
 
 /** Visual file manager: previews first, list view on demand. Access goes through /api/files/:id (authorised + signed). */
-export function FileGrid({ files, canManage, showVisibility = true }: { files: FileDTO[]; canManage?: boolean; showVisibility?: boolean }) {
+/** Project picker for a file (general Files page): attaching a file to a project lets you share it. */
+function FileProjectSelect({ f, projects }: { f: FileDTO; projects: { id: string; name: string }[] }) {
+  const { t } = useI18n();
+  const { pending, run } = useActionButton();
+  return (
+    <select aria-label={t("Project")} disabled={pending} value={f.projectId ?? ""} onChange={(e) => run(() => moveFileAction(f.id, e.target.value || null))} className="mt-1.5 h-7 w-full rounded-md border border-line bg-transparent px-1.5 text-[11px] text-muted">
+      <option value="">{t("No project")}</option>
+      {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+    </select>
+  );
+}
+
+export function FileGrid({ files, canManage, showVisibility = true, projects }: { files: FileDTO[]; canManage?: boolean; showVisibility?: boolean; projects?: { id: string; name: string }[] }) {
   const { t, fmt } = useI18n();
   const [view, setView] = useState<"grid" | "list">("grid");
   const [filter, setFilter] = useState<string>("ALL");
@@ -91,11 +103,16 @@ export function FileGrid({ files, canManage, showVisibility = true }: { files: F
                     </div>
                   </div>
                 </a>
-                {showVisibility && (
+                {showVisibility && (canManage ? (
+                  <button type="button" disabled={pending} onClick={() => run(() => setFileVisibilityAction(f.id, f.visibility === "CLIENT_VISIBLE" ? "INTERNAL" : "CLIENT_VISIBLE"))} className="absolute left-2 top-2" title={f.visibility === "CLIENT_VISIBLE" ? t("Visible to client — tap to make internal") : t("Internal — tap to share with the client")}>
+                    {f.visibility === "CLIENT_VISIBLE" ? <Badge tone="accent"><Eye className="size-3" /><Tr>Client</Tr></Badge> : <Badge><EyeOff className="size-3" /><Tr>Internal</Tr></Badge>}
+                  </button>
+                ) : (
                   <span className="absolute left-2 top-2" title={f.visibility === "CLIENT_VISIBLE" ? t("Visible to client") : t("Internal only")}>
                     {f.visibility === "CLIENT_VISIBLE" ? <Badge tone="accent"><Eye className="size-3" /><Tr>Client</Tr></Badge> : <Badge><EyeOff className="size-3" /><Tr>Internal</Tr></Badge>}
                   </span>
-                )}
+                ))}
+                {canManage && projects && <div className="px-3 pb-2.5"><FileProjectSelect f={f} projects={projects} /></div>}
                 {canManage && (
                   <button aria-label={t("Delete {name}", { name: f.name })} disabled={pending} onClick={() => confirm(t("Delete {name}?", { name: f.name })) && run(() => deleteFileAction(f.id))} className="absolute right-2 top-2 rounded-md bg-black/60 p-1.5 text-muted opacity-0 transition-opacity hover:text-danger focus:opacity-100 group-hover:opacity-100">
                     <Trash2 className="size-3.5" />
@@ -113,7 +130,11 @@ export function FileGrid({ files, canManage, showVisibility = true }: { files: F
               <li key={f.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
                 <Icon className="size-4 shrink-0 text-muted" />
                 <a href={`/api/files/${f.id}`} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate hover:underline">{f.name}</a>
-                {showVisibility && f.visibility === "CLIENT_VISIBLE" && <Badge tone="accent"><Tr>Client</Tr></Badge>}
+                {showVisibility && (canManage ? (
+                  <button type="button" disabled={pending} onClick={() => run(() => setFileVisibilityAction(f.id, f.visibility === "CLIENT_VISIBLE" ? "INTERNAL" : "CLIENT_VISIBLE"))} title={t("Change visibility")}>
+                    {f.visibility === "CLIENT_VISIBLE" ? <Badge tone="accent"><Eye className="size-3" /><Tr>Client</Tr></Badge> : <Badge><EyeOff className="size-3" /><Tr>Internal</Tr></Badge>}
+                  </button>
+                ) : f.visibility === "CLIENT_VISIBLE" && <Badge tone="accent"><Tr>Client</Tr></Badge>)}
                 {f.uploadedByClient && <Badge><Tr>From client</Tr></Badge>}
                 <span className="hidden w-20 text-right text-xs text-subtle sm:block">{f.source === "UPLOAD" ? formatBytes(f.size) : t("Drive")}</span>
                 <span className="hidden w-24 text-right text-xs text-subtle sm:block">{fmt.date(f.createdAt)}</span>

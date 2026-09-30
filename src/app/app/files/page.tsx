@@ -43,13 +43,14 @@ export default async function Files({ searchParams }: { searchParams: Promise<{ 
         actions={quota.limit ? <div className="w-40"><ProgressBar value={pct} size="sm" label={t("Storage used")} /></div> : undefined}
       />
       <div className="space-y-6">
+        {can(ctx, "files", "upload") && !sp.project && <p className="rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-sm text-warning"><Tr>Files added here are not linked to a project and stay internal. To share a file with a client, choose its project in the filter below (or use the project&apos;s Files tab) — you can also move a file with the selector under it.</Tr></p>}
         {can(ctx, "files", "upload") && <Uploader target={sp.project ? { projectId: sp.project } : {}} configured={integrations.storage()} maxMb={uploadLimitMb()} defaultVisibility={sp.project ? "CLIENT_VISIBLE" : "INTERNAL"} />}
         <form className="flex flex-wrap gap-2" aria-label={t("Filter")}>
           <input name="q" defaultValue={sp.q} placeholder={t("Search files…")} aria-label={t("Search files")} className={`${inputClass} w-56`} />
           <select name="project" defaultValue={sp.project ?? ""} aria-label={t("Project")} className={`${inputClass} w-auto`}><option value="">{t("All files")}</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
           <button className="h-9 rounded-[10px] border border-line px-3 text-sm text-muted hover:text-fg"><Tr>Apply</Tr></button>
         </form>
-        {files.length === 0 ? <EmptyState icon={<FolderOpen />} title="No files yet" description="Upload documents, images and deliverables — or link them from Google Drive." /> : <FileGrid files={files.map(toFileDTO)} canManage={can(ctx, "files", "upload")} />}
+        {files.length === 0 ? <EmptyState icon={<FolderOpen />} title="No files yet" description="Upload documents, images and deliverables — or link them from Google Drive." /> : <FileGrid files={files.map(toFileDTO)} canManage={can(ctx, "files", "upload")} projects={projects} />}
       </div>
     </>
   );

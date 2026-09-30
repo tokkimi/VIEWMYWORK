@@ -110,3 +110,39 @@ async function loadManageableFile(ctx: Awaited<ReturnType<typeof requireWorkspac
   } else if (!hasLevel(ctx.perms, "files", "upload")) throw new AppError("You can't manage this file.", "FORBIDDEN");
   return file;
 }
+
+/** Share a file with the client, or make it internal again (one click from the file card). */
+export async function setFileVisibilityAction(id: string, visibility: "INTERNAL" | "CLIENT_VISIBLE") {
+  return runAction(async () => {
+    const ctx = await requireWorkspace();
+    const v = z.enum(["INTERNAL", "CLIENT_VISIBLE"]).parse(visibility);
+    const file = await loadManageableFile(ctx, id);
+    await db.file.update({ where: { id: file.id }, data: { visibility: v } });
+    if (v === "CLIENT_VISIBLE" && file.projectId) {
+      const project = await db.project.findUnique({ where: { id: file.projectId } });
+      if (project)
+        await emit({
+          workspaceId: ctx.workspace.id, type: "FILE_UPLOADED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: project.id, clientId: project.clientId, entityType: "FILE", entityId: file.id,
+          summary: ["Shared {name}", { name: file.name }], clientVisible: true,
+          notify: { client: true, title: ["New file in {project}", { project: project.name }], message: ["{name}", { name: file.name }], clientActionUrl: `/portal/projects/${project.id}/files`, actionLabel: "View files" },
+        });
+    }
+    return null;
+  }, visibility === "CLIENT_VISIBLE" ? "Shared with the client." : "File is now internal.");
+}
+
+/** Attach a file to a project (and its client) — or detach it. */
+export async function moveFileAction(id: string, projectId: string | null) {
+  return runAction(async () => {
+    const ctx = await requireWorkspace();
+    const file = await loadManageableFile(ctx, id);
+    if (projectId) {
+      if (!isUuid(projectId)) throw notFound();
+      const { perms } = await getProjectAccess(ctx, projectId);
+      if (!hasLevel(perms, "files", "upload")) throw new AppError("You can't manage this file.", "FORBIDDEN");
+      const project = await db.project.findFirstOrThrow({ where: { id: projectId, workspaceId: ctx.workspace.id } });
+      await db.file.update({ where: { id: file.id }, data: { projectId: project.id, clientId: project.clientId } });
+    } else await db.file.update({ where: { id: file.id }, data: { projectId: null } });
+    return null;
+  }, "File moved.");
+}

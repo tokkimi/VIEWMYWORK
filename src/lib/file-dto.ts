@@ -11,9 +11,10 @@ export type FileDTO = {
   externalMissing: boolean;
   createdAt: string;
   uploadedByClient: boolean;
+  projectId: string | null;
 };
 
 /** Serialisable view of a File row for client components (BigInt → number). */
 export function toFileDTO(f: FileRow): FileDTO {
-  return { id: f.id, name: f.name, mimeType: f.mimeType, size: Number(f.sizeBytes), category: f.category, visibility: f.visibility, source: f.source, externalMissing: f.externalMissing, createdAt: f.createdAt.toISOString(), uploadedByClient: f.uploadedByClient };
+  return { id: f.id, name: f.name, mimeType: f.mimeType, size: Number(f.sizeBytes), category: f.category, visibility: f.visibility, source: f.source, externalMissing: f.externalMissing, createdAt: f.createdAt.toISOString(), uploadedByClient: f.uploadedByClient, projectId: f.projectId };
 }

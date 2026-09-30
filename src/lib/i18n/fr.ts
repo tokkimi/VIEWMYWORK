@@ -2018,4 +2018,13 @@ export const fr: Record<string, string> = {
   "Your access link is ready. Open WhatsApp to send it — the message is pre-filled.": "Votre lien d’accès est prêt. Ouvrez WhatsApp pour l’envoyer — le message est pré-rempli.",
   "Your website": "Votre site",
   "PDF, images, documents, videos, archives · up to {n} MB": "PDF, images, documents, vidéos, archives · jusqu’à {n} Mo",
+  "No project": "Aucun projet",
+  "Visible to client — tap to make internal": "Visible par le client — toucher pour rendre interne",
+  "Internal — tap to share with the client": "Interne — toucher pour partager avec le client",
+  "Change visibility": "Changer la visibilité",
+  "Shared with the client.": "Partagé avec le client.",
+  "File is now internal.": "Le fichier est maintenant interne.",
+  "File moved.": "Fichier déplacé.",
+  "Shared {name}": "{name} partagé",
+  "Files added here are not linked to a project and stay internal. To share a file with a client, choose its project in the filter below (or use the project's Files tab) — you can also move a file with the selector under it.": "Les fichiers ajoutés ici ne sont liés à aucun projet et restent internes. Pour partager un fichier avec un client, choisissez son projet dans le filtre ci-dessous (ou passez par l’onglet Fichiers du projet) — vous pouvez aussi déplacer un fichier avec le sélecteur sous celui-ci.",
 };
