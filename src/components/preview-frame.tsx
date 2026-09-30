@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Monitor, Tablet, Smartphone, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { siteShot } from "@/lib/site-shot";
+import { SiteShotImg } from "@/components/site-shot-img";
 import { useI18n } from "@/lib/i18n/client";
 
 export type PreviewDTO = { id: string; label: string; url: string; type: string; embeddable: boolean | null; pageTitle: string | null; imageUrl: string | null };
@@ -20,14 +20,24 @@ export function PreviewFrame({ p }: { p: PreviewDTO }) {
   const [device, setDevice] = useState<(typeof devices)[number]["k"]>(p.type === "MOBILE_APP" ? "mobile" : "desktop");
   const d = devices.find((x) => x.k === device)!;
   const domain = (() => { try { return new URL(p.url).hostname; } catch { return p.url; } })();
+  const blocked = p.embeddable === false;
+  const [mode, setMode] = useState<"live" | "shot">(blocked ? "shot" : "live");
+  // On phones and tablets live frames hijack swipes and scale poorly: start on screenshots there.
+  useEffect(() => { if (window.matchMedia("(pointer: coarse)").matches) setMode("shot"); }, []);
 
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex rounded-lg border border-line p-0.5" role="radiogroup" aria-label={t("Device")}>
-          {devices.map((x) => (
-            <button key={x.k} role="radio" aria-checked={device === x.k} aria-label={t(x.label)} onClick={() => setDevice(x.k)} className={cn("rounded-md p-1.5", device === x.k ? "bg-white/[0.08] text-fg" : "text-muted")}><x.icon className="size-4" /></button>
-          ))}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-lg border border-line p-0.5" role="radiogroup" aria-label={t("Device")}>
+            {devices.map((x) => (
+              <button key={x.k} type="button" role="radio" aria-checked={device === x.k} aria-label={t(x.label)} onClick={() => setDevice(x.k)} className={cn("rounded-md p-1.5", device === x.k ? "bg-white/[0.08] text-fg" : "text-muted")}><x.icon className="size-4" /></button>
+            ))}
+          </div>
+          <div className="flex rounded-lg border border-line p-0.5 text-xs" role="radiogroup">
+            {!blocked && <button type="button" role="radio" aria-checked={mode === "live"} onClick={() => setMode("live")} className={cn("rounded-md px-2.5 py-1.5", mode === "live" ? "bg-white/[0.08] text-fg" : "text-muted")}>{t("Live")}</button>}
+            <button type="button" role="radio" aria-checked={mode === "shot"} onClick={() => setMode("shot")} className={cn("rounded-md px-2.5 py-1.5", mode === "shot" ? "bg-white/[0.08] text-fg" : "text-muted")}>{t("Screenshot")}</button>
+          </div>
         </div>
         <a href={p.url} target="_blank" rel="noreferrer noopener" className="flex items-center gap-1.5 text-xs text-muted hover:text-fg"><ExternalLink className="size-3.5" />{t("Open in new tab")}</a>
       </div>
@@ -39,16 +49,15 @@ export function PreviewFrame({ p }: { p: PreviewDTO }) {
               <span className="ml-3 flex-1 truncate rounded bg-white/[0.05] px-2 py-0.5 text-center text-[11px] text-subtle">{domain}</span>
             </div>
           )}
-          {p.embeddable === false ? (
-            // The site forbids framing: show a screenshot at the selected device size instead.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={siteShot(p.url, d.px, device === "desktop" ? 800 : d.h)} alt={p.pageTitle || p.label} loading="lazy" referrerPolicy="no-referrer" className={cn("block w-full bg-white object-cover object-top", device !== "desktop" && "rounded-[26px]")} style={device === "desktop" ? { aspectRatio: "1280 / 800" } : { height: d.h }} />
+          {mode === "shot" ? (
+            // Screenshot at the selected device size: works for sites that forbid framing or stay blank in a frame.
+            <SiteShotImg key={device} url={p.url} w={d.px} h={device === "desktop" ? 800 : d.h} alt={p.pageTitle || p.label} className={cn("block w-full bg-white object-cover object-top", device !== "desktop" && "rounded-[26px]")} style={device === "desktop" ? { aspectRatio: "1280 / 800" } : { height: d.h }} />
           ) : (
           <iframe src={p.url} title={p.label} loading="lazy" referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" className={cn("block w-full bg-white", device !== "desktop" && "rounded-[26px]")} style={{ height: d.h }} />
           )}
         </div>
       </div>
-      {p.embeddable === false && <p className="mt-2 text-xs text-muted">{t("This site blocks live embedding — screenshots shown. Open the site")}</p>}
+      <p className="mt-2 text-xs text-muted">{blocked ? t("This site blocks live display in another page, so screenshots are shown.") : t("Blank frame? Some sites refuse to be displayed inside another page — switch to Screenshot.")}</p>
     </div>
   );
 }

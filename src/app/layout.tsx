@@ -22,7 +22,8 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export const viewport: Viewport = { themeColor: "#08090b", width: "device-width", initialScale: 1 };
+// maximumScale keeps iOS from zooming the page in or out on its own (pinch-to-zoom still works on iOS).
+export const viewport: Viewport = { themeColor: "#08090b", width: "device-width", initialScale: 1, maximumScale: 1 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const { locale, t } = await getI18n();
