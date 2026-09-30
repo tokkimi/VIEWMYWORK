@@ -1,0 +1,1167 @@
+// ViewMyWork — multi-tenant client project portal.
+// Domain A (platform billing): Plan, PlanFeature, Subscription, PlatformPayment.
+// Domain B (client billing):   Invoice, InvoiceLineItem, Payment, InvoiceReminder.
+// These two domains never share tables or reporting.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ───────────────────────── Identity ─────────────────────────
+
+enum PlatformRole {
+  USER
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+model User {
+  id              String       @id @default(uuid()) @db.Uuid
+  email           String       @unique
+  name            String
+  passwordHash    String?
+  emailVerifiedAt DateTime?
+  platformRole    PlatformRole @default(USER)
+  status          UserStatus   @default(ACTIVE)
+  avatarUrl       String?
+  locale          String       @default("en")
+  timezone        String       @default("UTC")
+  lastActiveAt    DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  sessions          Session[]
+  tokens            AuthToken[]
+  memberships       WorkspaceMember[]
+  clientAccess      ClientPortalAccess[]
+  notifications     Notification[]
+  notificationPrefs NotificationPreference[]
+  assignedTasks     Task[]                   @relation("TaskAssignee")
+  managedProjects   Project[]                @relation("ProjectManager")
+}
+
+model Session {
+  id         String   @id @default(uuid()) @db.Uuid
+  tokenHash  String   @unique
+  userId     String   @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  userAgent  String?
+  ip         String?
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+enum AuthTokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+model AuthToken {
+  id        String        @id @default(uuid()) @db.Uuid
+  userId    String        @db.Uuid
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      AuthTokenType
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  @@index([userId, type])
+}
+
+model RateLimit {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+}
+
+// ───────────────────────── Workspaces ─────────────────────────
+
+model Workspace {
+  id               String    @id @default(uuid()) @db.Uuid
+  name             String
+  slug             String    @unique
+  industry         String?
+  logoFileKey      String?
+  logoUrl          String?
+  onboardingDone   Boolean   @default(false)
+  storageUsedBytes BigInt    @default(0)
+  defaultCurrency  String    @default("EUR")
+  timezone         String    @default("UTC")
+  locale           String    @default("en")
+  archivedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  members         WorkspaceMember[]
+  invitations     Invitation[]
+  clients         Client[]
+  projects        Project[]
+  templates       ProjectTemplate[]
+  files           File[]
+  invoices        Invoice[]
+  payments        Payment[]
+  expenses        Expense[]
+  notifications   Notification[]
+  activity        ActivityLog[]
+  emailLogs       EmailLog[]
+  subscription    Subscription?
+  settings        WorkspaceSetting?
+  invoiceSettings InvoiceSettings?
+  integrations    Integration[]
+  paymentAccount  PaymentAccount?
+  messages        Message[]
+  deliverables    Deliverable[]
+  tasks           Task[]
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  PROJECT_MANAGER
+  COLLABORATOR
+  VIEWER
+}
+
+enum MemberStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+// Granular permissions are stored as a JSON map of capability → level
+// (see src/lib/auth/permissions.ts). Enforced server-side only.
+model WorkspaceMember {
+  id          String        @id @default(uuid()) @db.Uuid
+  workspaceId String        @db.Uuid
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String        @db.Uuid
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        WorkspaceRole
+  title       String? // Developer, Designer, Consultant...
+  permissions Json? // overrides on top of role defaults
+  allProjects Boolean       @default(false)
+  status      MemberStatus  @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+
+  projectMemberships ProjectMember[]
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+enum InvitationKind {
+  MEMBER
+  CLIENT
+}
+
+model Invitation {
+  id          String         @id @default(uuid()) @db.Uuid
+  workspaceId String         @db.Uuid
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  kind        InvitationKind
+  email       String
+  role        WorkspaceRole?
+  title       String?
+  permissions Json?
+  projectIds  String[]       @default([])
+  clientId    String?        @db.Uuid
+  tokenHash   String         @unique
+  invitedById String?        @db.Uuid
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime       @default(now())
+
+  @@index([workspaceId, email])
+}
+
+model WorkspaceSetting {
+  workspaceId         String    @id @db.Uuid
+  workspace           Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  portalLogoUrl       String?
+  invoiceLogoUrl      String?
+  companyLegalName    String?
+  companyAddress      String?
+  companyEmail        String?
+  companyPhone        String?
+  companyVatNumber    String?
+  companyRegistration String?
+  companyCountry      String?
+  updatedAt           DateTime  @updatedAt
+}
+
+// ───────────────────────── Clients ─────────────────────────
+
+model Client {
+  id                  String    @id @default(uuid()) @db.Uuid
+  workspaceId         String    @db.Uuid
+  workspace           Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  firstName           String
+  lastName            String
+  company             String?
+  email               String
+  phone               String?
+  billingEmail        String?
+  billingAddress      String?
+  country             String?
+  currency            String    @default("EUR")
+  timezone            String?
+  preferredLanguage   String    @default("en")
+  vatNumber           String?
+  companyRegistration String?
+  notes               String?
+  tags                String[]  @default([])
+  avatarUrl           String?
+  archivedAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  contacts     ClientContact[]
+  projects     Project[]
+  invoices     Invoice[]
+  payments     Payment[]
+  portalAccess ClientPortalAccess[]
+
+  @@index([workspaceId, archivedAt])
+  @@index([workspaceId, email])
+}
+
+model ClientContact {
+  id        String   @id @default(uuid()) @db.Uuid
+  clientId  String   @db.Uuid
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name      String
+  email     String?
+  phone     String?
+  role      String?
+  createdAt DateTime @default(now())
+
+  @@index([clientId])
+}
+
+// A portal user (User) granted access to one client of one workspace.
+model ClientPortalAccess {
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @db.Uuid
+  clientId    String    @db.Uuid
+  client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId      String    @db.Uuid
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([clientId, userId])
+  @@index([userId])
+}
+
+// ───────────────────────── Projects & specification ─────────────────────────
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum ProgressMode {
+  AUTO
+  MANUAL
+}
+
+enum Visibility {
+  INTERNAL
+  CLIENT_VISIBLE
+}
+
+model Project {
+  id             String        @id @default(uuid()) @db.Uuid
+  workspaceId    String        @db.Uuid
+  workspace      Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  clientId       String        @db.Uuid
+  client         Client        @relation(fields: [clientId], references: [id])
+  name           String
+  type           String?
+  description    String?
+  status         ProjectStatus @default(ACTIVE)
+  startDate      DateTime?
+  targetDate     DateTime?
+  completedAt    DateTime?
+  managerId      String?       @db.Uuid
+  manager        User?         @relation("ProjectManager", fields: [managerId], references: [id])
+  budgetCents    Int?
+  currency       String        @default("EUR")
+  progressMode   ProgressMode  @default(AUTO)
+  progress       Int           @default(0) // 0..100 cached result
+  manualProgress Int?
+  portalEnabled  Boolean       @default(true)
+  archivedAt     DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  members      ProjectMember[]
+  phases       Phase[]
+  tasks        Task[]
+  deliverables Deliverable[]
+  files        File[]
+  links        ProjectLink[]
+  previews     Preview[]
+  invoices     Invoice[]
+  expenses     Expense[]
+  messages     Message[]
+  updates      ProjectUpdate[]
+  waits        ClientWait[]
+  scopeChanges ScopeChange[]
+  history      SpecHistory[]
+  snapshots    SpecSnapshot[]
+  events       CalendarEvent[]
+
+  @@index([workspaceId, archivedAt, status])
+  @@index([clientId])
+}
+
+model ProjectMember {
+  id          String          @id @default(uuid()) @db.Uuid
+  projectId   String          @db.Uuid
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  memberId    String          @db.Uuid
+  member      WorkspaceMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  permissions Json? // project-level overrides
+  createdAt   DateTime        @default(now())
+
+  @@unique([projectId, memberId])
+  @@index([memberId])
+}
+
+model Phase {
+  id          String     @id @default(uuid()) @db.Uuid
+  projectId   String     @db.Uuid
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  position    Int
+  weight      Int        @default(1) // relative weight
+  status      TaskStatus @default(NOT_STARTED)
+  progress    Int        @default(0)
+  visibility  Visibility @default(CLIENT_VISIBLE)
+  startDate   DateTime?
+  deadline    DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  milestones Milestone[]
+  tasks      Task[]
+
+  @@index([projectId, position])
+}
+
+model Milestone {
+  id          String     @id @default(uuid()) @db.Uuid
+  phaseId     String     @db.Uuid
+  phase       Phase      @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  projectId   String     @db.Uuid
+  title       String
+  description String?
+  dueDate     DateTime?
+  completedAt DateTime?
+  position    Int
+  visibility  Visibility @default(CLIENT_VISIBLE)
+  createdAt   DateTime   @default(now())
+
+  tasks Task[]
+
+  @@index([projectId])
+  @@index([phaseId, position])
+}
+
+enum TaskStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  BLOCKED
+  WAITING_FOR_CLIENT
+  IN_REVIEW
+  COMPLETED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Task {
+  id               String     @id @default(uuid()) @db.Uuid
+  workspaceId      String     @db.Uuid
+  workspace        Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projectId        String     @db.Uuid
+  project          Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  phaseId          String?    @db.Uuid
+  phase            Phase?     @relation(fields: [phaseId], references: [id], onDelete: SetNull)
+  milestoneId      String?    @db.Uuid
+  milestone        Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  parentId         String?    @db.Uuid
+  parent           Task?      @relation("Subtasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subtasks         Task[]     @relation("Subtasks")
+  title            String
+  description      String?
+  status           TaskStatus @default(NOT_STARTED)
+  priority         Priority   @default(MEDIUM)
+  weight           Int        @default(1)
+  position         Int        @default(0)
+  assigneeId       String?    @db.Uuid
+  assignee         User?      @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  startDate        DateTime?
+  deadline         DateTime?
+  estimatedMinutes Int?
+  actualMinutes    Int?
+  costCents        Int?
+  visibility       Visibility @default(CLIENT_VISIBLE)
+  internalNotes    String?
+  requiresApproval Boolean    @default(false)
+  completedAt      DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  checklist    ChecklistItem[]
+  dependencies TaskDependency[] @relation("DependentTask")
+  dependents   TaskDependency[] @relation("BlockingTask")
+
+  @@index([workspaceId, status])
+  @@index([projectId, phaseId, position])
+  @@index([assigneeId, status])
+  @@index([workspaceId, deadline])
+}
+
+model TaskDependency {
+  taskId      String @db.Uuid
+  task        Task   @relation("DependentTask", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOnId String @db.Uuid
+  dependsOn   Task   @relation("BlockingTask", fields: [dependsOnId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, dependsOnId])
+}
+
+model ChecklistItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  taskId    String   @db.Uuid
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  label     String
+  done      Boolean  @default(false)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+}
+
+// ───────────────────────── Templates ─────────────────────────
+
+model ProjectTemplate {
+  id          String          @id @default(uuid()) @db.Uuid
+  workspaceId String?         @db.Uuid // null = built-in platform template
+  workspace   Workspace?      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  category    String
+  description String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  phases      TemplatePhase[]
+
+  @@index([workspaceId])
+}
+
+model TemplatePhase {
+  id         String          @id @default(uuid()) @db.Uuid
+  templateId String          @db.Uuid
+  template   ProjectTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  title      String
+  weight     Int             @default(1)
+  position   Int
+  tasks      TemplateTask[]
+}
+
+model TemplateTask {
+  id               String        @id @default(uuid()) @db.Uuid
+  phaseId          String        @db.Uuid
+  phase            TemplatePhase @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  title            String
+  description      String?
+  weight           Int           @default(1)
+  position         Int
+  visibility       Visibility    @default(CLIENT_VISIBLE)
+  requiresApproval Boolean       @default(false)
+}
+
+// ───────────────────────── Deliverables & approvals ─────────────────────────
+
+enum DeliverableStatus {
+  DRAFT
+  READY_FOR_REVIEW
+  WAITING_FOR_CLIENT
+  CHANGES_REQUESTED
+  APPROVED
+}
+
+model Deliverable {
+  id               String            @id @default(uuid()) @db.Uuid
+  workspaceId      String            @db.Uuid
+  workspace        Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projectId        String            @db.Uuid
+  project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  phaseId          String?           @db.Uuid
+  title            String
+  description      String?
+  status           DeliverableStatus @default(DRAFT)
+  requiresApproval Boolean           @default(true)
+  visibility       Visibility        @default(CLIENT_VISIBLE)
+  currentVersion   Int               @default(1)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  versions  DeliverableVersion[]
+  approvals Approval[]
+
+  @@index([projectId, status])
+  @@index([workspaceId, status])
+}
+
+model DeliverableVersion {
+  id            String      @id @default(uuid()) @db.Uuid
+  deliverableId String      @db.Uuid
+  deliverable   Deliverable @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+  version       Int
+  notes         String?
+  previewUrl    String?
+  submittedAt   DateTime?
+  createdById   String?     @db.Uuid
+  createdAt     DateTime    @default(now())
+
+  files File[]
+
+  @@unique([deliverableId, version])
+}
+
+enum ApprovalDecision {
+  APPROVED
+  CHANGES_REQUESTED
+}
+
+// Append-only. Never updated or deleted.
+model Approval {
+  id            String           @id @default(uuid()) @db.Uuid
+  workspaceId   String           @db.Uuid
+  deliverableId String           @db.Uuid
+  deliverable   Deliverable      @relation(fields: [deliverableId], references: [id], onDelete: Restrict)
+  version       Int
+  decision      ApprovalDecision
+  comment       String?
+  clientId      String           @db.Uuid
+  userId        String           @db.Uuid
+  userName      String
+  createdAt     DateTime         @default(now())
+
+  @@index([deliverableId, createdAt])
+}
+
+// ───────────────────────── Files, links, previews ─────────────────────────
+
+enum FileSource {
+  UPLOAD
+  GOOGLE_DRIVE
+}
+
+model File {
+  id                   String              @id @default(uuid()) @db.Uuid
+  workspaceId          String              @db.Uuid
+  workspace            Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projectId            String?             @db.Uuid
+  project              Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  clientId             String?             @db.Uuid
+  phaseId              String?             @db.Uuid
+  taskId               String?             @db.Uuid
+  deliverableVersionId String?             @db.Uuid
+  deliverableVersion   DeliverableVersion? @relation(fields: [deliverableVersionId], references: [id], onDelete: SetNull)
+  invoiceId            String?             @db.Uuid
+  expenseId            String?             @db.Uuid
+  source               FileSource          @default(UPLOAD)
+  name                 String
+  mimeType             String
+  sizeBytes            BigInt              @default(0)
+  storageKey           String?             @unique
+  status               String              @default("PENDING") // PENDING | READY
+  category             String              @default("OTHER") // DOCUMENT | IMAGE | CONTRACT | INVOICE | DELIVERABLE | OTHER
+  externalId           String?
+  externalUrl          String?
+  externalMissing      Boolean             @default(false)
+  visibility           Visibility          @default(INTERNAL)
+  uploadedById         String?             @db.Uuid
+  uploadedByClient     Boolean             @default(false)
+  createdAt            DateTime            @default(now())
+  deletedAt            DateTime?
+
+  @@index([workspaceId, deletedAt, createdAt])
+  @@index([projectId])
+  @@index([clientId])
+}
+
+model ProjectLink {
+  id         String     @id @default(uuid()) @db.Uuid
+  projectId  String     @db.Uuid
+  project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  label      String
+  url        String
+  visibility Visibility @default(INTERNAL)
+  createdAt  DateTime   @default(now())
+}
+
+model Preview {
+  id         String     @id @default(uuid()) @db.Uuid
+  projectId  String     @db.Uuid
+  project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type       String     @default("WEBSITE") // WEBSITE | MOBILE_APP | PROTOTYPE | EXTERNAL | OTHER
+  label      String
+  url        String
+  visibility Visibility @default(CLIENT_VISIBLE)
+  embeddable Boolean?
+  pageTitle  String?
+  imageUrl   String?
+  checkedAt  DateTime?
+  createdAt  DateTime   @default(now())
+
+  @@index([projectId])
+}
+
+// ───────────────────────── Communication ─────────────────────────
+
+model Message {
+  id          String     @id @default(uuid()) @db.Uuid
+  workspaceId String     @db.Uuid
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projectId   String?    @db.Uuid
+  project     Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  entityType  String     @default("PROJECT") // PROJECT | TASK | DELIVERABLE | FILE | INVOICE
+  entityId    String     @db.Uuid
+  visibility  Visibility @default(CLIENT_VISIBLE)
+  body        String
+  authorId    String     @db.Uuid
+  authorName  String
+  fromClient  Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+
+  @@index([workspaceId, entityType, entityId, createdAt])
+  @@index([projectId, createdAt])
+}
+
+model ProjectUpdate {
+  id          String   @id @default(uuid()) @db.Uuid
+  projectId   String   @db.Uuid
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String?
+  body        String
+  nextSteps   String?
+  authorId    String   @db.Uuid
+  authorName  String
+  publishedAt DateTime @default(now())
+
+  @@index([projectId, publishedAt])
+}
+
+enum WaitReason {
+  APPROVAL
+  DOCUMENT
+  INFORMATION
+  PAYMENT
+  OTHER
+}
+
+model ClientWait {
+  id         String     @id @default(uuid()) @db.Uuid
+  projectId  String     @db.Uuid
+  project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reason     WaitReason
+  label      String
+  entityType String?
+  entityId   String?    @db.Uuid
+  startedAt  DateTime   @default(now())
+  resolvedAt DateTime?
+
+  @@index([projectId, resolvedAt])
+}
+
+enum ScopeChangeStatus {
+  PROPOSED
+  APPROVED
+  REJECTED
+}
+
+model ScopeChange {
+  id                  String            @id @default(uuid()) @db.Uuid
+  projectId           String            @db.Uuid
+  project             Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  description         String
+  requestedBy         String
+  requestedAt         DateTime          @default(now())
+  additionalCostCents Int               @default(0)
+  additionalDays      Int               @default(0)
+  status              ScopeChangeStatus @default(PROPOSED)
+  decidedAt           DateTime?
+  createdAt           DateTime          @default(now())
+}
+
+model SpecHistory {
+  id        String   @id @default(uuid()) @db.Uuid
+  projectId String   @db.Uuid
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  actorId   String?  @db.Uuid
+  actorName String
+  change    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([projectId, createdAt])
+}
+
+model SpecSnapshot {
+  id        String   @id @default(uuid()) @db.Uuid
+  projectId String   @db.Uuid
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reason    String
+  data      Json
+  createdAt DateTime @default(now())
+}
+
+model CalendarEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @db.Uuid
+  projectId   String?   @db.Uuid
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  startsAt    DateTime
+  endsAt      DateTime?
+  location    String?
+  createdById String    @db.Uuid
+  createdAt   DateTime  @default(now())
+
+  @@index([workspaceId, startsAt])
+}
+
+// ───────────────────────── Client invoicing (Domain B) ─────────────────────────
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  VIEWED
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  VOID
+  REFUNDED
+}
+
+model InvoiceSettings {
+  workspaceId       String    @id @db.Uuid
+  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  prefix            String    @default("INV")
+  includeYear       Boolean   @default(true)
+  nextNumber        Int       @default(1)
+  padding           Int       @default(4)
+  defaultDueDays    Int       @default(30)
+  defaultTaxRateBps Int       @default(0)
+  defaultCurrency   String    @default("EUR")
+  defaultNotes      String?
+  defaultTerms      String?
+  footer            String?
+  remindersEnabled  Boolean   @default(false)
+  reminderOffsets   Int[]     @default([-3, 0, 3, 7, 14])
+  bankDetails       String?
+  updatedAt         DateTime  @updatedAt
+}
+
+// Counter per workspace+year, incremented inside a transaction with row lock.
+model InvoiceCounter {
+  workspaceId String @db.Uuid
+  scope       String // year e.g. "2026" or "ALL"
+  last        Int
+
+  @@id([workspaceId, scope])
+}
+
+model Invoice {
+  id             String        @id @default(uuid()) @db.Uuid
+  workspaceId    String        @db.Uuid
+  workspace      Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  clientId       String        @db.Uuid
+  client         Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  projectId      String?       @db.Uuid
+  project        Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  number         String? // assigned when issued (sent)
+  status         InvoiceStatus @default(DRAFT)
+  currency       String
+  issueDate      DateTime
+  dueDate        DateTime
+  subtotalCents  Int           @default(0)
+  discountCents  Int           @default(0)
+  taxCents       Int           @default(0)
+  totalCents     Int           @default(0)
+  paidCents      Int           @default(0)
+  refundedCents  Int           @default(0)
+  notes          String?
+  terms          String?
+  footer         String?
+  // Historical snapshots — frozen when issued.
+  sellerSnapshot Json?
+  clientSnapshot Json?
+  issuedAt       DateTime?
+  sentAt         DateTime?
+  firstViewedAt  DateTime?
+  paidAt         DateTime?
+  voidedAt       DateTime?
+  publicToken    String        @unique @default(uuid()) @db.Uuid
+  createdById    String?       @db.Uuid
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  lineItems InvoiceLineItem[]
+  payments  Payment[]
+  reminders InvoiceReminder[]
+
+  @@unique([workspaceId, number])
+  @@index([workspaceId, status, dueDate])
+  @@index([clientId])
+  @@index([projectId])
+}
+
+model InvoiceLineItem {
+  id             String  @id @default(uuid()) @db.Uuid
+  invoiceId      String  @db.Uuid
+  invoice        Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  position       Int
+  description    String
+  quantityMilli  Int // quantity × 1000 (supports 1.5 hours)
+  unitPriceCents Int
+  taxRateBps     Int     @default(0) // 2000 = 20%
+  discountBps    Int     @default(0)
+  lineSubtotal   Int // after discount, before tax
+  lineTax        Int
+  lineTotal      Int
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentMethod {
+  CARD
+  STRIPE_OTHER
+  BANK_TRANSFER
+  CASH
+  CHECK
+  OTHER
+}
+
+model Payment {
+  id                String        @id @default(uuid()) @db.Uuid
+  workspaceId       String        @db.Uuid
+  workspace         Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  invoiceId         String        @db.Uuid
+  invoice           Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  clientId          String        @db.Uuid
+  client            Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  amountCents       Int
+  currency          String
+  provider          String // stripe | manual
+  providerPaymentId String?       @unique
+  method            PaymentMethod
+  status            PaymentStatus
+  reference         String?
+  notes             String?
+  paidAt            DateTime?
+  refundedCents     Int           @default(0)
+  metadata          Json?
+  recordedById      String?       @db.Uuid
+  createdAt         DateTime      @default(now())
+
+  @@index([workspaceId, paidAt])
+  @@index([invoiceId])
+}
+
+model InvoiceReminder {
+  id         String   @id @default(uuid()) @db.Uuid
+  invoiceId  String   @db.Uuid
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  kind       String // MANUAL | AUTO
+  offsetDays Int? // for AUTO: unique per invoice to prevent duplicates
+  sentTo     String
+  sentById   String?  @db.Uuid
+  createdAt  DateTime @default(now())
+
+  @@unique([invoiceId, kind, offsetDays])
+  @@index([invoiceId])
+}
+
+// Professional's Stripe Connect account (receives client money directly).
+model PaymentAccount {
+  workspaceId      String    @id @db.Uuid
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  provider         String    @default("stripe")
+  stripeAccountId  String    @unique
+  chargesEnabled   Boolean   @default(false)
+  payoutsEnabled   Boolean   @default(false)
+  detailsSubmitted Boolean   @default(false)
+  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime  @default(now())
+}
+
+// Webhook idempotency — one row per provider event id.
+model WebhookEvent {
+  id          String   @id // provider event id
+  provider    String // stripe_connect | stripe_platform
+  type        String
+  processedAt DateTime @default(now())
+  payload     Json?
+}
+
+// ───────────────────────── Finance ─────────────────────────
+
+model Expense {
+  id            String    @id @default(uuid()) @db.Uuid
+  workspaceId   String    @db.Uuid
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projectId     String?   @db.Uuid
+  project       Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  name          String
+  category      String // SOFTWARE | FREELANCER | TRAVEL | MATERIAL | ADVERTISING | OTHER
+  amountCents   Int
+  taxCents      Int       @default(0)
+  currency      String
+  date          DateTime
+  supplier      String?
+  reference     String?
+  notes         String?
+  receiptFileId String?   @db.Uuid
+  createdById   String?   @db.Uuid
+  createdAt     DateTime  @default(now())
+
+  @@index([workspaceId, date])
+  @@index([projectId])
+}
+
+// ───────────────────────── Events, notifications, email ─────────────────────────
+
+model ActivityLog {
+  id            String    @id @default(uuid()) @db.Uuid
+  workspaceId   String    @db.Uuid
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projectId     String?   @db.Uuid
+  clientId      String?   @db.Uuid
+  actorId       String?   @db.Uuid
+  actorName     String
+  action        String // e.g. TASK_COMPLETED
+  entityType    String
+  entityId      String?
+  summary       String
+  clientVisible Boolean   @default(false)
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@index([projectId, createdAt])
+  @@index([clientId, createdAt])
+}
+
+model Notification {
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String    @db.Uuid
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  audience    String    @default("TEAM") // TEAM | CLIENT
+  category    String // PROJECT | CLIENT | BILLING | TEAM | SYSTEM
+  type        String
+  title       String
+  message     String
+  entityType  String?
+  entityId    String?
+  actionUrl   String?
+  actionLabel String?
+  readAt      DateTime?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, readAt, createdAt])
+  @@index([userId, category, createdAt])
+}
+
+model NotificationPreference {
+  id     String  @id @default(uuid()) @db.Uuid
+  userId String  @db.Uuid
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic  String // APPROVALS | TASKS | DEADLINES | INVOICES | PAYMENTS | COMMENTS | MENTIONS | SYSTEM
+  inApp  Boolean @default(true)
+  email  Boolean @default(true)
+
+  @@unique([userId, topic])
+}
+
+model EmailLog {
+  id                String     @id @default(uuid()) @db.Uuid
+  workspaceId       String?    @db.Uuid
+  workspace         Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  recipient         String
+  cc                String[]   @default([])
+  template          String
+  subject           String
+  entityType        String?
+  entityId          String?
+  providerMessageId String?
+  status            String // SENT | FAILED | NOT_CONFIGURED
+  failureReason     String?
+  sentAt            DateTime?
+  createdAt         DateTime   @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@index([entityType, entityId])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorId     String?  @db.Uuid
+  actorEmail  String?
+  scope       String // PLATFORM | WORKSPACE
+  workspaceId String?  @db.Uuid
+  action      String
+  targetType  String?
+  targetId    String?
+  metadata    Json?
+  ip          String?
+  createdAt   DateTime @default(now())
+
+  @@index([scope, createdAt])
+  @@index([workspaceId, createdAt])
+}
+
+// ───────────────────────── Integrations ─────────────────────────
+
+model Integration {
+  id              String    @id @default(uuid()) @db.Uuid
+  workspaceId     String    @db.Uuid
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  provider        String // GOOGLE_DRIVE
+  status          String // CONNECTED | DISCONNECTED | ERROR
+  accountEmail    String?
+  accessTokenEnc  String?
+  refreshTokenEnc String?
+  expiresAt       DateTime?
+  config          Json?
+  lastError       String?
+  connectedById   String?   @db.Uuid
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([workspaceId, provider])
+}
+
+// ───────────────────────── Platform billing (Domain A) ─────────────────────────
+
+model Plan {
+  id                   String   @id @default(uuid()) @db.Uuid
+  code                 String   @unique // STARTER | PRO | BUSINESS | ...
+  name                 String
+  description          String?
+  monthlyPriceCents    Int
+  annualPriceCents     Int?
+  currency             String   @default("EUR")
+  storageLimitMb       Int? // null = unlimited
+  activeProjectLimit   Int?
+  clientLimit          Int?
+  collaboratorLimit    Int?
+  trialDays            Int      @default(14)
+  isActive             Boolean  @default(true)
+  isPublic             Boolean  @default(true)
+  sortOrder            Int      @default(0)
+  highlight            Boolean  @default(false)
+  stripeProductId      String?
+  stripeMonthlyPriceId String?
+  stripeAnnualPriceId  String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  features      PlanFeature[]
+  subscriptions Subscription[]
+}
+
+model PlanFeature {
+  id      String  @id @default(uuid()) @db.Uuid
+  planId  String  @db.Uuid
+  plan    Plan    @relation(fields: [planId], references: [id], onDelete: Cascade)
+  key     String // custom_branding | advanced_stats | accounting_exports | advanced_permissions | ...
+  enabled Boolean @default(true)
+  label   String?
+
+  @@unique([planId, key])
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
+model Subscription {
+  id                   String             @id @default(uuid()) @db.Uuid
+  workspaceId          String             @unique @db.Uuid
+  workspace            Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  planId               String             @db.Uuid
+  plan                 Plan               @relation(fields: [planId], references: [id])
+  status               SubscriptionStatus
+  interval             String             @default("month") // month | year
+  // Price locked at subscription time — plan price edits never change it.
+  priceCents           Int
+  currency             String
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  stripePriceId        String?
+  trialEndsAt          DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  canceledAt           DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  payments PlatformPayment[]
+
+  @@index([status])
+}
+
+model PlatformPayment {
+  id              String       @id @default(uuid()) @db.Uuid
+  subscriptionId  String       @db.Uuid
+  subscription    Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  stripeInvoiceId String       @unique
+  amountCents     Int
+  currency        String
+  status          String // PAID | FAILED
+  paidAt          DateTime?
+  createdAt       DateTime     @default(now())
+
+  @@index([createdAt])
+}
