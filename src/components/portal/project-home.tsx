@@ -103,13 +103,29 @@ function MaybeLink({ preview, ...props }: { preview?: boolean; href: string; cla
 }
 
 /** The 5-second view: progress, current stage, what's waiting, latest update, timeline, files, invoices. */
+/** The client's website for a project (project site, else first client-visible preview), or nothing. */
+async function projectSite(projectId: string, name: string) {
+  const row = await db.project.findUnique({ where: { id: projectId }, select: { websiteUrl: true, websiteEmbeddable: true } });
+  if (row?.websiteUrl) return { url: row.websiteUrl, label: name, embeddable: row.websiteEmbeddable, imageUrl: null, pageTitle: null };
+  return db.preview.findFirst({ where: { projectId, visibility: "CLIENT_VISIBLE" }, orderBy: [{ type: "desc" }, { createdAt: "asc" }], select: { url: true, label: true, embeddable: true, imageUrl: true, pageTitle: true } });
+}
+
+/** "Your website" block shown to the client right under what needs their attention. */
+export async function ProjectSitePreview({ projectId, name, showName }: { projectId: string; name: string; showName?: boolean }) {
+  const site = await projectSite(projectId, name);
+  if (!site) return null;
+  return (
+    <section aria-label={name}>
+      <h2 className="mb-3 text-[13px] font-semibold tracking-tight"><Tr>Your website</Tr>{showName && <span className="font-normal text-muted"> · {name}</span>}</h2>
+      <SitePreviewMini p={site} />
+    </section>
+  );
+}
+
 export async function PortalProjectHome({ project, home, waiting, base, preview }: { project: { id: string; name: string; progress: number; status: string; targetDate: Date | null; completedAt: Date | null }; home: Home; waiting: WaitingItem[]; base: string; preview?: boolean }) {
   const { t, fmt, p } = await getI18n();
   const latest = home.updates[0];
-  // The client's website: the project's site, else the first preview shared with the client.
-  const row = await db.project.findUnique({ where: { id: project.id }, select: { websiteUrl: true, websiteEmbeddable: true } });
-  const shared = row?.websiteUrl ? null : await db.preview.findFirst({ where: { projectId: project.id, visibility: "CLIENT_VISIBLE" }, orderBy: [{ type: "desc" }, { createdAt: "asc" }], select: { url: true, label: true, embeddable: true, imageUrl: true, pageTitle: true } });
-  const site = row?.websiteUrl ? { url: row.websiteUrl, label: project.name, embeddable: row.websiteEmbeddable, imageUrl: null, pageTitle: null } : shared;
+
   const left = project.targetDate ? daysBetween(new Date(), project.targetDate) : null;
   return (
     <div className="space-y-8 sm:space-y-10">
@@ -135,12 +151,7 @@ export async function PortalProjectHome({ project, home, waiting, base, preview 
 
       <WaitingForYou items={waiting} preview={preview} />
 
-      {site && (
-        <section aria-label={t("Your website")}>
-          <h2 className="mb-3 text-[13px] font-semibold tracking-tight"><Tr>Your website</Tr></h2>
-          <SitePreviewMini p={site} />
-        </section>
-      )}
+      <ProjectSitePreview projectId={project.id} name={project.name} />
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:gap-10">
         <div className="space-y-8">

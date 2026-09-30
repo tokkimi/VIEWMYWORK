@@ -3,7 +3,7 @@ import { FolderKanban } from "lucide-react";
 import { db } from "@/lib/db";
 import { requirePortal, portalProjectWhere } from "@/lib/auth/portal";
 import { portalProjectHome, waitingForClient } from "@/server/queries/portal";
-import { PortalProjectHome, WaitingForYou } from "@/components/portal/project-home";
+import { PortalProjectHome, WaitingForYou, ProjectSitePreview } from "@/components/portal/project-home";
 import { ProgressBar, EmptyState } from "@/components/ui/primitives";
 import { pageTitle, getI18n } from "@/lib/i18n/server";
 import { Tr } from "@/lib/i18n/client";
@@ -42,6 +42,7 @@ export default async function PortalHome() {
     <div className="space-y-10">
       <h1 className="text-2xl font-semibold tracking-tight"><Tr>Hello,</Tr> {ctx.user.name.split(" ")[0]}</h1>
       <WaitingForYou items={waiting} />
+      {active.map((p) => <ProjectSitePreview key={p.id} projectId={p.id} name={p.name} showName />)}
       <section>
         <h2 className="mb-3 text-[13px] font-semibold"><Tr>Your projects</Tr></h2>
         <ul className="grid gap-3 sm:grid-cols-2">
