@@ -45,6 +45,15 @@
     @apply bg-bg text-fg font-sans antialiased;
     font-feature-settings: "cv11", "ss01";
   }
+  /* Grids default to one shrinkable column, and their children may shrink below their content:
+     a long unbreakable line (a truncated label, a URL) can then never widen the page on phones.
+     Explicit grid-cols-* utilities (utilities layer) still take precedence. */
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .grid > * {
+    min-width: 0;
+  }
   /* iOS zooms into any field under 16px when it gets focus: keep fields at 16px on phones. */
   @media (max-width: 640px) {
     input:not([type="checkbox"]):not([type="radio"]),
