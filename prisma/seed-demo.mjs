@@ -26,6 +26,8 @@ async function main() {
     await db.phase.updateMany({ where: { title: "Discovery", project: { workspaceId: existing.id } }, data: { title: "Découverte" } });
     await db.workspace.update({ where: { id: existing.id }, data: { locale: "fr" } });
     await db.client.updateMany({ where: { workspaceId: existing.id }, data: { preferredLanguage: "fr" } });
+    for (const p of await db.project.findMany({ where: { workspaceId: existing.id, previews: { none: {} } }, select: { id: true } }))
+      await db.preview.create({ data: { projectId: p.id, label: "Site de recette", url: "https://example.com", embeddable: true, pageTitle: "Example Domain", checkedAt: new Date() } });
     return console.log("demo: already present (content normalised)");
   }
 

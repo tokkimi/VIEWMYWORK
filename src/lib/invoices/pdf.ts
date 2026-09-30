@@ -1,3 +1,4 @@
+import { db } from "@/lib/db";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type PDFImage } from "pdf-lib";
 import type { InvoiceLineItem, InvoiceStatus } from "@prisma/client";
 import { makeFmt, makeT, normalizeLocale } from "@/lib/i18n/core";
@@ -54,8 +55,19 @@ function wrap(text: string, font: PDFFont, size: number, maxWidth: number) {
 }
 
 async function loadLogo(pdf: PDFDocument, url?: string | null): Promise<PDFImage | null> {
-  if (!url || !/^https:\/\//.test(url)) return null;
+  if (!url) return null;
   try {
+    // Uploaded logos are read straight from the database (no self-request, works in every environment).
+    const own = url.match(/\/api\/public\/logo\/([0-9a-f-]{36})\/(logo|portalLogo|invoiceLogo)(?:\?|$)/i);
+    if (own) {
+      const a = await db.workspaceAsset.findUnique({ where: { workspaceId_kind: { workspaceId: own[1]!, kind: own[2]! } }, select: { mime: true, data: true } });
+      if (!a) return null;
+      const bytes = new Uint8Array(a.data);
+      if (a.mime === "image/png") return await pdf.embedPng(bytes);
+      if (a.mime === "image/jpeg") return await pdf.embedJpg(bytes);
+      return null;
+    }
+    if (!/^https:\/\//.test(url)) return null;
     const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
     if (!res.ok) return null;
     const buf = new Uint8Array(await res.arrayBuffer());

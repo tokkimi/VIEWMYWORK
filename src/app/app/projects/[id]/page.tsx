@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, Clock } from "lucide-react";
+import { AlertTriangle, Clock, Monitor } from "lucide-react";
 import { db } from "@/lib/db";
 import { loadProject } from "@/server/queries/project";
 import { hasLevel } from "@/lib/auth/permissions";
@@ -14,6 +14,7 @@ import { daysBetween } from "@/lib/format";
 import { deriveStatus, outstandingCents } from "@/lib/invoices/status";
 import { Tr } from "@/lib/i18n/client";
 import { SitePreviewMini } from "@/components/app/site-preview";
+import { AddPreviewDialog } from "@/components/app/preview-forms";
 import { getI18n } from "@/lib/i18n/server";
 
 export default async function ProjectOverview({ params }: { params: Promise<{ id: string }> }) {
@@ -70,11 +71,17 @@ export default async function ProjectOverview({ params }: { params: Promise<{ id
         <Stat label="Waiting for client" value={waits.length} tone={waits.length ? "warning" : undefined} />
       </div>
 
-      {preview && (
-        <Section title="Website preview" description="Desktop and mobile — scroll inside each frame." action={<Link href={`/app/projects/${id}/preview`} className="text-xs text-muted hover:text-fg"><Tr>Manage previews</Tr></Link>}>
+      <Section title="Website preview" description={preview ? "Desktop and mobile — scroll inside each frame." : "Add the site's address to see it here in desktop and mobile versions."} action={preview ? <Link href={`/app/projects/${id}/preview`} className="text-xs text-muted hover:text-fg"><Tr>Manage previews</Tr></Link> : undefined}>
+        {preview ? (
           <SitePreviewMini p={preview} />
-        </Section>
-      )}
+        ) : (
+          <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-line px-6 py-10 text-center">
+            <Monitor className="size-6 text-muted" />
+            <p className="max-w-sm text-sm text-muted"><Tr>No website linked to this project yet.</Tr></p>
+            {canEdit && <AddPreviewDialog projectId={id} />}
+          </div>
+        )}
+      </Section>
 
       {project.phases.length > 0 ? (
         <Section title="Timeline">

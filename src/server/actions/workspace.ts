@@ -116,7 +116,7 @@ export async function updateBrandingAction(fd: FormData) {
     const ctx = await requireWorkspace();
     requirePerm(ctx, "settings", "manage");
     const i = z.object({ logoUrl: zOptStr(2000), portalLogoUrl: zOptStr(2000), invoiceLogoUrl: zOptStr(2000) }).parse(formToObject(fd));
-    for (const u of Object.values(i)) if (u && !/^https:\/\//.test(u) && !u.startsWith("/api/public/logo/")) throw new AppError("Logo URLs must use https.");
+    for (const u of Object.values(i)) if (u && !/^https:\/\//.test(u) && !u.startsWith("/api/public/logo/") && !u.startsWith(`${env.appUrl}/api/public/logo/`)) throw new AppError("Logo URLs must use https.");
     if (i.portalLogoUrl || i.invoiceLogoUrl) await requireFeature(ctx.workspace.id, "custom_branding");
     await db.$transaction([
       db.workspace.update({ where: { id: ctx.workspace.id }, data: { logoUrl: i.logoUrl ?? null } }),
@@ -128,4 +128,61 @@ export async function updateBrandingAction(fd: FormData) {
     ]);
     return null;
   }, "Branding saved.");
+}
+
+const LOGO_KINDS = { logo: "logoUrl", portalLogo: "portalLogoUrl", invoiceLogo: "invoiceLogoUrl" } as const;
+type LogoKind = keyof typeof LOGO_KINDS;
+const MAX_LOGO_BYTES = 1024 * 1024;
+
+/** Detects PNG, JPEG or WebP from the file's magic bytes (the browser-provided type is not trusted). */
+function sniffImage(b: Buffer): string | null {
+  if (b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "image/png";
+  if (b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+  if (b.length > 12 && b.toString("ascii", 0, 4) === "RIFF" && b.toString("ascii", 8, 12) === "WEBP") return "image/webp";
+  return null;
+}
+
+async function setLogoUrl(workspaceId: string, kind: LogoKind, url: string | null) {
+  if (kind === "logo") await db.workspace.update({ where: { id: workspaceId }, data: { logoUrl: url } });
+  else {
+    const field = LOGO_KINDS[kind];
+    await db.workspaceSetting.upsert({ where: { workspaceId }, create: { workspaceId, [field]: url }, update: { [field]: url } });
+  }
+}
+
+/** Upload a logo file (PNG, JPG or WebP, max 1 MB); it is stored with the workspace and served publicly. */
+export async function uploadLogoAction(fd: FormData) {
+  return runAction(async () => {
+    const ctx = await requireWorkspace();
+    requirePerm(ctx, "settings", "manage");
+    await rateLimit("logo-upload", 30, 3600, ctx.user.id);
+    const kind = z.enum(["logo", "portalLogo", "invoiceLogo"]).parse(fd.get("kind"));
+    if (kind !== "logo") await requireFeature(ctx.workspace.id, "custom_branding");
+    const file = fd.get("file");
+    if (!(file instanceof File) || file.size === 0) throw new AppError("Choose an image file.");
+    if (file.size > MAX_LOGO_BYTES) throw new AppError("The image is too large (1 MB maximum).");
+    const data = Buffer.from(await file.arrayBuffer());
+    const mime = sniffImage(data);
+    if (!mime) throw new AppError("Use a PNG, JPG or WebP image.");
+    if (kind === "invoiceLogo" && mime === "image/webp") throw new AppError("Invoice logos must be PNG or JPG.");
+    await db.workspaceAsset.upsert({
+      where: { workspaceId_kind: { workspaceId: ctx.workspace.id, kind } },
+      create: { workspaceId: ctx.workspace.id, kind, mime, size: data.length, data },
+      update: { mime, size: data.length, data },
+    });
+    const url = `${env.appUrl}/api/public/logo/${ctx.workspace.id}/${kind}?v=${Date.now().toString(36)}`;
+    await setLogoUrl(ctx.workspace.id, kind, url);
+    return { url };
+  }, "Logo uploaded.");
+}
+
+export async function removeLogoAction(kind: LogoKind) {
+  return runAction(async () => {
+    const ctx = await requireWorkspace();
+    requirePerm(ctx, "settings", "manage");
+    const k = z.enum(["logo", "portalLogo", "invoiceLogo"]).parse(kind);
+    await db.workspaceAsset.deleteMany({ where: { workspaceId: ctx.workspace.id, kind: k } });
+    await setLogoUrl(ctx.workspace.id, k, null);
+    return null;
+  }, "Logo removed.");
 }

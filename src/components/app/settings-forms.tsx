@@ -3,14 +3,15 @@
 import { Form, Field, Input, Textarea, Select, Submit, Checkbox } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { CurrencySelect } from "./entity-fields";
-import { updateWorkspaceGeneralAction, updateBrandingAction } from "@/server/actions/workspace";
+import { updateWorkspaceGeneralAction, updateBrandingAction, uploadLogoAction, removeLogoAction } from "@/server/actions/workspace";
 import { saveInvoiceSettingsAction } from "@/server/actions/invoices";
 import { connectStripeAction, syncStripeAccountAction, stripeDashboardLinkAction } from "@/server/actions/payments";
 import { startSubscriptionCheckoutAction, openBillingPortalAction } from "@/server/actions/billing";
 import { disconnectDriveAction, setDriveFolderAction } from "@/server/actions/integrations";
 import { useActionButton } from "./invoice-actions";
 import { formatInvoiceNumber } from "@/lib/invoices/numbering";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Image as ImageIcon, Trash2, Upload } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Tr, useI18n } from "@/lib/i18n/client";
 
@@ -46,17 +47,62 @@ export function GeneralForm({ ws, company }: { ws: WS; company: Company }) {
   );
 }
 
+type LogoKind = "logo" | "portalLogo" | "invoiceLogo";
+
+/** Upload (or remove) one logo image. The file is sent as soon as it is picked. */
+function LogoUpload({ kind, label, hint, url, disabled, accept = "image/png,image/jpeg,image/webp" }: { kind: LogoKind; label: string; hint: string; url: string | null; disabled?: boolean; accept?: string }) {
+  const { t } = useI18n();
+  const { pending, run } = useActionButton();
+  const input = useRef<HTMLInputElement>(null);
+  const pick = (f: File | undefined) => {
+    if (!f) return;
+    const fd = new FormData();
+    fd.set("kind", kind);
+    fd.set("file", f);
+    run(() => uploadLogoAction(fd));
+    if (input.current) input.current.value = "";
+  };
+  return (
+    <div className={cn("flex items-center gap-4", disabled && "opacity-50")}>
+      <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-xl border border-line bg-[repeating-conic-gradient(#8881_0_25%,transparent_0_50%)] bg-[length:12px_12px]">
+        {url ? <img src={url} alt="" className="max-h-14 max-w-14 object-contain" /> : <ImageIcon className="size-5 text-muted" />}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[13px] font-medium">{t(label)}</div>
+        <p className="text-xs text-muted">{t(hint)}</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <input ref={input} type="file" accept={accept} className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
+          <Button type="button" size="sm" variant="secondary" disabled={disabled || pending} onClick={() => input.current?.click()}>
+            <Upload className="size-3.5" /> {pending ? t("Uploading…") : url ? t("Replace") : t("Upload an image")}
+          </Button>
+          {url && <Button type="button" size="sm" variant="ghost" disabled={disabled || pending} onClick={() => run(() => removeLogoAction(kind))}><Trash2 className="size-3.5" /> {t("Remove")}</Button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function BrandingForm({ logoUrl, portalLogoUrl, invoiceLogoUrl, canCustom }: { logoUrl: string | null; portalLogoUrl: string | null; invoiceLogoUrl: string | null; canCustom: boolean }) {
   const { t } = useI18n();
   return (
-    <Form action={updateBrandingAction} className="space-y-5">
-      <Field label="Company logo URL" name="logoUrl" optional hint="HTTPS image (PNG or JPG recommended). Shown in your workspace, portal and emails."><Input name="logoUrl" type="url" defaultValue={logoUrl ?? ""} placeholder="https://…/logo.png" /></Field>
-      <fieldset disabled={!canCustom} className="space-y-5 disabled:opacity-50">
-        <Field label="Client portal logo" name="portalLogoUrl" optional hint={canCustom ? t("Overrides the company logo in the client portal.") : t("Available on plans with custom branding.")}><Input name="portalLogoUrl" type="url" defaultValue={portalLogoUrl ?? ""} /></Field>
-        <Field label="Invoice logo" name="invoiceLogoUrl" optional hint="PNG or JPG, used on invoice PDFs."><Input name="invoiceLogoUrl" type="url" defaultValue={invoiceLogoUrl ?? ""} /></Field>
-      </fieldset>
-      <div className="flex justify-end"><Submit><Tr>Save branding</Tr></Submit></div>
-    </Form>
+    <div className="space-y-6">
+      <div className="space-y-5">
+        <LogoUpload kind="logo" label="Company logo" hint="PNG, JPG or WebP, 1 MB max. Shown in your workspace, portal and emails." url={logoUrl} />
+        <LogoUpload kind="portalLogo" label="Client portal logo" hint={canCustom ? "Overrides the company logo in the client portal." : "Available on plans with custom branding."} url={portalLogoUrl} disabled={!canCustom} />
+        <LogoUpload kind="invoiceLogo" label="Invoice logo" hint={canCustom ? "PNG or JPG, used on invoice PDFs." : "Available on plans with custom branding."} url={invoiceLogoUrl} disabled={!canCustom} accept="image/png,image/jpeg" />
+      </div>
+      <details className="rounded-xl border border-line p-4">
+        <summary className="cursor-pointer text-[13px] font-medium">{t("Or use an image URL")}</summary>
+        <Form action={updateBrandingAction} className="mt-4 space-y-5">
+          <Field label="Company logo URL" name="logoUrl" optional hint="HTTPS image (PNG or JPG recommended). Shown in your workspace, portal and emails."><Input name="logoUrl" type="url" defaultValue={logoUrl ?? ""} placeholder="https://…/logo.png" /></Field>
+          <fieldset disabled={!canCustom} className="space-y-5 disabled:opacity-50">
+            <Field label="Client portal logo" name="portalLogoUrl" optional hint={canCustom ? t("Overrides the company logo in the client portal.") : t("Available on plans with custom branding.")}><Input name="portalLogoUrl" type="url" defaultValue={portalLogoUrl ?? ""} /></Field>
+            <Field label="Invoice logo" name="invoiceLogoUrl" optional hint="PNG or JPG, used on invoice PDFs."><Input name="invoiceLogoUrl" type="url" defaultValue={invoiceLogoUrl ?? ""} /></Field>
+          </fieldset>
+          <div className="flex justify-end"><Submit><Tr>Save branding</Tr></Submit></div>
+        </Form>
+      </details>
+    </div>
   );
 }
 
