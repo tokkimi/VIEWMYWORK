@@ -19,7 +19,7 @@ async function stamp(projectIds: string[], clientOnly: boolean) {
   const clientIds = (await db.project.findMany({ where: { id: { in: projectIds } }, select: { clientId: true } })).map((p) => p.clientId);
   // Project files + documents attached to the client itself (shown in every project of that client).
   const files: Prisma.FileWhereInput = { ...vis, status: "READY", OR: [inProjects, { projectId: null, clientId: { in: clientIds }, invoiceId: null, expenseId: null, taskId: null }] };
-  const [act, fileAgg, fileGone, msg, cr, del, task, proj, inv] = await Promise.all([
+  const [act, fileAgg, fileGone, msg, cr, del, task, proj, inv, previews, waits] = await Promise.all([
     db.activityLog.aggregate({ where: { ...inProjects, ...(clientOnly ? { clientVisible: true } : {}) }, _max: { createdAt: true }, _count: true }),
     db.file.aggregate({ where: { ...files, deletedAt: null }, _max: { createdAt: true }, _count: true }),
     db.file.aggregate({ where: files, _max: { deletedAt: true } }),
@@ -29,8 +29,10 @@ async function stamp(projectIds: string[], clientOnly: boolean) {
     db.task.aggregate({ where: { ...inProjects, ...vis }, _max: { updatedAt: true }, _count: true }),
     db.project.aggregate({ where: { id: { in: projectIds } }, _max: { updatedAt: true } }),
     db.invoice.aggregate({ where: { ...inProjects, ...(clientOnly ? { status: { not: "DRAFT" } } : {}) }, _max: { updatedAt: true }, _count: true }),
+    db.preview.aggregate({ where: { ...inProjects, ...vis }, _max: { checkedAt: true, createdAt: true }, _count: true }),
+    db.clientWait.aggregate({ where: inProjects, _max: { startedAt: true, resolvedAt: true }, _count: true }),
   ]);
-  const parts = [act, fileAgg, fileGone, msg, cr, del, task, proj, inv].map((x) => JSON.stringify(x));
+  const parts = [act, fileAgg, fileGone, msg, cr, del, task, proj, inv, previews, waits].map((x) => JSON.stringify(x));
   return createHash("sha1").update(parts.join("|")).digest("hex").slice(0, 16);
 }
 

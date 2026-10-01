@@ -15,12 +15,14 @@ export function AddPreviewDialog({ projectId }: { projectId: string }) {
       {(close) => (
         <Form action={addPreviewAction} onSuccess={close} className="space-y-4">
           <input type="hidden" name="projectId" value={projectId} />
-          <Field label="Website address" name="url" hint="e.g. monsite.fr or https://staging.monsite.fr"><Input name="url" inputMode="url" autoComplete="url" required placeholder="monsite.fr" /></Field>
+          <Field label={t("Preview or installation link")} name="url" hint={t("A staging website, TestFlight invitation or Google Play testing link. It is only shared with the client when ‘Internal only’ is off.")}><Input name="url" inputMode="url" autoComplete="url" required placeholder="https://" /></Field>
           <Field label="Label" name="label" optional><Input name="label" placeholder={t("Staging website")} /></Field>
           <Field label="Type" name="type">
             <Select name="type" defaultValue="WEBSITE">
               <option value="WEBSITE">{t("Website")}</option>
               <option value="MOBILE_APP">{t("Mobile app")}</option>
+              <option value="APPLE_TESTFLIGHT">{t("Apple TestFlight build")}</option>
+              <option value="GOOGLE_PLAY">{t("Google Play testing build")}</option>
               <option value="PROTOTYPE">{t("Prototype")}</option>
               <option value="EXTERNAL">{t("External link")}</option>
               <option value="OTHER">{t("Other")}</option>

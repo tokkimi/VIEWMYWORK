@@ -1,6 +1,7 @@
 import { Activity, ArrowRight, CheckCircle2, FileStack, Gauge, ListChecks, MessageSquare, MessageSquareDiff, MonitorSmartphone, Receipt, RefreshCw, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { ProductShot } from "@/components/marketing/product-shot";
+import { DeveloperPreviewShowcase } from "@/components/marketing/developer-preview-showcase";
 import { getI18n } from "@/lib/i18n/server";
 
 const loop = ["Specification", "Execution", "Progress", "Documents", "Deliverables", "Approval", "Invoice", "Payment"];
@@ -24,13 +25,15 @@ export default async function Home() {
               <ButtonLink href="/signup" variant="primary" size="lg">Start free <ArrowRight className="size-4" /></ButtonLink>
               <ButtonLink href="/features" variant="secondary" size="lg">See how it works</ButtonLink>
             </div>
-            <p className="mt-4 text-xs text-subtle">{t("14-day free trial · From €2/month · No credit card to start")}</p>
+            <p className="mt-4 text-xs text-subtle">{t("7-day free trial · From €2/month · Card required, nothing charged today")}</p>
           </div>
           <div className="mx-auto mt-16 max-w-5xl">
             <ProductShot />
           </div>
         </div>
       </section>
+
+      <DeveloperPreviewShowcase />
 
       <section className="border-t border-line">
         <div className="mx-auto max-w-6xl px-5 py-20">

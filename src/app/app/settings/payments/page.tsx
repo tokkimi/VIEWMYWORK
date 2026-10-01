@@ -24,7 +24,7 @@ export default async function PaymentsSettings({ searchParams }: { searchParams:
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-[15px] font-medium"><Tr>Get paid online</Tr></h2>
+        <h2 className="text-[15px] font-medium"><Tr>Client invoice payments</Tr></h2>
         <p className="mt-1 text-sm text-muted"><Tr>Client invoice payments go straight to your own Stripe account (Stripe Connect). They are completely separate from your FollowMyFuture subscription.</Tr></p>
       </div>
       <StripeConnectPanel state={acct} configured={integrations.stripe()} allowed={await hasFeature(ctx.workspace.id, "online_payments")} />

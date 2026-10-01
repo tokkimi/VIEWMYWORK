@@ -152,8 +152,13 @@ export function InvoiceSettingsForm({ s }: { s: InvS }) {
 export function StripeConnectPanel({ state, configured, allowed }: { state: null | { chargesEnabled: boolean; payoutsEnabled: boolean; detailsSubmitted: boolean }; configured: boolean; allowed: boolean }) {
   const { t } = useI18n();
   const { pending, run } = useActionButton();
-  const go = (fn: () => Promise<{ ok: boolean; data?: unknown }>) => run(fn as never, undefined, (d) => { const url = (d as { url?: string })?.url; if (url) window.location.href = url; });
-  if (!configured) return <p className="rounded-xl border border-line p-4 text-sm text-muted"><Tr>Online payments aren&apos;t configured on this platform yet. You can still record manual payments (bank transfer, cash, check).</Tr></p>;
+  const go = (fn: () => Promise<{ ok: boolean; data?: unknown }>) => run(fn as never, undefined, (d) => {
+    const url = (d as { url?: string })?.url;
+    if (!url) return false;
+    window.location.assign(url);
+    return true;
+  });
+  if (!configured) return <p className="rounded-xl border border-line p-4 text-sm text-muted"><Tr>Client online payments aren&apos;t configured yet. This does not affect your FollowMyFuture subscription. You can still record manual client payments (bank transfer, cash, check).</Tr></p>;
   if (!allowed) return <p className="rounded-xl border border-line p-4 text-sm text-muted"><Tr>Online payments aren&apos;t included in your plan.</Tr></p>;
   return (
     <div className="panel rounded-2xl p-5">
@@ -180,18 +185,23 @@ export function StripeConnectPanel({ state, configured, allowed }: { state: null
 
 export type PlanOption = { code: string; name: string; description: string | null; monthly: number; annual: number | null; currency: string; highlight: boolean; features: string[] };
 
-export function PlanPicker({ plans, currentCode, configured, hasCustomer }: { plans: PlanOption[]; currentCode: string; configured: boolean; hasCustomer: boolean }) {
+export function PlanPicker({ plans, currentCode, configured, hasSubscription, hasBillingAccount }: { plans: PlanOption[]; currentCode: string; configured: boolean; hasSubscription: boolean; hasBillingAccount: boolean }) {
   const { t, fmt } = useI18n();
   const [interval, setInterval] = useState<"month" | "year">("month");
   const { pending, run } = useActionButton();
-  const go = (fn: () => Promise<{ ok: boolean }>) => run(fn as never, undefined, (d) => { const url = (d as { url?: string })?.url; if (url) window.location.href = url; });
+  const go = (fn: () => Promise<{ ok: boolean }>) => run(fn as never, undefined, (d) => {
+    const url = (d as { url?: string })?.url;
+    if (!url) return false;
+    window.location.assign(url);
+    return true;
+  });
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
         <div className="flex rounded-lg border border-line p-0.5 text-xs" role="radiogroup" aria-label={t("Billing interval")}>
           {(["month", "year"] as const).map((i) => <button key={i} role="radio" aria-checked={interval === i} onClick={() => setInterval(i)} className={cn("rounded-md px-3 py-1", interval === i ? "bg-white/[0.08] text-fg" : "text-muted")}>{i === "month" ? t("Monthly") : t("Yearly")}</button>)}
         </div>
-        {hasCustomer && configured && <Button size="sm" variant="ghost" disabled={pending} onClick={() => go(() => openBillingPortalAction())}><Tr>Payment method & invoices</Tr></Button>}
+        {hasBillingAccount && configured && <Button size="sm" variant="ghost" disabled={pending} onClick={() => go(() => openBillingPortalAction())}><Tr>Manage payment & subscription</Tr></Button>}
       </div>
       <div className="grid gap-3 md:grid-cols-3">
         {plans.map((p) => {
@@ -203,7 +213,7 @@ export function PlanPicker({ plans, currentCode, configured, hasCustomer }: { pl
               <div className="num mt-3 text-2xl font-semibold">{price === null ? "—" : fmt.money(price, p.currency)}<span className="text-xs font-normal text-muted">/{interval === "month" ? t("mo") : t("yr")}</span></div>
               <p className="mt-2 flex-1 text-xs text-muted">{p.description}</p>
               <Button className="mt-4" size="sm" variant={p.highlight ? "primary" : "secondary"} disabled={pending || !configured || price === null} onClick={() => go(() => startSubscriptionCheckoutAction(p.code, interval))}>
-                {current ? (hasCustomer ? t("Switch interval") : t("Subscribe")) : t("Choose {plan}", { plan: p.name })}
+                {current ? (hasSubscription ? t("Switch interval") : t("Subscribe")) : t("Choose {plan}", { plan: p.name })}
               </Button>
             </div>
           );

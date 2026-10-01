@@ -11,6 +11,9 @@ import { rateLimit } from "@/lib/rate-limit";
 import { env } from "@/lib/env";
 import { PORTAL_COOKIE } from "@/lib/auth/portal";
 import { requireFeature } from "@/lib/plans";
+import { createPlatformCheckoutSession } from "@/server/actions/billing";
+
+const SIGNUP_TRIAL_DAYS = 7;
 
 export async function createWorkspaceAction(fd: FormData) {
   return runAction(async () => {
@@ -30,25 +33,43 @@ export async function createWorkspaceAction(fd: FormData) {
     const base = slugify(input.name);
     const slug = (await db.workspace.findUnique({ where: { slug: base } })) ? `${base}-${Math.random().toString(36).slice(2, 7)}` : base;
 
-    const ws = await db.$transaction(async (tx) => {
+    // Fail before creating a workspace if platform billing is not configured.
+    // A professional signup always goes through Checkout to place a card on file.
+    const { getStripe } = await import("@/lib/stripe");
+    getStripe();
+
+    const trialEndsAt = new Date(Date.now() + SIGNUP_TRIAL_DAYS * 86400_000);
+    const created = await db.$transaction(async (tx) => {
       const ws = await tx.workspace.create({ data: { name: input.name, slug, industry: input.industry, defaultCurrency: input.currency, timezone: user.timezone } });
       await tx.workspaceMember.create({ data: { workspaceId: ws.id, userId: user.id, role: "OWNER", allProjects: true } });
       await tx.invoiceSettings.create({ data: { workspaceId: ws.id, defaultCurrency: input.currency } });
       await tx.workspaceSetting.create({ data: { workspaceId: ws.id, companyLegalName: input.name, companyEmail: user.email } });
-      await tx.subscription.create({
+      const subscription = await tx.subscription.create({
         data: {
           workspaceId: ws.id,
           planId: plan.id,
-          status: plan.trialDays > 0 ? "TRIALING" : "INCOMPLETE",
+          status: "TRIALING",
           priceCents: plan.monthlyPriceCents, // snapshot: later price edits never affect this subscription
           currency: plan.currency,
-          trialEndsAt: plan.trialDays > 0 ? new Date(Date.now() + plan.trialDays * 86400_000) : null,
+          trialEndsAt,
         },
       });
-      return ws;
+      return { ws, subscription };
     });
-    (await cookies()).set(WORKSPACE_COOKIE, ws.id, { httpOnly: true, sameSite: "lax", secure: env.isProd, path: "/" });
-    return { redirect: "/onboarding?step=client" };
+    (await cookies()).set(WORKSPACE_COOKIE, created.ws.id, { httpOnly: true, sameSite: "lax", secure: env.isProd, path: "/" });
+    const checkoutUrl = await createPlatformCheckoutSession({
+      workspaceId: created.ws.id,
+      workspaceName: created.ws.name,
+      userEmail: user.email,
+      planId: plan.id,
+      interval: "month",
+      subscriptionId: created.subscription.id,
+      stripeCustomerId: null,
+      trialEndsAt,
+      successUrl: `${env.appUrl}/onboarding?step=client&billing=success`,
+      cancelUrl: `${env.appUrl}/onboarding?billing=required`,
+    });
+    return { redirect: checkoutUrl };
   });
 }
 
