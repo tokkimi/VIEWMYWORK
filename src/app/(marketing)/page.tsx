@@ -1,6 +1,7 @@
-import { ArrowRight, CheckCircle2, FileStack, Globe2, ListChecks, MessageSquare, MonitorSmartphone, MousePointerClick, Receipt, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, FileStack, ListChecks, MessageSquare, Receipt, ShieldCheck, Sparkles } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { ProductShot } from "@/components/marketing/product-shot";
+import { ProtectedDeveloperPreview } from "@/components/marketing/protected-developer-preview";
 import { getI18n } from "@/lib/i18n/server";
 
 const loop = ["Specification", "Execution", "Progress", "Documents", "Deliverables", "Approval", "Invoice", "Payment"];
@@ -33,35 +34,8 @@ export default async function Home() {
       </section>
 
       <section className="border-t border-line">
-        <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-20 lg:grid-cols-[0.9fr_1.1fr]">
-          <div>
-            <p className="eyebrow">{t("Built for delivery teams")}</p>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">{t("Share each deployment with a preview your client can understand.")}</h2>
-            <p className="mt-4 text-muted">{t("Developers add a secure preview link as soon as a version is ready. Your client sees the website in a polished desktop, tablet or mobile frame — and can give feedback in the context of the project.")}</p>
-            <ul className="mt-7 space-y-4 text-sm text-muted">
-              {[
-                [Globe2, "Add any staging, Vercel or production URL"],
-                [MonitorSmartphone, "Check the experience on desktop, tablet and mobile"],
-                [MousePointerClick, "Turn feedback and approval into clear next steps"],
-              ].map(([Icon, copy]) => {
-                const I = Icon as typeof Globe2;
-                return <li key={copy as string} className="flex items-center gap-3"><span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft"><I className="size-4 text-accent" /></span>{t(copy as string)}</li>;
-              })}
-            </ul>
-          </div>
-          <div className="glass overflow-hidden rounded-2xl p-3 shadow-2xl shadow-black/20">
-            <div className="flex items-center justify-between border-b border-line px-3 pb-3 text-xs">
-              <div className="flex items-center gap-2"><span className="size-2 rounded-full bg-success" /><span className="font-medium">{t("Preview ready for review")}</span></div>
-              <span className="rounded-full bg-accent-soft px-2 py-1 text-accent">{t("Client-visible")}</span>
-            </div>
-            <div className="mt-3 rounded-xl border border-line bg-[#101827] p-3">
-              <div className="flex items-center gap-1.5 border-b border-white/10 pb-3"><span className="size-2 rounded-full bg-[#ff6b6b]" /><span className="size-2 rounded-full bg-[#f6c453]" /><span className="size-2 rounded-full bg-[#58d68d]" /><span className="ml-3 truncate rounded-md bg-white/[0.06] px-3 py-1 text-[10px] text-subtle">preview.your-project.com</span></div>
-              <div className="mt-3 grid min-h-52 place-items-center rounded-lg bg-gradient-to-br from-[#1d3557] via-[#293b72] to-[#6d4c95] p-6 text-center">
-                <div><span className="inline-flex rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[10px] text-white/80">{t("Development preview")}</span><p className="mt-4 text-xl font-semibold text-white">{t("A clear version to validate.")}</p><p className="mt-2 text-xs text-white/65">{t("One link. The right feedback. No more screenshots in chat.")}</p></div>
-              </div>
-            </div>
-            <div className="mt-3 flex gap-2"><span className="rounded-lg bg-white/[0.06] px-3 py-2 text-xs text-muted">{t("Desktop")}</span><span className="rounded-lg px-3 py-2 text-xs text-subtle">{t("Tablet")}</span><span className="rounded-lg px-3 py-2 text-xs text-subtle">{t("Mobile")}</span></div>
-          </div>
+        <div className="mx-auto max-w-6xl px-5 py-20">
+          <ProtectedDeveloperPreview />
         </div>
       </section>
 
