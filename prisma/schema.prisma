@@ -219,6 +219,11 @@ model WorkspaceSetting {
   companyRegistration String?
   companyCountry      String?
   updatedAt           DateTime  @updatedAt
+  /// Client decision center: automatic grouped reminders to clients.
+  decisionReminders   Boolean   @default(true)
+  reminderFirstDays   Int       @default(3)
+  reminderEveryDays   Int       @default(4)
+  reminderMax         Int       @default(3)
 }
 
 // ───────────────────────── Clients ─────────────────────────
@@ -742,6 +747,24 @@ model ScopeChange {
   status              ScopeChangeStatus @default(PROPOSED)
   decidedAt           DateTime?
   createdAt           DateTime          @default(now())
+  /// The client arbitrates it from the portal (accept / decline with a comment).
+  askClient           Boolean           @default(false)
+  decidedByName       String?
+  clientComment       String?
+}
+
+/// Every reminder sent to a client about something awaiting their decision (manual or automatic).
+model ClientReminder {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @db.Uuid
+  clientId    String   @db.Uuid
+  itemKey     String // "deliverable:<id>" | "wait:<id>" | "scope:<id>"
+  auto        Boolean  @default(false)
+  sentById    String?  @db.Uuid
+  sentAt      DateTime @default(now())
+
+  @@index([workspaceId, itemKey])
+  @@index([clientId, sentAt])
 }
 
 /// A change request raised by the client from the portal: subject, concerned page and feedback.

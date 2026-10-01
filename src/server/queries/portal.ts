@@ -7,14 +7,15 @@ import { deriveStatus, outstandingCents, isPayable } from "@/lib/invoices/status
  * level — internal tasks, notes, comments, expenses and margins are never selected.
  */
 
-export type WaitingItem = { key: string; kind: "REVIEW" | "PAY" | "UPLOAD" | "INFO"; title: string; subtitle: string; href: string; cta: string; since: Date; amount?: string };
+export type WaitingItem = { key: string; kind: "REVIEW" | "PAY" | "UPLOAD" | "INFO" | "DECIDE"; title: string; subtitle: string; href: string; cta: string; since: Date; amount?: string };
 
 export async function waitingForClient(workspaceId: string, clientId: string, projectIds: string[], base = "/portal") {
   const { t, fmt } = await getI18n();
-  const [deliverables, waits, invoices] = await Promise.all([
+  const [deliverables, waits, invoices, scopes] = await Promise.all([
     db.deliverable.findMany({ where: { workspaceId, projectId: { in: projectIds }, visibility: "CLIENT_VISIBLE", status: "WAITING_FOR_CLIENT" }, include: { project: { select: { name: true } } }, orderBy: { updatedAt: "asc" } }),
     db.clientWait.findMany({ where: { projectId: { in: projectIds }, resolvedAt: null, OR: [{ entityType: null }, { entityType: "TASK" }] }, include: { project: { select: { name: true } } }, orderBy: { startedAt: "asc" } }),
     db.invoice.findMany({ where: { workspaceId, clientId, status: { in: ["SENT", "VIEWED", "PARTIALLY_PAID", "OVERDUE"] } }, orderBy: { dueDate: "asc" } }),
+    db.scopeChange.findMany({ where: { projectId: { in: projectIds }, askClient: true, status: "PROPOSED" }, include: { project: { select: { name: true } } }, orderBy: { requestedAt: "asc" } }),
   ]);
   // Task waits only surface when the task itself is client-visible.
   const taskIds = waits.filter((w) => w.entityType === "TASK" && w.entityId).map((w) => w.entityId!);
@@ -23,6 +24,7 @@ export async function waitingForClient(workspaceId: string, clientId: string, pr
     ...deliverables.map((d) => ({ key: `d-${d.id}`, kind: "REVIEW" as const, title: `${d.title} V${d.currentVersion}`, subtitle: `${t("Review & approve")} · ${d.project.name}`, href: `${base}/projects/${d.projectId}/deliverables/${d.id}`, cta: t("Review"), since: d.updatedAt })),
     ...invoices.filter((i) => isPayable(deriveStatus(i)) && outstandingCents(i) > 0).map((i) => ({ key: `i-${i.id}`, kind: "PAY" as const, title: t("Invoice {number}", { number: i.number }), subtitle: deriveStatus(i) === "OVERDUE" ? t("Overdue") : t("Due {date}", { date: fmt.short(i.dueDate) }), href: `${base}/invoices/${i.id}`, cta: t("Pay"), since: i.issuedAt ?? i.createdAt, amount: `${outstandingCents(i)}|${i.currency}` })),
     ...waits.filter((w) => w.entityType !== "TASK" || visibleTasks.has(w.entityId!)).map((w) => ({ key: `w-${w.id}`, kind: w.reason === "DOCUMENT" ? ("UPLOAD" as const) : ("INFO" as const), title: w.label, subtitle: `${w.reason === "DOCUMENT" ? t("Upload requested") : t("Information requested")} · ${w.project.name}`, href: `${base}/projects/${w.projectId}${w.reason === "DOCUMENT" ? "/files" : "/messages"}`, cta: w.reason === "DOCUMENT" ? t("Upload") : t("Reply"), since: w.startedAt })),
+    ...scopes.map((sc) => ({ key: `s-${sc.id}`, kind: "DECIDE" as const, title: sc.description.split("\n")[0]!.slice(0, 160), subtitle: `${t("Scope change to accept or decline")} · ${sc.project.name}`, href: `${base}/projects/${sc.projectId}/scope/${sc.id}`, cta: t("Decide"), since: sc.requestedAt })),
   ];
   return items;
 }

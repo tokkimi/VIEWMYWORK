@@ -214,13 +214,18 @@ export async function resolveClientWaitAction(id: string) {
 export async function createScopeChangeAction(fd: FormData) {
   return runAction(async () => {
     const ctx = await requireWorkspace();
-    const i = z.object({ projectId: zId, description: z.string().trim().min(1).max(4000), requestedBy: z.string().trim().min(1).max(120), additionalCost: zOptMoney, additionalDays: z.coerce.number().int().min(0).max(3650).default(0) }).parse(formToObject(fd));
+    const i = z.object({ projectId: zId, description: z.string().trim().min(1).max(4000), requestedBy: z.string().trim().min(1).max(120), additionalCost: zOptMoney, additionalDays: z.coerce.number().int().min(0).max(3650).default(0), askClient: z.string().optional() }).parse(formToObject(fd));
     const { project } = await requireProjectPerm(ctx, i.projectId, "projects", "manage");
-    await db.$transaction(async (tx) => {
-      await tx.scopeChange.create({ data: { projectId: i.projectId, description: i.description, requestedBy: i.requestedBy, additionalCostCents: i.additionalCost ?? 0, additionalDays: i.additionalDays } });
+    const askClient = Boolean(i.askClient) && project.portalEnabled;
+    const sc = await db.$transaction(async (tx) => {
+      const created = await tx.scopeChange.create({ data: { projectId: i.projectId, description: i.description, requestedBy: i.requestedBy, additionalCostCents: i.additionalCost ?? 0, additionalDays: i.additionalDays, askClient } });
       await logSpec(tx, i.projectId, ctx, ["Scope change proposed: {text}", { text: i.description.slice(0, 120) }]);
+      return created;
     });
-    await emit({ workspaceId: ctx.workspace.id, type: "SCOPE_CHANGE", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: project.id, clientId: project.clientId, entityType: "PROJECT", entityId: project.id, summary: "Scope change proposed" });
+    await emit({
+      workspaceId: ctx.workspace.id, type: "SCOPE_CHANGE", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: project.id, clientId: project.clientId, entityType: "PROJECT", entityId: project.id, summary: "Scope change proposed", clientVisible: askClient,
+      notify: askClient ? { client: true, title: ["Your decision is needed on {project}", { project: project.name }], message: i.description.slice(0, 600), clientActionUrl: `/portal/projects/${project.id}/scope/${sc.id}`, actionLabel: "Accept or decline", email: true } : undefined,
+    });
     return null;
   }, "Scope change recorded.");
 }
@@ -234,7 +239,7 @@ export async function decideScopeChangeAction(fd: FormData) {
     await requireProjectPerm(ctx, sc.projectId, "projects", "manage");
     if (sc.status !== "PROPOSED") throw new AppError("This scope change was already decided.");
     await db.$transaction(async (tx) => {
-      await tx.scopeChange.update({ where: { id: sc.id }, data: { status: i.decision, decidedAt: new Date() } });
+      await tx.scopeChange.update({ where: { id: sc.id }, data: { status: i.decision, decidedAt: new Date(), decidedByName: ctx.user.name } });
       if (i.decision === "APPROVED") {
         if (i.createTask) await tx.task.create({ data: { workspaceId: ctx.workspace.id, projectId: sc.projectId, title: sc.description.slice(0, 140), description: sc.description, costCents: sc.additionalCostCents || null } });
         if (i.extendDeadline && sc.additionalDays > 0 && sc.project.targetDate)

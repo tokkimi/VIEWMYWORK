@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { SitePreviewMini } from "@/components/app/site-preview";
 import Link from "next/link";
-import { Check, Circle, Eye, CreditCard, Upload, MessageSquare, ChevronRight, FileText } from "lucide-react";
+import { Check, Circle, Eye, CreditCard, Upload, MessageSquare, ChevronRight, FileText, Scale } from "lucide-react";
 import type { TaskStatus } from "@prisma/client";
 import { ProgressBar, Badge } from "@/components/ui/primitives";
 import { InvoiceStatusBadge, DeliverableStatusBadge } from "@/components/status";
@@ -16,7 +16,7 @@ import { MobileBuilds } from "@/components/portal/mobile-builds";
 
 type Home = Awaited<ReturnType<typeof portalProjectHome>>;
 
-const kindIcon = { REVIEW: Eye, PAY: CreditCard, UPLOAD: Upload, INFO: MessageSquare };
+const kindIcon = { REVIEW: Eye, PAY: CreditCard, UPLOAD: Upload, INFO: MessageSquare, DECIDE: Scale };
 
 export async function WaitingForYou({ items, preview }: { items: WaitingItem[]; preview?: boolean }) {
   const { t, fmt, p } = await getI18n();

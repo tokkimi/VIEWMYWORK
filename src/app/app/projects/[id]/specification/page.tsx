@@ -50,8 +50,11 @@ export default async function Specification({ params, searchParams }: { params: 
             <ul className="space-y-2">
               {scopeChanges.map((s) => (
                 <li key={s.id} className="panel rounded-xl p-3 text-sm">
-                  <div className="flex items-start justify-between gap-2"><span className="whitespace-pre-line">{s.description}</span><Badge tone={s.status === "APPROVED" ? "success" : s.status === "REJECTED" ? "neutral" : "warning"}>{s.status.toLowerCase()}</Badge></div>
+                  <div className="flex items-start justify-between gap-2"><span className="whitespace-pre-line">{s.description}</span><Badge tone={s.status === "APPROVED" ? "success" : s.status === "REJECTED" ? "neutral" : "warning"}>{s.status === "APPROVED" ? t("Accepted") : s.status === "REJECTED" ? t("Declined") : s.askClient ? t("Waiting for the client") : t("Proposed")}</Badge></div>
                   <div className="mt-1 text-xs text-subtle">{s.requestedBy} · {fmt.date(s.requestedAt)}{s.additionalCostCents ? ` · +${fmt.money(s.additionalCostCents, project.currency)}` : ""}{s.additionalDays ? ` · +${s.additionalDays}d` : ""}</div>
+                  {s.status !== "PROPOSED" && s.decidedByName && <div className="mt-1 text-xs text-muted">{t("Decided by {name}", { name: s.decidedByName })}{s.decidedAt ? ` · ${fmt.date(s.decidedAt)}` : ""}</div>}
+                  {s.clientComment && <p className="mt-1.5 rounded-lg border border-line px-2.5 py-1.5 text-xs text-muted">“{s.clientComment}”</p>}
+                  {s.status === "PROPOSED" && s.askClient && <p className="mt-1 text-xs text-warning"><Tr>Sent to the client for a decision from their portal.</Tr></p>}
                   {s.status === "PROPOSED" && canManage && <div className="mt-2"><DecideScopeChange id={s.id} canExtend={Boolean(project.targetDate && s.additionalDays)} /></div>}
                 </li>
               ))}

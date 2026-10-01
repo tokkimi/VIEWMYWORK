@@ -11,6 +11,9 @@ import { emit } from "@/lib/events";
 import { rateLimit } from "@/lib/rate-limit";
 import { validateUpload, presignUpload, headObject, deleteObject } from "@/lib/storage";
 import { assertQuota, adjustStorage, categorize } from "@/server/services/files";
+import { recalcProject } from "@/lib/progress";
+import { renderMsg, withSourceMsg, type Msg } from "@/lib/i18n/core";
+import type { Prisma } from "@prisma/client";
 
 async function loadReviewable(deliverableId: string) {
   const ctx = await requirePortal();
@@ -116,4 +119,49 @@ export async function completePortalUploadAction(fileId: string) {
     });
     return { id: file.id };
   });
+}
+
+/**
+ * The client accepts or declines a scope change the team asked them to arbitrate. Accepting applies
+ * it: a task is added for the extra work, the target date moves by the extra days, the budget grows
+ * by the extra cost. The team is notified either way.
+ */
+export async function decideScopeAsClientAction(fd: FormData) {
+  return runAction(async () => {
+    const ctx = await requirePortal();
+    const i = z.object({ id: zId, decision: z.enum(["APPROVED", "REJECTED"]), comment: z.string().trim().max(2000).optional() }).parse(formToObject(fd));
+    const sc = await db.scopeChange.findFirst({ where: { id: i.id, askClient: true }, include: { project: true } });
+    if (!sc) throw notFound();
+    const project = await getPortalProject(ctx, sc.projectId);
+    if (sc.status !== "PROPOSED") throw new AppError("This decision was already made.");
+    await db.$transaction(async (tx) => {
+      const claimed = await tx.scopeChange.updateMany({ where: { id: sc.id, status: "PROPOSED" }, data: { status: i.decision, decidedAt: new Date(), decidedByName: ctx.user.name, clientComment: i.comment || null } });
+      if (!claimed.count) throw new AppError("This decision was already made.");
+      if (i.decision === "APPROVED") {
+        const last = await tx.task.aggregate({ where: { projectId: project.id, phaseId: null, parentId: null }, _max: { position: true } });
+        await tx.task.create({ data: { workspaceId: ctx.workspace.id, projectId: project.id, title: sc.description.split("\n")[0]!.slice(0, 140), description: sc.description, costCents: sc.additionalCostCents || null, visibility: "CLIENT_VISIBLE", position: (last._max.position ?? -1) + 1 } });
+        await tx.project.update({
+          where: { id: project.id },
+          data: {
+            ...(sc.additionalDays > 0 && sc.project.targetDate ? { targetDate: new Date(sc.project.targetDate.getTime() + sc.additionalDays * 86_400_000) } : {}),
+            ...(sc.additionalCostCents > 0 && sc.project.budgetCents !== null ? { budgetCents: sc.project.budgetCents + sc.additionalCostCents } : {}),
+          },
+        });
+        await recalcProject(tx, project.id);
+      }
+      const change: Msg = [i.decision === "APPROVED" ? "Scope change accepted by the client: {text}" : "Scope change declined by the client: {text}", { text: sc.description.slice(0, 120) }];
+      await tx.specHistory.create({ data: { projectId: project.id, actorName: ctx.user.name, change: renderMsg("en", change), metadata: withSourceMsg(change) as Prisma.InputJsonValue | undefined } });
+    });
+    await emit({
+      workspaceId: ctx.workspace.id, type: "SCOPE_CHANGE", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: project.id, clientId: ctx.client.id, entityType: "PROJECT", entityId: project.id,
+      summary: i.decision === "APPROVED" ? "Scope change accepted by the client" : "Scope change declined by the client", clientVisible: true,
+      notify: {
+        team: { kind: "project", capability: ["projects", "edit"] },
+        title: [i.decision === "APPROVED" ? "{user} accepted a scope change on {project}" : "{user} declined a scope change on {project}", { user: ctx.user.name, project: project.name }],
+        message: i.comment ? `${sc.description.slice(0, 300)}\n\n${i.comment}` : sc.description.slice(0, 300),
+        actionUrl: `/app/projects/${project.id}/specification`, actionLabel: "Open project", email: true,
+      },
+    });
+    return null;
+  }, "Thank you, your decision was sent to the team.");
 }

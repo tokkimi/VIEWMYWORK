@@ -124,6 +124,7 @@ export function ScopeChangeDialog({ projectId }: { projectId: string }) {
             <Field label="Additional cost" name="additionalCost" optional><Input name="additionalCost" inputMode="decimal" /></Field>
             <Field label="Additional days" name="additionalDays" optional><Input name="additionalDays" type="number" min={0} defaultValue={0} /></Field>
           </div>
+          <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="askClient" defaultChecked className="mt-0.5 accent-[#4d7cfe]" /><span><Tr>Ask the client to accept or decline it from their portal</Tr><span className="block text-xs text-muted"><Tr>They&apos;re notified by email; once accepted, the deadline, budget and a task are updated automatically.</Tr></span></span></label>
           <div className="flex justify-end gap-2"><Button onClick={close}><Tr>Cancel</Tr></Button><Submit><Tr>Save</Tr></Submit></div>
         </Form>
       )}

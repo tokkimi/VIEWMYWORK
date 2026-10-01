@@ -1,4 +1,4 @@
-import { Activity, ArrowRight, CheckCircle2, FileStack, Gauge, ListChecks, MessageSquare, MessageSquareDiff, MonitorSmartphone, Receipt, RefreshCw, Send, ShieldCheck, Sparkles } from "lucide-react";
+import { Activity, ArrowRight, CheckCircle2, FileStack, Gauge, ListChecks, MessageSquare, MessageSquareDiff, MonitorSmartphone, Receipt, RefreshCw, Send, ShieldCheck, Sparkles, Hourglass } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { ProductShot } from "@/components/marketing/product-shot";
 import { DeveloperPreviewShowcase } from "@/components/marketing/developer-preview-showcase";
@@ -85,7 +85,7 @@ export default async function Home() {
           <p className="eyebrow">{t("New · Steer your business")}</p>
           <h2 className="mt-3 max-w-3xl text-3xl font-semibold tracking-tight">{t("Not just a client portal: a cockpit for your whole team.")}</h2>
           <p className="mt-4 max-w-2xl text-muted">{t("See who is overloaded, which project is drifting and where your margin goes — before it becomes a problem.")}</p>
-          <div className="mt-10 grid gap-5 md:grid-cols-2">
+          <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             <div className="glass rounded-2xl p-6">
               <div className="flex items-center gap-2 text-sm font-medium"><Gauge className="size-5 text-accent" />{t("Team workload")}</div>
               <p className="mt-2 text-[13px] text-muted">{t("Planned hours against each person's capacity, six weeks ahead, with absences and part-time. Unassigned tasks get a suggested owner — assign them all in one click.")}</p>
@@ -105,6 +105,15 @@ export default async function Home() {
                 <li className="flex items-center justify-between rounded-lg bg-white/[0.03] px-3 py-2"><span>{t("Brand redesign")}</span><span className="rounded-full bg-success-soft px-2 py-0.5 text-success">{t("On track")} · 92</span></li>
                 <li className="flex items-center justify-between rounded-lg bg-white/[0.03] px-3 py-2"><span>{t("Mobile app")}</span><span className="rounded-full bg-warning-soft px-2 py-0.5 text-warning">{t("At risk")} · 64</span></li>
                 <li className="flex items-center justify-between rounded-lg bg-white/[0.03] px-3 py-2"><span>{t("E-shop")}</span><span className="rounded-full bg-danger-soft px-2 py-0.5 text-danger">{t("Off track")} · 41</span></li>
+              </ul>
+            </div>
+            <div className="glass rounded-2xl p-6 md:col-span-2 lg:col-span-1">
+              <div className="flex items-center gap-2 text-sm font-medium"><Hourglass className="size-5 text-accent" />{t("Client decisions")}</div>
+              <p className="mt-2 text-[13px] text-muted">{t("Everything waiting for your clients in one list — approvals, documents, information, payments and scope changes they accept from their portal — with automatic reminders.")}</p>
+              <ul className="mt-5 space-y-2 text-xs" aria-hidden>
+                <li className="flex items-center justify-between rounded-lg bg-white/[0.03] px-3 py-2"><span>{t("Homepage V2")}</span><span className="text-muted">{t("Approval")} · <span className="text-danger">{t("{n} d", { n: 8 })}</span></span></li>
+                <li className="flex items-center justify-between rounded-lg bg-white/[0.03] px-3 py-2"><span>{t("Product photos")}</span><span className="text-muted">{t("Document")} · <span className="text-warning">{t("{n} d", { n: 4 })}</span></span></li>
+                <li className="flex items-center justify-between rounded-lg bg-white/[0.03] px-3 py-2"><span>{t("Extra blog page")}</span><span className="text-muted">{t("Scope decision")} · {t("{n} d", { n: 1 })}</span></li>
               </ul>
             </div>
           </div>

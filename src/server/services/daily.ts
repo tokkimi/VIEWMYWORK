@@ -1,3 +1,7 @@
+import { hasFeature } from "@/lib/plans";
+import { loadDecisions } from "@/server/queries/decisions";
+import { sendDecisionReminder } from "@/server/services/decisions";
+import { reminderDue, DEFAULT_REMINDERS } from "@/lib/decisions";
 import { db } from "@/lib/db";
 import { emit } from "@/lib/events";
 import { deriveStatus, outstandingCents } from "@/lib/invoices/status";
@@ -13,7 +17,7 @@ async function alreadyEmitted(type: string, entityId: string, since?: Date) {
 
 /** Idempotent daily job: safe to run more than once a day. */
 export async function runDailyJobs(now = new Date()) {
-  const report = { overdue: 0, dueSoon: 0, reminders: 0, taskAlerts: 0, cleaned: 0, driveChecked: 0 };
+  const report = { overdue: 0, dueSoon: 0, reminders: 0, decisionReminders: 0, taskAlerts: 0, cleaned: 0, driveChecked: 0 };
 
   // 0. Website screenshots are a cache: drop the ones nobody has refreshed for a week.
   await db.siteShot.deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - 7 * 86400_000) } } });
@@ -52,6 +56,9 @@ export async function runDailyJobs(now = new Date()) {
       if (r.status !== "SKIPPED") report.reminders++;
     }
   }
+
+  // 2b. Client decision center: one grouped reminder per client for items waiting too long.
+  report.decisionReminders = await runDecisionReminders(now);
 
   // 3. Task deadlines: approaching (tomorrow) and overdue (yesterday) — once each.
   const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
@@ -106,4 +113,23 @@ export async function runDailyJobs(now = new Date()) {
     }
   }
   return report;
+}
+
+/** Automatic, throttled reminders about items awaiting a client's decision (see lib/decisions). */
+export async function runDecisionReminders(now = new Date()) {
+  let sent = 0;
+  const workspaces = await db.workspace.findMany({ where: { archivedAt: null, OR: [{ settings: null }, { settings: { decisionReminders: true } }] }, select: { id: true, settings: true } });
+  for (const ws of workspaces) {
+    if (!(await hasFeature(ws.id, "client_decisions"))) continue;
+    const s = ws.settings;
+    const rules = { enabled: true, firstDays: s?.reminderFirstDays ?? DEFAULT_REMINDERS.firstDays, everyDays: s?.reminderEveryDays ?? DEFAULT_REMINDERS.everyDays, max: s?.reminderMax ?? DEFAULT_REMINDERS.max };
+    const items = (await loadDecisions(ws.id, { portalEnabled: true })).filter((i) => reminderDue(i, rules, now));
+    const byClient = new Map<string, typeof items>();
+    for (const i of items) byClient.set(i.clientId, [...(byClient.get(i.clientId) ?? []), i]);
+    for (const [clientId, list] of byClient) {
+      const r = await sendDecisionReminder(ws.id, clientId, list, { auto: true }).catch((e) => { console.error("[decisions] reminder", e); return null; });
+      if (r?.status === "SENT") sent++;
+    }
+  }
+  return sent;
 }

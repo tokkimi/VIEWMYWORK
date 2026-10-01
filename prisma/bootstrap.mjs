@@ -8,17 +8,17 @@ const PLANS = [
   {
     code: "STARTER", name: "Starter", description: "For solo professionals discovering the platform.", monthlyPriceCents: 200, annualPriceCents: 2000,
     storageLimitMb: 1024, activeProjectLimit: 3, clientLimit: 10, collaboratorLimit: 0, sortOrder: 1, highlight: false,
-    features: ["online_payments", "portfolio_health"],
+    features: ["online_payments", "portfolio_health", "client_decisions"],
   },
   {
     code: "PRO", name: "Pro", description: "For growing freelancers and small studios.", monthlyPriceCents: 990, annualPriceCents: 9900,
     storageLimitMb: 20480, activeProjectLimit: 25, clientLimit: 100, collaboratorLimit: 5, sortOrder: 2, highlight: true,
-    features: ["online_payments", "custom_branding", "advanced_stats", "accounting_exports", "advanced_portal", "google_drive", "team_workload", "portfolio_health"],
+    features: ["online_payments", "custom_branding", "advanced_stats", "accounting_exports", "advanced_portal", "google_drive", "team_workload", "portfolio_health", "client_decisions"],
   },
   {
     code: "BUSINESS", name: "Business", description: "For agencies and larger teams.", monthlyPriceCents: 2490, annualPriceCents: 24900,
     storageLimitMb: 102400, activeProjectLimit: null, clientLimit: null, collaboratorLimit: 25, sortOrder: 3, highlight: false,
-    features: ["online_payments", "custom_branding", "advanced_stats", "accounting_exports", "advanced_portal", "google_drive", "advanced_permissions", "priority_support", "team_workload", "portfolio_health"],
+    features: ["online_payments", "custom_branding", "advanced_stats", "accounting_exports", "advanced_portal", "google_drive", "advanced_permissions", "priority_support", "team_workload", "portfolio_health", "client_decisions"],
   },
 ];
 
@@ -79,7 +79,7 @@ async function main() {
   }
   // Features released after a plan was created: add them once to the default plans. A feature row that
   // already exists (enabled or disabled in Platform Administration) is never touched.
-  const ROLLOUT = { STARTER: ["portfolio_health"], PRO: ["team_workload", "portfolio_health"], BUSINESS: ["team_workload", "portfolio_health"] };
+  const ROLLOUT = { STARTER: ["portfolio_health", "client_decisions"], PRO: ["team_workload", "portfolio_health", "client_decisions"], BUSINESS: ["team_workload", "portfolio_health", "client_decisions"] };
   for (const [code, keys] of Object.entries(ROLLOUT)) {
     const plan = await db.plan.findUnique({ where: { code }, include: { features: true } });
     if (!plan) continue;

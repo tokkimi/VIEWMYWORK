@@ -111,6 +111,21 @@ export const emailTemplates = {
       html: layout({ l, brand: o.brand, title: t("Payment received"), bodyHtml: `${t("Thank you. We received your payment of <strong>{amount}</strong> for invoice {number} on {date}.", { amount: esc(o.amount), number: esc(o.number), date: esc(o.date) })}${o.remaining ? `<br/><br/>${esc(t("Remaining balance"))}: <strong>${esc(o.remaining)}</strong>` : ""}`, cta: { label: t("View invoice"), url: o.link } }),
     };
   },
+  decisionReminder(o: { brand: Brand; clientName: string; items: { label: string; title: string; project: string | null; days: number }[]; link: string }, l: Locale) {
+    const t = makeT(l);
+    const rows = o.items
+      .map((i) => `<tr><td style="padding:8px 0;border-bottom:1px solid #eef0f3"><div style="font-size:12px;color:#8d939e;text-transform:uppercase;letter-spacing:.04em">${esc(i.label)}${i.project ? ` · ${esc(i.project)}` : ""}</div><div style="font-weight:600;color:#0b0d10">${esc(i.title)}</div><div style="font-size:12px;color:#8d939e">${esc(plural(l, i.days, "waiting for {n} day", "waiting for {n} days"))}</div></td></tr>`)
+      .join("");
+    return {
+      subject: plural(l, o.items.length, "{n} item is waiting for your decision", "{n} items are waiting for your decision"),
+      html: layout({
+        l, brand: o.brand,
+        title: t("Your input is needed"),
+        bodyHtml: `${esc(t("Hello {name},", { name: o.clientName }))}<br/><br/>${esc(t("To keep your project moving, the following items are waiting for you:"))}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px">${rows}</table>`,
+        cta: { label: t("Open my portal"), url: o.link },
+      }),
+    };
+  },
   directMessage(o: { brand: Brand; subject: string; message: string; link?: string; linkLabel?: string }, l: Locale) {
     const t = makeT(l);
     return {
