@@ -81,10 +81,22 @@ export async function handlePlatformEvent(event: Stripe.Event) {
     case "customer.subscription.deleted":
       await applyStripeSubscription(event.data.object as Stripe.Subscription);
       return;
+    // Some webhook configurations deliver invoice lifecycle events before the
+    // subscription events. Syncing from these keeps the local trial state and
+    // cancellation state accurate without waiting for the first payment.
+    case "invoice.created":
+    case "invoice.updated":
+    case "invoice.finalized": {
+      const inv = event.data.object as Stripe.Invoice;
+      const subId = (inv as unknown as { subscription?: string | null }).subscription ?? inv.parent?.subscription_details?.subscription;
+      if (subId) await applyStripeSubscription(await stripe.subscriptions.retrieve(String(subId)));
+      return;
+    }
     case "invoice.paid":
     case "invoice.payment_failed": {
       const inv = event.data.object as Stripe.Invoice;
       const subId = (inv as unknown as { subscription?: string | null }).subscription ?? (inv.parent?.subscription_details?.subscription as string | undefined);
+      if (subId) await applyStripeSubscription(await stripe.subscriptions.retrieve(String(subId)));
       const local = subId ? await db.subscription.findUnique({ where: { stripeSubscriptionId: String(subId) } }) : inv.customer ? await db.subscription.findUnique({ where: { stripeCustomerId: String(inv.customer) } }) : null;
       if (!local || !inv.id) return;
       const paid = event.type === "invoice.paid";
