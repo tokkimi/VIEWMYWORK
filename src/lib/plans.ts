@@ -13,6 +13,7 @@ export const FEATURE_KEYS = {
   team_workload: "Team workload planning",
   portfolio_health: "Project health & portfolio steering",
   client_decisions: "Client decision center & automatic reminders",
+  weekly_reports: "Automatic weekly reports",
 } as const;
 export type FeatureKey = keyof typeof FEATURE_KEYS;
 

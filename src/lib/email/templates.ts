@@ -1,5 +1,7 @@
 import { env } from "@/lib/env";
-import { makeT, plural, translate, type Locale } from "@/lib/i18n/core";
+import { makeT, makeFmt, plural, translate, type Locale } from "@/lib/i18n/core";
+import type { ReportData } from "@/lib/reports";
+import { DECISION_LABEL } from "@/lib/decisions";
 
 export function esc(s: string | null | undefined) {
   return (s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -125,6 +127,48 @@ export const emailTemplates = {
         cta: { label: t("Open my portal"), url: o.link },
       }),
     };
+  },
+  projectReport(o: { brand: Brand; clientName: string; data: ReportData; note?: string | null; link: string }, l: Locale) {
+    const t = makeT(l);
+    const f = makeFmt(l);
+    const d = o.data;
+    const h = (s: string) => `<div style="margin:22px 0 6px;font-size:12px;font-weight:600;color:#8d939e;text-transform:uppercase;letter-spacing:.05em">${esc(s)}</div>`;
+    const li = (items: string[]) => `<ul style="margin:0;padding-left:18px">${items.map((x) => `<li style="margin:3px 0">${x}</li>`).join("")}</ul>`;
+    const delta = d.previousProgress === null ? "" : d.project.progress - d.previousProgress;
+    const bar = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px"><tr><td style="background:#eef0f3;border-radius:6px;height:8px"><div style="width:${Math.max(2, Math.min(100, d.project.progress))}%;background:#4D7CFE;border-radius:6px;height:8px"></div></td></tr></table>`;
+    let body = `${esc(t("Hello {name},", { name: o.clientName }))}<br/>${esc(t("Here is where your project stands this week."))}`;
+    body += `<div style="margin-top:18px;padding:16px;border:1px solid #eef0f3;border-radius:12px"><div style="font-size:13px;color:#8d939e">${esc(d.project.name)}</div><div style="font-size:28px;font-weight:700;color:#0b0d10">${d.project.progress}%${typeof delta === "number" && delta > 0 ? ` <span style="font-size:14px;font-weight:600;color:#16a34a">+${delta} ${esc(t("pts this week"))}</span>` : ""}</div>${bar}${d.project.targetDate ? `<div style="margin-top:8px;font-size:13px;color:#8d939e">${esc(t("Planned delivery: {date}", { date: f.date(d.project.targetDate) }))}</div>` : ""}</div>`;
+    if (o.note) body += h(t("A word from the team")) + `<div>${nl2br(o.note)}</div>`;
+    if (d.done.length) body += h(t("Done this week")) + li(d.done.map((x) => `✓ ${esc(x.title)}${x.kind === "deliverable" ? ` <span style="color:#8d939e">(${esc(t("approved"))})</span>` : ""}`)) + (d.doneTotal > d.done.length ? `<div style="font-size:13px;color:#8d939e">${esc(t("and {n} more", { n: d.doneTotal - d.done.length }))}</div>` : "");
+    if (d.inProgress.length) body += h(t("In progress")) + li(d.inProgress.map(esc));
+    if (d.next.length) body += h(t("Next steps")) + li(d.next.map((x) => `${esc(x.title)}${x.date ? ` <span style="color:#8d939e">· ${esc(f.short(x.date))}</span>` : ""}`));
+    if (d.update) body += h(d.update.title || t("Latest update")) + `<div>${nl2br(d.update.body)}</div>`;
+    if (d.waiting.length) {
+      body += h(t("Waiting for you"));
+      body += li(d.waiting.map((w) => `<b>${esc(w.kind === "PAYMENT" ? t("Invoice {number}", { number: w.title }) : w.title)}</b> <span style="color:#8d939e">· ${esc(t(DECISION_LABEL[w.kind]))} · ${esc(w.days === 0 ? t("Since today") : plural(l, w.days, "waiting for {n} day", "waiting for {n} days"))}</span>`));
+      if (d.waiting.some((w) => w.days >= 7)) body += `<div style="margin-top:8px;padding:10px 12px;background:#fff7ed;border-radius:10px;color:#9a3412;font-size:13px">${esc(t("Some items have been waiting for over a week and may delay the project."))}</div>`;
+    }
+    return {
+      subject: t("Weekly report · {project}", { project: d.project.name }),
+      html: layout({ l, brand: o.brand, title: t("Your weekly report"), preheader: t("{progress}% complete · {project}", { progress: d.project.progress, project: d.project.name }), bodyHtml: body, cta: { label: t("Open the report"), url: o.link } }),
+    };
+  },
+  teamDigest(o: { brand: Brand; name: string; stats: { live: number; onTrack: number; atRisk: number; offTrack: number; overdue: number; waiting: number; oldestWait: number }; risky: { name: string; status: string; score: number; alert: string | null; url: string }[]; deadlines: { label: string; project: string; date: string }[]; link: string }, l: Locale) {
+    const t = makeT(l);
+    const f = makeFmt(l);
+    const s = o.stats;
+    const cell = (label: string, v: string | number, color = "#0b0d10") => `<td style="padding:10px;border:1px solid #eef0f3;border-radius:10px;text-align:center"><div style="font-size:22px;font-weight:700;color:${color}">${esc(String(v))}</div><div style="font-size:11px;color:#8d939e">${esc(label)}</div></td>`;
+    let body = `${esc(t("Hello {name},", { name: o.name }))}<br/>${esc(t("Your portfolio this week, in one minute."))}`;
+    body += `<table role="presentation" width="100%" cellpadding="0" cellspacing="6" style="margin-top:14px"><tr>${cell(t("Active projects"), s.live)}${cell(t("At risk"), s.atRisk, s.atRisk ? "#d97706" : "#0b0d10")}${cell(t("Off track"), s.offTrack, s.offTrack ? "#dc2626" : "#0b0d10")}</tr><tr>${cell(t("Overdue tasks"), s.overdue, s.overdue ? "#d97706" : "#0b0d10")}${cell(t("Waiting for client"), s.waiting)}${cell(t("Longest wait (days)"), s.oldestWait)}</tr></table>`;
+    if (o.risky.length) {
+      body += `<div style="margin:22px 0 6px;font-size:12px;font-weight:600;color:#8d939e;text-transform:uppercase;letter-spacing:.05em">${esc(t("Projects to watch"))}</div>`;
+      body += o.risky.map((r) => `<div style="padding:10px 0;border-bottom:1px solid #eef0f3"><a href="${esc(r.url)}" style="color:#0b0d10;font-weight:600;text-decoration:none">${esc(r.name)}</a> <span style="font-size:12px;color:${r.status === "off_track" ? "#dc2626" : "#d97706"}">${esc(t(r.status === "off_track" ? "Off track" : "At risk"))} · ${r.score}</span>${r.alert ? `<div style="font-size:13px;color:#3b4150">${esc(r.alert)}</div>` : ""}</div>`).join("");
+    } else body += `<div style="margin-top:18px;color:#16a34a">${esc(t("All projects are on track."))}</div>`;
+    if (o.deadlines.length) {
+      body += `<div style="margin:22px 0 6px;font-size:12px;font-weight:600;color:#8d939e;text-transform:uppercase;letter-spacing:.05em">${esc(t("Deadlines in the next 7 days"))}</div>`;
+      body += `<ul style="margin:0;padding-left:18px">${o.deadlines.map((x) => `<li style="margin:3px 0">${esc(f.short(x.date))} · <b>${esc(x.project)}</b> — ${esc(x.label)}</li>`).join("")}</ul>`;
+    }
+    return { subject: t("Weekly digest · {n} active projects", { n: s.live }), html: layout({ l, brand: o.brand, title: t("Your weekly digest"), bodyHtml: body, cta: { label: t("Open project health"), url: o.link } }) };
   },
   directMessage(o: { brand: Brand; subject: string; message: string; link?: string; linkLabel?: string }, l: Locale) {
     const t = makeT(l);

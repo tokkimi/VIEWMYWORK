@@ -30,7 +30,7 @@ export async function waitingForClient(workspaceId: string, clientId: string, pr
 }
 
 export async function portalProjectHome(projectId: string) {
-  const [phases, updates, files, nextMilestone, invoices, deliverables] = await Promise.all([
+  const [phases, updates, files, nextMilestone, invoices, deliverables, reports] = await Promise.all([
     db.phase.findMany({
       where: { projectId, visibility: "CLIENT_VISIBLE" },
       orderBy: { position: "asc" },
@@ -45,8 +45,9 @@ export async function portalProjectHome(projectId: string) {
     db.milestone.findFirst({ where: { projectId, visibility: "CLIENT_VISIBLE", completedAt: null, phase: { visibility: "CLIENT_VISIBLE" } }, orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { position: "asc" }], select: { title: true, dueDate: true } }),
     db.invoice.findMany({ where: { projectId, status: { not: "DRAFT" } }, orderBy: { issueDate: "desc" }, take: 5 }),
     db.deliverable.findMany({ where: { projectId, visibility: "CLIENT_VISIBLE", status: { not: "DRAFT" } }, orderBy: { updatedAt: "desc" }, select: { id: true, title: true, status: true, currentVersion: true, updatedAt: true } }),
+    db.projectReport.findMany({ where: { projectId }, orderBy: { createdAt: "desc" }, take: 3, select: { id: true, createdAt: true } }),
   ]);
   const current = phases.find((p) => p.status !== "COMPLETED") ?? null;
   const happening = current ? current.tasks.filter((t) => t.status === "IN_PROGRESS" || t.status === "IN_REVIEW").slice(0, 4) : [];
-  return { phases, updates, files, nextMilestone, invoices, deliverables, current, happening };
+  return { phases, updates, files, nextMilestone, invoices, deliverables, reports, current, happening };
 }

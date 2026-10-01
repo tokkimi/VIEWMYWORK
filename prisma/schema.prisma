@@ -224,6 +224,11 @@ model WorkspaceSetting {
   reminderFirstDays   Int       @default(3)
   reminderEveryDays   Int       @default(4)
   reminderMax         Int       @default(3)
+  /// Weekly reports: one per project to the client (opt-in), and a portfolio digest to admins.
+  clientReports       Boolean   @default(false)
+  reportWeekday       Int       @default(1) // 0 = Sunday … 6 = Saturday
+  teamDigest          Boolean   @default(true)
+  lastTeamDigestAt    DateTime?
 }
 
 // ───────────────────────── Clients ─────────────────────────
@@ -333,6 +338,7 @@ model Project {
   progress       Int           @default(0) // 0..100 cached result
   manualProgress Int?
   portalEnabled  Boolean       @default(true)
+  weeklyReport   Boolean       @default(true)
   archivedAt     DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
@@ -356,6 +362,7 @@ model Project {
   history      SpecHistory[]
   snapshots    SpecSnapshot[]
   events       CalendarEvent[]
+  reports      ProjectReport[]
 
   @@index([workspaceId, archivedAt, status])
   @@index([clientId])
@@ -1277,4 +1284,23 @@ model MemberAbsence {
 
   @@index([workspaceId, startDate])
   @@index([memberId])
+}
+
+/// A weekly progress report sent to the client (also readable in their portal).
+model ProjectReport {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @db.Uuid
+  projectId   String   @db.Uuid
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  periodStart DateTime
+  periodEnd   DateTime
+  data        Json
+  note        String?
+  auto        Boolean  @default(false)
+  sentById    String?  @db.Uuid
+  recipients  Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([projectId, createdAt])
+  @@index([workspaceId, createdAt])
 }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutGrid, FolderKanban, Users, CheckSquare, CalendarDays, Files, Receipt, LineChart, UsersRound, Bell, Settings, UserCircle, Menu, X, Shield, CreditCard, Activity, Gauge, Hourglass } from "lucide-react";
+import { LayoutGrid, FolderKanban, Users, CheckSquare, CalendarDays, Files, Receipt, LineChart, UsersRound, Bell, Settings, UserCircle, Menu, X, Shield, CreditCard, Activity, Gauge, Hourglass, FileBarChart } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { LogoMark } from "@/components/logo";
 import { WorkspaceSwitcher } from "./workspace-switcher";
@@ -24,6 +24,7 @@ export function Sidebar({ workspaces, current, can, isSuperAdmin, unread }: { wo
     { href: "/app/health", label: "Project health", icon: Activity },
     { href: "/app/clients", label: "Clients", icon: Users, show: can.clients },
     { href: "/app/decisions", label: "Client decisions", icon: Hourglass },
+    { href: "/app/reports", label: "Weekly reports", icon: FileBarChart },
     { href: "/app/tasks", label: "Tasks", icon: CheckSquare },
     { href: "/app/workload", label: "Team workload", icon: Gauge, show: can.workload },
     { href: "/app/calendar", label: "Calendar", icon: CalendarDays },

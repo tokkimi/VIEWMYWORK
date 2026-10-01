@@ -1,4 +1,5 @@
 import { hasFeature } from "@/lib/plans";
+import { runWeeklyReports } from "@/server/services/reports";
 import { loadDecisions } from "@/server/queries/decisions";
 import { sendDecisionReminder } from "@/server/services/decisions";
 import { reminderDue, DEFAULT_REMINDERS } from "@/lib/decisions";
@@ -17,7 +18,7 @@ async function alreadyEmitted(type: string, entityId: string, since?: Date) {
 
 /** Idempotent daily job: safe to run more than once a day. */
 export async function runDailyJobs(now = new Date()) {
-  const report = { overdue: 0, dueSoon: 0, reminders: 0, decisionReminders: 0, taskAlerts: 0, cleaned: 0, driveChecked: 0 };
+  const report = { overdue: 0, dueSoon: 0, reminders: 0, decisionReminders: 0, clientReports: 0, teamDigests: 0, taskAlerts: 0, cleaned: 0, driveChecked: 0 };
 
   // 0. Website screenshots are a cache: drop the ones nobody has refreshed for a week.
   await db.siteShot.deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - 7 * 86400_000) } } });
@@ -59,6 +60,9 @@ export async function runDailyJobs(now = new Date()) {
 
   // 2b. Client decision center: one grouped reminder per client for items waiting too long.
   report.decisionReminders = await runDecisionReminders(now);
+
+  // 2c. Weekly reports: client progress reports and the admins' portfolio digest.
+  Object.assign(report, await runWeeklyReports(now));
 
   // 3. Task deadlines: approaching (tomorrow) and overdue (yesterday) — once each.
   const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));

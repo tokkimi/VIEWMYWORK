@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Home, FolderKanban, Receipt, MessageSquare, LogOut, ChevronDown, MessageSquareDiff, CalendarRange, Package, Files, Check } from "lucide-react";
+import { Home, FolderKanban, Receipt, MessageSquare, LogOut, ChevronDown, MessageSquareDiff, CalendarRange, Package, Files, Check, FileBarChart } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { NotificationBell } from "@/components/app/topbar";
 import { Avatar } from "@/components/ui/primitives";
@@ -22,6 +22,7 @@ const SECTIONS = [
   { seg: "/files", label: "Files", icon: Files },
   { seg: "/requests", label: "Change requests", icon: MessageSquareDiff },
   { seg: "/messages", label: "Messages", icon: MessageSquare },
+  { seg: "/reports", label: "Weekly reports", icon: FileBarChart },
 ] as const;
 
 export function PortalNav({ brand, projects, clients, currentClientId, userName }: { brand: { name: string; logoUrl: string | null }; projects: P[]; clients: { id: string; name: string }[]; currentClientId: string; userName: string }) {

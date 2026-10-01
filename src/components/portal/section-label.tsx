@@ -9,6 +9,7 @@ const LABELS: [RegExp, string][] = [
   [/\/files$/, "Files"],
   [/\/requests$/, "Change requests"],
   [/\/messages$/, "Messages"],
+  [/\/reports/, "Weekly reports"],
 ];
 
 /** Shows which project section is open (the sections live in the "Project" menu). */

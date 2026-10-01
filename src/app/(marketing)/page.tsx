@@ -1,4 +1,4 @@
-import { Activity, ArrowRight, CheckCircle2, FileStack, Gauge, ListChecks, MessageSquare, MessageSquareDiff, MonitorSmartphone, Receipt, RefreshCw, Send, ShieldCheck, Sparkles, Hourglass } from "lucide-react";
+import { Activity, ArrowRight, CheckCircle2, FileStack, Gauge, ListChecks, MessageSquare, MessageSquareDiff, MonitorSmartphone, Receipt, RefreshCw, Send, ShieldCheck, Sparkles, Hourglass, FileBarChart } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { ProductShot } from "@/components/marketing/product-shot";
 import { DeveloperPreviewShowcase } from "@/components/marketing/developer-preview-showcase";
@@ -117,11 +117,12 @@ export default async function Home() {
               </ul>
             </div>
           </div>
-          <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {[
               [RefreshCw, "Real-time on both sides", "You and your client see the same shared content, updated within seconds — no refresh needed."],
               [Send, "Share by email, WhatsApp or link", "Clients without email get their private access by WhatsApp or any app, in one tap."],
               [ShieldCheck, "Nothing gets lost", "Deleted files stay recoverable for 30 days, with a full history of who did what."],
+              [FileBarChart, "Weekly reports, written for you", "Every client gets a clear weekly summary of their project, and you get your portfolio digest — without writing a line."],
             ].map(([Icon, title, d]) => {
               const I = Icon as typeof Gauge;
               return (

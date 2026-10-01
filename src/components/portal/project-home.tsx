@@ -181,6 +181,16 @@ export async function PortalProjectHome({ project, home, waiting, base, preview 
           </section>
         </div>
         <div className="space-y-8">
+          {home.reports.length > 0 && (
+            <section>
+              <div className="mb-3 flex items-center justify-between"><h2 className="text-[13px] font-semibold"><Tr>Weekly reports</Tr></h2><MaybeLink preview={preview} href={`${base}/projects/${project.id}/reports`} className="text-xs text-muted hover:text-fg"><Tr>All reports</Tr></MaybeLink></div>
+              <ul className="panel divide-y divide-line rounded-2xl">
+                {home.reports.map((r) => (
+                  <li key={r.id}><MaybeLink preview={preview} href={`${base}/projects/${project.id}/reports/${r.id}`} className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-white/[0.02]"><FileText className="size-4 shrink-0 text-muted" /><span className="min-w-0 flex-1 truncate">{t("Report of {date}", { date: fmt.date(r.createdAt) })}</span><ChevronRight className="size-4 text-subtle" /></MaybeLink></li>
+                ))}
+              </ul>
+            </section>
+          )}
           {home.deliverables.length > 0 && (
             <section>
               <h2 className="mb-3 text-[13px] font-semibold"><Tr>Deliverables</Tr></h2>
