@@ -1,4 +1,4 @@
-import { MonitorSmartphone, Link2 } from "lucide-react";
+import { MonitorSmartphone, Link2, Apple, Play } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { SitePreviewMini } from "@/components/app/site-preview";
@@ -16,6 +16,8 @@ export default async function Preview({ params }: { params: Promise<{ id: string
   const { project, perms } = await loadProject(id);
   const [previews, links] = await Promise.all([db.preview.findMany({ where: { projectId: id }, orderBy: { createdAt: "asc" } }), db.projectLink.findMany({ where: { projectId: id }, orderBy: { createdAt: "asc" } })]);
   const canEdit = hasLevel(perms, "projects", "edit");
+  const builds = previews.filter((p) => p.type === "APPLE_TESTFLIGHT" || p.type === "GOOGLE_PLAY");
+  const webPreviews = previews.filter((p) => p.type !== "APPLE_TESTFLIGHT" && p.type !== "GOOGLE_PLAY");
   return (
     <div className="space-y-10">
       {project.websiteUrl && (
@@ -28,7 +30,22 @@ export default async function Preview({ params }: { params: Promise<{ id: string
           <EmptyState icon={<MonitorSmartphone />} title="No previews yet" description="Add a staging URL or prototype link. We'll show it in a device frame — or a clean preview card when the site blocks embedding." />
         ) : (
           <div className="space-y-10">
-            {previews.map((p) => (
+            {builds.length > 0 && (
+              <div>
+                <h3 className="mb-1 text-sm font-medium">{t("Mobile test builds")}</h3>
+                <p className="mb-4 text-sm text-muted">{t("Give the client a single, safe place to install the current iOS or Android build.")}</p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {builds.map((p) => {
+                    const apple = p.type === "APPLE_TESTFLIGHT";
+                    const Icon = apple ? Apple : Play;
+                    return <article key={p.id} className="panel rounded-2xl p-4">
+                      <div className="flex items-start gap-3"><span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent"><Icon className="size-5" /></span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h4 className="truncate text-sm font-medium">{p.label}</h4>{p.visibility === "INTERNAL" ? <Badge><Tr>Internal</Tr></Badge> : <Badge tone="accent"><Tr>Client</Tr></Badge>}</div><p className="mt-1 text-xs text-muted">{apple ? t("TestFlight · iPhone and iPad") : t("Google Play testing · Android")}</p><a href={p.url} target="_blank" rel="noreferrer noopener" className="mt-3 inline-flex text-xs text-accent hover:underline">{apple ? t("Open TestFlight invitation") : t("Open Google Play testing")}</a></div>{canEdit && <PreviewItemActions id={p.id} />}</div>
+                    </article>;
+                  })}
+                </div>
+              </div>
+            )}
+            {webPreviews.map((p) => (
               <div key={p.id}>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2"><h3 className="text-sm font-medium">{p.label}</h3><Badge>{p.type.replace("_", " ").toLowerCase()}</Badge>{p.visibility === "INTERNAL" && <Badge><Tr>Internal</Tr></Badge>}{p.embeddable === false && <Badge tone="warning"><Tr>Embedding blocked by site</Tr></Badge>}</div>

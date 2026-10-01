@@ -12,7 +12,7 @@ export async function addPreviewAction(fd: FormData) {
   return runAction(async () => {
     const ctx = await requireWorkspace();
     await rateLimit("preview", 60, 3600, ctx.workspace.id);
-    const i = z.object({ projectId: zId, label: z.string().trim().max(120).optional(), url: zSiteUrl, type: z.enum(["WEBSITE", "MOBILE_APP", "PROTOTYPE", "EXTERNAL", "OTHER"]), internal: zBool }).parse(formToObject(fd));
+    const i = z.object({ projectId: zId, label: z.string().trim().max(120).optional(), url: zSiteUrl, type: z.enum(["WEBSITE", "MOBILE_APP", "APPLE_TESTFLIGHT", "GOOGLE_PLAY", "PROTOTYPE", "EXTERNAL", "OTHER"]), internal: zBool }).parse(formToObject(fd));
     await requireProjectPerm(ctx, i.projectId, "projects", "edit");
     const count = await db.preview.count({ where: { projectId: i.projectId } });
     if (count >= 30) throw new AppError("Preview limit reached for this project.");

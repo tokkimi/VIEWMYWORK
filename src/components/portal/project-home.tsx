@@ -12,6 +12,7 @@ import type { portalProjectHome } from "@/server/queries/portal";
 import { cn } from "@/lib/cn";
 import { Tr } from "@/lib/i18n/client";
 import { getI18n } from "@/lib/i18n/server";
+import { MobileBuilds } from "@/components/portal/mobile-builds";
 
 type Home = Awaited<ReturnType<typeof portalProjectHome>>;
 
@@ -152,6 +153,8 @@ export async function PortalProjectHome({ project, home, waiting, base, preview 
       <WaitingForYou items={waiting} preview={preview} />
 
       <ProjectSitePreview projectId={project.id} name={project.name} />
+
+      <MobileBuilds projectId={project.id} preview={preview} />
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:gap-10">
         <div className="space-y-8">
