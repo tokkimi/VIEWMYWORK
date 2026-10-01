@@ -1061,6 +1061,8 @@ export const fr: Record<string, string> = {
   "Open Google Play testing": "Ouvrir le test Google Play",
   "Open TestFlight invitation": "Ouvrir l'invitation TestFlight",
   "Preview or installation link": "Lien d'aperçu ou d'installation",
+  "Preview added: {name}": "Aperçu ajouté : {name}",
+  "Preview removed: {name}": "Aperçu supprimé : {name}",
   "Client access": "Accès client",
   "Install the current build and send your feedback from the project portal.": "Installez la version actuelle puis envoyez vos retours depuis le portail du projet.",
   "TestFlight · iPhone and iPad": "TestFlight · iPhone et iPad",

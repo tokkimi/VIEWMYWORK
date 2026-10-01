@@ -7,17 +7,19 @@ import { requireWorkspace, requireProjectPerm, isUuid } from "@/lib/auth/context
 import { formToObject, zId, zSiteUrl, zBool } from "@/lib/validation";
 import { inspectUrl } from "@/server/services/previews";
 import { rateLimit } from "@/lib/rate-limit";
+import { emit } from "@/lib/events";
 
 export async function addPreviewAction(fd: FormData) {
   return runAction(async () => {
     const ctx = await requireWorkspace();
     await rateLimit("preview", 60, 3600, ctx.workspace.id);
     const i = z.object({ projectId: zId, label: z.string().trim().max(120).optional(), url: zSiteUrl, type: z.enum(["WEBSITE", "MOBILE_APP", "APPLE_TESTFLIGHT", "GOOGLE_PLAY", "PROTOTYPE", "EXTERNAL", "OTHER"]), internal: zBool }).parse(formToObject(fd));
-    await requireProjectPerm(ctx, i.projectId, "projects", "edit");
+    const { project } = await requireProjectPerm(ctx, i.projectId, "projects", "edit");
     const count = await db.preview.count({ where: { projectId: i.projectId } });
     if (count >= 30) throw new AppError("Preview limit reached for this project.");
     const meta = await inspectUrl(i.url);
-    await db.preview.create({ data: { projectId: i.projectId, label: i.label || meta.pageTitle?.slice(0, 120) || new URL(i.url).hostname, url: i.url, type: i.type, visibility: i.internal ? "INTERNAL" : "CLIENT_VISIBLE", ...meta, checkedAt: new Date() } });
+    const preview = await db.preview.create({ data: { projectId: i.projectId, label: i.label || meta.pageTitle?.slice(0, 120) || new URL(i.url).hostname, url: i.url, type: i.type, visibility: i.internal ? "INTERNAL" : "CLIENT_VISIBLE", ...meta, checkedAt: new Date() } });
+    await emit({ workspaceId: ctx.workspace.id, type: "PROJECT_UPDATED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: project.id, clientId: project.clientId, entityType: "PREVIEW", entityId: preview.id, summary: ["Preview added: {name}", { name: preview.label }], clientVisible: preview.visibility === "CLIENT_VISIBLE" });
     return null;
   }, "Preview added.");
 }
@@ -41,8 +43,9 @@ export async function deletePreviewAction(id: string) {
     if (!isUuid(id)) throw notFound();
     const p = await db.preview.findFirst({ where: { id, project: { workspaceId: ctx.workspace.id } } });
     if (!p) throw notFound();
-    await requireProjectPerm(ctx, p.projectId, "projects", "edit");
+    const { project } = await requireProjectPerm(ctx, p.projectId, "projects", "edit");
     await db.preview.delete({ where: { id } });
+    await emit({ workspaceId: ctx.workspace.id, type: "PROJECT_UPDATED", actor: { id: ctx.user.id, name: ctx.user.name }, projectId: project.id, clientId: project.clientId, entityType: "PREVIEW", entityId: p.id, summary: ["Preview removed: {name}", { name: p.label }], clientVisible: p.visibility === "CLIENT_VISIBLE" });
     return null;
   }, "Preview removed.");
 }
