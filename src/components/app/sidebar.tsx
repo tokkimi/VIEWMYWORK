@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutGrid, FolderKanban, Users, CheckSquare, CalendarDays, Files, Receipt, LineChart, UsersRound, Bell, Settings, UserCircle, Menu, X, Shield } from "lucide-react";
+import { LayoutGrid, FolderKanban, Users, CheckSquare, CalendarDays, Files, Receipt, LineChart, UsersRound, Bell, Settings, UserCircle, Menu, X, Shield, CreditCard } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { LogoMark } from "@/components/logo";
 import { WorkspaceSwitcher } from "./workspace-switcher";
@@ -12,7 +12,7 @@ import { useI18n } from "@/lib/i18n/client";
 
 type Item = { href: string; label: string; icon: React.ComponentType<{ className?: string }>; show?: boolean };
 
-export function Sidebar({ workspaces, current, can, isSuperAdmin, unread }: { workspaces: { id: string; name: string }[]; current: { id: string; name: string; logoUrl?: string | null }; can: { finance: boolean; invoices: boolean; clients: boolean; team: boolean; settings: boolean }; isSuperAdmin: boolean; unread: number }) {
+export function Sidebar({ workspaces, current, can, isSuperAdmin, unread }: { workspaces: { id: string; name: string }[]; current: { id: string; name: string; logoUrl?: string | null }; can: { finance: boolean; invoices: boolean; clients: boolean; team: boolean; settings: boolean; billing: boolean }; isSuperAdmin: boolean; unread: number }) {
   const { t } = useI18n();
   const path = usePathname();
   const [open, setOpen] = useState(false);
@@ -31,6 +31,7 @@ export function Sidebar({ workspaces, current, can, isSuperAdmin, unread }: { wo
     { href: "/app/notifications", label: "Notifications", icon: Bell },
   ];
   const bottom: Item[] = [
+    { href: "/app/settings/billing", label: "Subscription", icon: CreditCard, show: can.billing },
     { href: "/app/settings", label: "Settings", icon: Settings, show: can.settings },
     { href: "/app/profile", label: "Profile", icon: UserCircle },
     ...(isSuperAdmin ? [{ href: "/admin", label: "Platform admin", icon: Shield }] : []),

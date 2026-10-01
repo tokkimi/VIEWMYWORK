@@ -180,7 +180,7 @@ export function StripeConnectPanel({ state, configured, allowed }: { state: null
 
 export type PlanOption = { code: string; name: string; description: string | null; monthly: number; annual: number | null; currency: string; highlight: boolean; features: string[] };
 
-export function PlanPicker({ plans, currentCode, configured, hasCustomer }: { plans: PlanOption[]; currentCode: string; configured: boolean; hasCustomer: boolean }) {
+export function PlanPicker({ plans, currentCode, configured, hasSubscription, hasBillingAccount }: { plans: PlanOption[]; currentCode: string; configured: boolean; hasSubscription: boolean; hasBillingAccount: boolean }) {
   const { t, fmt } = useI18n();
   const [interval, setInterval] = useState<"month" | "year">("month");
   const { pending, run } = useActionButton();
@@ -191,7 +191,7 @@ export function PlanPicker({ plans, currentCode, configured, hasCustomer }: { pl
         <div className="flex rounded-lg border border-line p-0.5 text-xs" role="radiogroup" aria-label={t("Billing interval")}>
           {(["month", "year"] as const).map((i) => <button key={i} role="radio" aria-checked={interval === i} onClick={() => setInterval(i)} className={cn("rounded-md px-3 py-1", interval === i ? "bg-white/[0.08] text-fg" : "text-muted")}>{i === "month" ? t("Monthly") : t("Yearly")}</button>)}
         </div>
-        {hasCustomer && configured && <Button size="sm" variant="ghost" disabled={pending} onClick={() => go(() => openBillingPortalAction())}><Tr>Payment method & invoices</Tr></Button>}
+        {hasBillingAccount && configured && <Button size="sm" variant="ghost" disabled={pending} onClick={() => go(() => openBillingPortalAction())}><Tr>Manage payment & subscription</Tr></Button>}
       </div>
       <div className="grid gap-3 md:grid-cols-3">
         {plans.map((p) => {
@@ -203,7 +203,7 @@ export function PlanPicker({ plans, currentCode, configured, hasCustomer }: { pl
               <div className="num mt-3 text-2xl font-semibold">{price === null ? "—" : fmt.money(price, p.currency)}<span className="text-xs font-normal text-muted">/{interval === "month" ? t("mo") : t("yr")}</span></div>
               <p className="mt-2 flex-1 text-xs text-muted">{p.description}</p>
               <Button className="mt-4" size="sm" variant={p.highlight ? "primary" : "secondary"} disabled={pending || !configured || price === null} onClick={() => go(() => startSubscriptionCheckoutAction(p.code, interval))}>
-                {current ? (hasCustomer ? t("Switch interval") : t("Subscribe")) : t("Choose {plan}", { plan: p.name })}
+                {current ? (hasSubscription ? t("Switch interval") : t("Subscribe")) : t("Choose {plan}", { plan: p.name })}
               </Button>
             </div>
           );

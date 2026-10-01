@@ -30,6 +30,10 @@ export default async function Billing({ searchParams }: { searchParams: Promise<
 
   return (
     <div className="space-y-10">
+      <section className="rounded-2xl border border-accent/30 bg-accent-soft px-5 py-5">
+        <h1 className="text-lg font-semibold"><Tr>Manage your subscription</Tr></h1>
+        <p className="mt-1 text-sm text-muted"><Tr>Update your plan, payment method or billing details, and cancel whenever you need.</Tr></p>
+      </section>
       {sp.success && <p className="rounded-xl bg-success-soft px-4 py-3 text-sm text-success"><Tr>Thanks! Your subscription is being activated — it can take a few seconds to appear.</Tr></p>}
       {sp.changed && <p className="rounded-xl bg-success-soft px-4 py-3 text-sm text-success"><Tr>Plan change requested. It will be reflected here as soon as Stripe confirms it.</Tr></p>}
       <section>
@@ -54,7 +58,8 @@ export default async function Billing({ searchParams }: { searchParams: Promise<
           plans={plans.map((pl) => ({ code: pl.code, name: pl.name, description: pl.description, monthly: pl.monthlyPriceCents, annual: pl.annualPriceCents, currency: pl.currency, highlight: pl.highlight, features: pl.features.filter((f) => f.enabled).map((f) => f.key) }))}
           currentCode={p?.plan.code ?? ""}
           configured={integrations.stripe()}
-          hasCustomer={Boolean(sub?.stripeSubscriptionId)}
+          hasSubscription={Boolean(sub?.stripeSubscriptionId)}
+          hasBillingAccount={Boolean(sub?.stripeCustomerId)}
         />
       </section>
       {payments.length > 0 && (
