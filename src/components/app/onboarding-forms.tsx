@@ -52,6 +52,7 @@ export function OnboardingWorkspace({ plans, defaultPlan }: { plans: { code: str
         <p className="mt-2 text-xs text-subtle"><Tr>Your card is required to start the 7-day free trial. Nothing is charged today; billing begins automatically after the trial. You can cancel any time in Settings.</Tr></p>
       </div>
       <Submit size="lg" className="w-full"><Tr>Continue to secure payment</Tr></Submit>
+      <p className="text-center text-xs text-subtle"><Tr>By subscribing you accept the</Tr> <a href="/cgv" target="_blank" className="underline"><Tr>Terms of sale</Tr></a> <Tr>and the</Tr> <a href="/terms" target="_blank" className="underline"><Tr>Terms of use</Tr></a>.</p>
     </Form>
   );
 }

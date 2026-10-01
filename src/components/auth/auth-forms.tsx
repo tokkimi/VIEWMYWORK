@@ -29,7 +29,7 @@ export function SignupForm({ next, email }: { next?: string; email?: string }) {
       <Field label="Work email" name="email"><Input name="email" type="email" autoComplete="email" defaultValue={email} required /></Field>
       <Field label="Password" name="password" hint="At least 10 characters."><Input name="password" type="password" autoComplete="new-password" required minLength={10} /></Field>
       <Submit className="w-full" size="lg"><Tr>Create account</Tr></Submit>
-      <p className="text-center text-xs text-subtle"><Tr>By continuing you agree to the</Tr> <Link href="/terms" className="underline"><Tr>Terms</Tr></Link> <Tr>and</Tr> <Link href="/privacy" className="underline"><Tr>Privacy policy</Tr></Link>.</p>
+      <p className="text-center text-xs text-subtle"><Tr>By continuing you agree to the</Tr> <Link href="/terms" className="underline"><Tr>Terms of use</Tr></Link>, <Link href="/cgv" className="underline"><Tr>Terms of sale</Tr></Link> <Tr>and</Tr> <Link href="/privacy" className="underline"><Tr>Privacy policy</Tr></Link>.</p>
     </Form>
   );
 }

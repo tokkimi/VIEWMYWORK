@@ -1,10 +1,10 @@
+import { LEGAL } from "@/lib/legal";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { ButtonLink } from "@/components/ui/button";
 import { getSessionUser } from "@/lib/auth/session";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { getI18n } from "@/lib/i18n/server";
-import { Tr } from "@/lib/i18n/client";
 
 export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
   const user = await getSessionUser();
@@ -38,10 +38,12 @@ export default async function MarketingLayout({ children }: { children: React.Re
           <div className="flex flex-wrap gap-6">
             <Link href="/features" className="hover:text-fg">{t("Features")}</Link>
             <Link href="/pricing" className="hover:text-fg">{t("Pricing")}</Link>
+            <Link href="/terms" className="hover:text-fg">{t("Terms of use")}</Link>
+            <Link href="/cgv" className="hover:text-fg">{t("Terms of sale")}</Link>
             <Link href="/privacy" className="hover:text-fg">{t("Privacy")}</Link>
-            <Link href="/terms" className="hover:text-fg">{t("Terms")}</Link>
+            <Link href="/legal" className="hover:text-fg">{t("Legal notice")}</Link>
           </div>
-          <p className="text-xs text-subtle">© {new Date().getFullYear()} <Tr>FollowMyFuture</Tr></p>
+          <p className="text-xs text-subtle">© {new Date().getFullYear()} FollowMyFuture · {LEGAL.company} · {t("Switzerland")}</p>
         </div>
       </footer>
     </div>

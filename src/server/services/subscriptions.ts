@@ -76,6 +76,17 @@ export async function handlePlatformEvent(event: Stripe.Event) {
       await applyStripeSubscription(await stripe.subscriptions.retrieve(String(s.subscription)));
       return;
     }
+    // Stripe sends this 3 days before the trial ends: tell the owner what will be charged and when.
+    case "customer.subscription.trial_will_end": {
+      const sub = event.data.object as Stripe.Subscription;
+      await applyStripeSubscription(sub);
+      const local = await db.subscription.findUnique({ where: { stripeSubscriptionId: sub.id }, include: { plan: true } });
+      if (!local || !sub.trial_end || sub.cancel_at_period_end) return;
+      await notifyWorkspaceAdmins(local.workspaceId, "SUBSCRIPTION_TRIAL_ENDING", "Your free trial ends soon",
+        ["Your {plan} plan starts on {date}: {amount} will be charged to your card on file. You can change plan or cancel before then.", { plan: local.plan.name, date: { date: new Date(sub.trial_end * 1000) }, amount: { money: local.priceCents, currency: local.currency } }],
+        "/app/settings/billing");
+      return;
+    }
     case "customer.subscription.created":
     case "customer.subscription.updated":
     case "customer.subscription.deleted":
@@ -100,6 +111,8 @@ export async function handlePlatformEvent(event: Stripe.Event) {
       const local = subId ? await db.subscription.findUnique({ where: { stripeSubscriptionId: String(subId) } }) : inv.customer ? await db.subscription.findUnique({ where: { stripeCustomerId: String(inv.customer) } }) : null;
       if (!local || !inv.id) return;
       const paid = event.type === "invoice.paid";
+      // 0 € invoices (trial start, credited changes) aren't payments: keep the history to real charges.
+      if (paid && inv.amount_paid <= 0) return;
       await db.platformPayment.upsert({
         where: { stripeInvoiceId: inv.id },
         create: { subscriptionId: local.id, stripeInvoiceId: inv.id, amountCents: paid ? inv.amount_paid : inv.amount_due, currency: inv.currency.toUpperCase(), status: paid ? "PAID" : "FAILED", paidAt: paid ? new Date() : null },

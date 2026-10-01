@@ -73,6 +73,7 @@ export const EVENT_DEFS = {
   MENTION_RECEIVED: { category: "TEAM", topic: "MENTIONS" },
   PERMISSION_CHANGED: { category: "TEAM", topic: "TEAM" },
   SUBSCRIPTION_PAYMENT_FAILED: { category: "SYSTEM", topic: "SYSTEM" },
+  SUBSCRIPTION_TRIAL_ENDING: { category: "SYSTEM", topic: "SYSTEM" },
   SUBSCRIPTION_CHANGED: { category: "SYSTEM", topic: "SYSTEM" },
   STORAGE_ALMOST_FULL: { category: "SYSTEM", topic: "SYSTEM" },
   INTEGRATION_DISCONNECTED: { category: "SYSTEM", topic: "SYSTEM" },

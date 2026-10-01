@@ -2420,4 +2420,13 @@ export const fr: Record<string, string> = {
   "You're in your free trial: nothing is charged today. The new price applies when the trial ends.": "Vous êtes en période d’essai gratuite : rien n’est débité aujourd’hui. Le nouveau tarif s’appliquera à la fin de l’essai.",
   "Your plan has been updated.": "Votre formule a été mise à jour.",
   "{amount}/{per} from {date}": "{amount}/{per} à partir du {date}",
+  "Terms of use": "Conditions d’utilisation",
+  "Terms of sale": "CGV",
+  "Legal notice": "Mentions légales",
+  "Switzerland": "Suisse",
+  "By subscribing you accept the": "En vous abonnant, vous acceptez les",
+  "and the": "et les",
+  "Your free trial ends soon": "Votre essai gratuit se termine bientôt",
+  "Your {plan} plan starts on {date}: {amount} will be charged to your card on file. You can change plan or cancel before then.": "Votre formule {plan} démarre le {date} : {amount} seront prélevés sur votre carte enregistrée. Vous pouvez changer de formule ou résilier d’ici là.",
+  "General terms of sale": "Conditions générales de vente",
 };
