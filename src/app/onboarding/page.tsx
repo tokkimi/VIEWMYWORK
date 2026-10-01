@@ -11,7 +11,7 @@ export const generateMetadata = pageTitle("Set up your workspace");
 
 const steps = ["Workspace", "First client", "First project"];
 
-export default async function Onboarding({ searchParams }: { searchParams: Promise<{ step?: string; plan?: string; new?: string }> }) {
+export default async function Onboarding({ searchParams }: { searchParams: Promise<{ step?: string; plan?: string; new?: string; billing?: string }> }) {
   const { t } = await getI18n();
   const user = await requireVerifiedUser();
   const sp = await searchParams;
@@ -50,7 +50,7 @@ export default async function Onboarding({ searchParams }: { searchParams: Promi
             <h1 className="text-2xl font-semibold tracking-tight"><Tr>Welcome,</Tr> {user.name.split(" ")[0]}</h1>
             <p className="mt-1.5 text-sm text-muted"><Tr>Let&apos;s set up your workspace. It takes less than a minute.</Tr></p>
             <div className="mt-8">
-              <OnboardingWorkspace plans={plans.map((p) => ({ code: p.code, name: p.name, price: p.monthlyPriceCents, currency: p.currency, trialDays: p.trialDays, description: p.description ?? "" }))} defaultPlan={sp.plan} />
+              <OnboardingWorkspace plans={plans.map((p) => ({ code: p.code, name: p.name, price: p.monthlyPriceCents, currency: p.currency, trialDays: 7, description: p.description ?? "" }))} defaultPlan={sp.plan} />
             </div>
           </>
         )}

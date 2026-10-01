@@ -44,14 +44,14 @@ export function OnboardingWorkspace({ plans, defaultPlan }: { plans: { code: str
               </span>
               <span className="shrink-0 text-right">
                 <span className="num block text-sm font-medium">{fmt.money(p.price, p.currency)}<span className="text-xs text-muted"><Tr>/mo</Tr></span></span>
-                {p.trialDays > 0 && <span className="text-[11px] text-subtle">{p.trialDays}<Tr>-day free trial</Tr></span>}
+                <span className="text-[11px] text-subtle"><Tr>7-day free trial</Tr></span>
               </span>
             </button>
           ))}
         </div>
-        <p className="mt-2 text-xs text-subtle"><Tr>No payment needed during the trial. You can change plan any time. Your logo can be added in Settings → Branding.</Tr></p>
+        <p className="mt-2 text-xs text-subtle"><Tr>Your card is required to start the 7-day free trial. Nothing is charged today; billing begins automatically after the trial. You can cancel any time in Settings.</Tr></p>
       </div>
-      <Submit size="lg" className="w-full"><Tr>Create workspace</Tr></Submit>
+      <Submit size="lg" className="w-full"><Tr>Continue to secure payment</Tr></Submit>
     </Form>
   );
 }

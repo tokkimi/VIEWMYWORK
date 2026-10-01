@@ -53,7 +53,7 @@ export default async function Pricing() {
                 ))}
               </ul>
               <ButtonLink href={`/signup?plan=${p.code}`} variant={p.highlight ? "primary" : "secondary"} className="mt-8 w-full">
-                {p.trialDays > 0 ? t("Start {n}-day trial", { n: p.trialDays }) : t("Get started")}
+                {t("Start {n}-day trial", { n: 7 })}
               </ButtonLink>
             </div>
           ))}
