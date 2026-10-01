@@ -6,7 +6,9 @@ import { CurrencySelect } from "./entity-fields";
 import { updateWorkspaceGeneralAction, updateBrandingAction, uploadLogoAction, removeLogoAction } from "@/server/actions/workspace";
 import { saveInvoiceSettingsAction } from "@/server/actions/invoices";
 import { connectStripeAction, syncStripeAccountAction, stripeDashboardLinkAction } from "@/server/actions/payments";
-import { startSubscriptionCheckoutAction, openBillingPortalAction } from "@/server/actions/billing";
+import { startSubscriptionCheckoutAction, openBillingPortalAction, previewPlanChangeAction, changePlanAction } from "@/server/actions/billing";
+import { Dialog } from "@/components/ui/dialog";
+import { useToast } from "@/components/ui/toast";
 import { disconnectDriveAction, setDriveFolderAction } from "@/server/actions/integrations";
 import { useActionButton } from "./invoice-actions";
 import { formatInvoiceNumber } from "@/lib/invoices/numbering";
@@ -185,7 +187,36 @@ export function StripeConnectPanel({ state, configured, allowed }: { state: null
 
 export type PlanOption = { code: string; name: string; description: string | null; monthly: number; annual: number | null; currency: string; highlight: boolean; features: string[] };
 
-export function PlanPicker({ plans, currentCode, configured, hasSubscription, hasBillingAccount }: { plans: PlanOption[]; currentCode: string; configured: boolean; hasSubscription: boolean; hasBillingAccount: boolean }) {
+type Quote = { mode: "new" | "trial" | "change"; planName: string; amount: number; currency: string; interval: "month" | "year"; dueNow: number; credit: number; nextDate: string | null; prorationDate?: number };
+
+function PlanChangeDialog({ quote, onClose, onConfirm, pending }: { quote: Quote; onClose: () => void; onConfirm: () => void; pending: boolean }) {
+  const { t, fmt } = useI18n();
+  const per = quote.interval === "month" ? t("mo") : t("yr");
+  const row = (k: string, v: React.ReactNode, strong?: boolean) => <div className="flex items-baseline justify-between gap-4 py-2"><span className="text-muted">{k}</span><span className={cn("num text-right", strong && "text-base font-semibold")}>{v}</span></div>;
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()} title={t("Switch to {plan}", { plan: quote.planName })}>
+      <div className="divide-y divide-line text-sm">
+        {row(t("New plan"), `${quote.planName} · ${fmt.money(quote.amount, quote.currency)}/${per}`)}
+        {quote.mode === "trial" ? row(t("To pay today"), fmt.money(0, quote.currency), true) : row(t("To pay today"), fmt.money(quote.dueNow, quote.currency), true)}
+        {quote.credit > 0 && row(t("Credit on your next invoices"), fmt.money(quote.credit, quote.currency))}
+        {quote.nextDate && row(t("Then"), t("{amount}/{per} from {date}", { amount: fmt.money(quote.amount, quote.currency), per, date: fmt.date(quote.nextDate) }))}
+      </div>
+      <p className="mt-3 rounded-xl bg-white/[0.04] px-3 py-2.5 text-xs text-muted">
+        {quote.mode === "trial"
+          ? t("You're in your free trial: nothing is charged today. The new price applies when the trial ends.")
+          : quote.credit > 0
+            ? t("The unused part of your current plan is credited and deducted from your next invoices.")
+            : t("You only pay the difference: the unused part of your current plan is deducted. The card on file is charged today.")}
+      </p>
+      <div className="mt-5 flex justify-end gap-2">
+        <Button onClick={onClose}><Tr>Cancel</Tr></Button>
+        <Button variant="primary" disabled={pending} onClick={onConfirm}>{pending ? t("Updating…") : t("Confirm the change")}</Button>
+      </div>
+    </Dialog>
+  );
+}
+
+export function PlanPicker({ plans, currentCode, currentInterval, configured, hasSubscription, hasBillingAccount }: { plans: PlanOption[]; currentCode: string; currentInterval?: string; configured: boolean; hasSubscription: boolean; hasBillingAccount: boolean }) {
   const { t, fmt } = useI18n();
   const [interval, setInterval] = useState<"month" | "year">("month");
   const { pending, run } = useActionButton();
@@ -195,8 +226,21 @@ export function PlanPicker({ plans, currentCode, configured, hasSubscription, ha
     window.location.assign(url);
     return true;
   });
+  const toast = useToast();
+  const [quote, setQuote] = useState<null | (Quote & { code: string })>(null);
+  const [loading, setLoading] = useState<string | null>(null);
+  // With an existing subscription, show what the change costs before applying it.
+  const choose = async (code: string) => {
+    if (!hasSubscription) return go(() => startSubscriptionCheckoutAction(code, interval));
+    setLoading(code);
+    const r = await previewPlanChangeAction(code, interval);
+    setLoading(null);
+    if (!r.ok) return toast.error(r.error);
+    setQuote({ ...(r.data as Quote), code });
+  };
   return (
     <div>
+      {quote && <PlanChangeDialog quote={quote} onClose={() => setQuote(null)} onConfirm={() => go(() => changePlanAction(quote.code, quote.interval, quote.prorationDate))} pending={pending} />}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex rounded-lg border border-line p-0.5 text-xs" role="radiogroup" aria-label={t("Billing interval")}>
           {(["month", "year"] as const).map((i) => <button key={i} role="radio" aria-checked={interval === i} onClick={() => setInterval(i)} className={cn("rounded-md px-3 py-1", interval === i ? "bg-white/[0.08] text-fg" : "text-muted")}>{i === "month" ? t("Monthly") : t("Yearly")}</button>)}
@@ -211,9 +255,9 @@ export function PlanPicker({ plans, currentCode, configured, hasSubscription, ha
             <div key={p.code} className={cn("panel flex flex-col rounded-2xl p-5", current && "border-accent/50 ring-1 ring-accent/30")}>
               <div className="flex items-center justify-between"><span className="font-medium">{p.name}</span>{current && <span className="text-[11px] text-accent"><Tr>Current</Tr></span>}</div>
               <div className="num mt-3 text-2xl font-semibold">{price === null ? "—" : fmt.money(price, p.currency)}<span className="text-xs font-normal text-muted">/{interval === "month" ? t("mo") : t("yr")}</span></div>
-              <p className="mt-2 flex-1 text-xs text-muted">{p.description}</p>
-              <Button className="mt-4" size="sm" variant={p.highlight ? "primary" : "secondary"} disabled={pending || !configured || price === null} onClick={() => go(() => startSubscriptionCheckoutAction(p.code, interval))}>
-                {current ? (hasSubscription ? t("Switch interval") : t("Subscribe")) : t("Choose {plan}", { plan: p.name })}
+              <p className="mt-2 flex-1 text-xs text-muted">{p.description ? t(p.description) : null}</p>
+              <Button className="mt-4" size="sm" variant={p.highlight ? "primary" : "secondary"} disabled={pending || loading !== null || !configured || price === null || (current && hasSubscription && interval === currentInterval)} onClick={() => choose(p.code)}>
+                {loading === p.code ? t("Calculating…") : current ? (hasSubscription ? (interval === currentInterval ? t("Current plan") : t("Switch interval")) : t("Subscribe")) : t("Choose {plan}", { plan: p.name })}
               </Button>
             </div>
           );

@@ -40,7 +40,7 @@ export function OnboardingWorkspace({ plans, defaultPlan }: { plans: { code: str
             <button key={p.code} type="button" role="radio" aria-checked={plan === p.code} onClick={() => setPlan(p.code)} className={cn("flex items-center justify-between gap-4 rounded-xl border p-3.5 text-left transition-colors", plan === p.code ? "border-accent bg-accent-soft" : "border-line hover:border-line-strong")}>
               <span>
                 <span className="block text-sm font-medium">{p.name}</span>
-                <span className="text-xs text-muted">{p.description}</span>
+                <span className="text-xs text-muted">{p.description ? t(p.description) : null}</span>
               </span>
               <span className="shrink-0 text-right">
                 <span className="num block text-sm font-medium">{fmt.money(p.price, p.currency)}<span className="text-xs text-muted"><Tr>/mo</Tr></span></span>

@@ -36,12 +36,12 @@ export default async function Billing({ searchParams }: { searchParams: Promise<
         <p className="mt-3 text-xs text-subtle"><Tr>This page is only for your FollowMyFuture subscription. Client invoices and client payments are managed separately in Settings → Client payments.</Tr></p>
       </section>
       {sp.success && <p className="rounded-xl bg-success-soft px-4 py-3 text-sm text-success"><Tr>Thanks! Your subscription is being activated — it can take a few seconds to appear.</Tr></p>}
-      {sp.changed && <p className="rounded-xl bg-success-soft px-4 py-3 text-sm text-success"><Tr>Plan change requested. It will be reflected here as soon as Stripe confirms it.</Tr></p>}
+      {sp.changed && <p className="rounded-xl bg-success-soft px-4 py-3 text-sm text-success"><Tr>Your plan has been updated.</Tr></p>}
       <section>
         <h2 className="mb-3 text-[13px] font-semibold"><Tr>Current subscription</Tr></h2>
         <div className="panel rounded-2xl px-5">
           <KeyValue items={[
-            { k: "Plan", v: <span className="flex items-center justify-end gap-2">{p?.plan.name ?? "—"} <Badge tone={statusTone}>{p?.trialExpired ? "Trial ended" : sub?.status.toLowerCase().replace("_", " ")}</Badge></span> },
+            { k: "Plan", v: <span className="flex items-center justify-end gap-2">{p?.plan.name ?? "—"} <Badge tone={statusTone}>{p?.trialExpired ? t("Trial ended") : sub ? t(sub.status.toLowerCase().replace("_", " ")) : ""}</Badge></span> },
             { k: "Price", v: sub ? `${fmt.money(sub.priceCents, sub.currency)} / ${t(sub.interval)}` : "—" },
             ...(sub?.status === "TRIALING" && sub.trialEndsAt ? [{ k: "Trial ends", v: fmt.date(sub.trialEndsAt) }] : []),
             ...(sub?.currentPeriodEnd ? [{ k: sub.cancelAtPeriodEnd ? t("Ends on") : t("Renews on"), v: fmt.date(sub.currentPeriodEnd) }] : []),
@@ -49,7 +49,7 @@ export default async function Billing({ searchParams }: { searchParams: Promise<
             { k: "Clients", v: lim(clients, p?.plan.clientLimit) },
             { k: "Collaborators", v: lim(members, p?.plan.collaboratorLimit) },
             { k: "Storage", v: `${formatBytes(q.used)} / ${q.limit === null ? "∞" : formatBytes(q.limit)}` },
-            { k: "Features", v: p ? [...p.features].map((f) => FEATURE_KEYS[f as FeatureKey] ?? f).join(", ") || "—" : "—" },
+            { k: "Features", v: p ? [...p.features].map((f) => (FEATURE_KEYS[f as FeatureKey] ? t(FEATURE_KEYS[f as FeatureKey]) : f)).join(", ") || "—" : "—" },
           ]} />
         </div>
       </section>
@@ -58,6 +58,7 @@ export default async function Billing({ searchParams }: { searchParams: Promise<
         <PlanPicker
           plans={plans.map((pl) => ({ code: pl.code, name: pl.name, description: pl.description, monthly: pl.monthlyPriceCents, annual: pl.annualPriceCents, currency: pl.currency, highlight: pl.highlight, features: pl.features.filter((f) => f.enabled).map((f) => f.key) }))}
           currentCode={p?.plan.code ?? ""}
+          currentInterval={sub?.interval}
           configured={integrations.stripe()}
           hasSubscription={Boolean(sub?.stripeSubscriptionId)}
           hasBillingAccount={Boolean(sub?.stripeCustomerId)}
