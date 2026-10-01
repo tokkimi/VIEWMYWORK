@@ -1,7 +1,7 @@
 import { ArrowRight, CheckCircle2, FileStack, ListChecks, MessageSquare, Receipt, ShieldCheck, Sparkles } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { ProductShot } from "@/components/marketing/product-shot";
-import { ProtectedDeveloperPreview } from "@/components/marketing/protected-developer-preview";
+import { DeveloperPreviewShowcase } from "@/components/marketing/developer-preview-showcase";
 import { getI18n } from "@/lib/i18n/server";
 
 const loop = ["Specification", "Execution", "Progress", "Documents", "Deliverables", "Approval", "Invoice", "Payment"];
@@ -33,11 +33,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="border-t border-line">
-        <div className="mx-auto max-w-6xl px-5 py-20">
-          <ProtectedDeveloperPreview />
-        </div>
-      </section>
+      <DeveloperPreviewShowcase />
 
       <section className="border-t border-line">
         <div className="mx-auto max-w-6xl px-5 py-20">
