@@ -10,6 +10,8 @@ export const FEATURE_KEYS = {
   google_drive: "Google Drive integration",
   online_payments: "Online invoice payments",
   priority_support: "Priority support",
+  team_workload: "Team workload planning",
+  portfolio_health: "Project health & portfolio steering",
 } as const;
 export type FeatureKey = keyof typeof FEATURE_KEYS;
 

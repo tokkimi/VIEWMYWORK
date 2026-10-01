@@ -31,7 +31,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Sidebar
         workspaces={memberships.map((m) => m.workspace)}
         current={{ id: ctx.workspace.id, name: ctx.workspace.name, logoUrl: ctx.workspace.logoUrl }}
-        can={{ finance: can(ctx, "finance", "view"), invoices: can(ctx, "invoices", "view"), clients: can(ctx, "clients", "view"), team: can(ctx, "team", "view"), settings: can(ctx, "settings", "manage") }}
+        can={{ finance: can(ctx, "finance", "view"), invoices: can(ctx, "invoices", "view"), clients: can(ctx, "clients", "view"), team: can(ctx, "team", "view"), settings: can(ctx, "settings", "manage"), workload: can(ctx, "tasks", "edit") }}
         isSuperAdmin={ctx.user.platformRole === "SUPER_ADMIN"}
         unread={unread}
       />

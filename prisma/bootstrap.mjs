@@ -8,17 +8,17 @@ const PLANS = [
   {
     code: "STARTER", name: "Starter", description: "For solo professionals discovering the platform.", monthlyPriceCents: 200, annualPriceCents: 2000,
     storageLimitMb: 1024, activeProjectLimit: 3, clientLimit: 10, collaboratorLimit: 0, sortOrder: 1, highlight: false,
-    features: ["online_payments"],
+    features: ["online_payments", "portfolio_health"],
   },
   {
     code: "PRO", name: "Pro", description: "For growing freelancers and small studios.", monthlyPriceCents: 990, annualPriceCents: 9900,
     storageLimitMb: 20480, activeProjectLimit: 25, clientLimit: 100, collaboratorLimit: 5, sortOrder: 2, highlight: true,
-    features: ["online_payments", "custom_branding", "advanced_stats", "accounting_exports", "advanced_portal", "google_drive"],
+    features: ["online_payments", "custom_branding", "advanced_stats", "accounting_exports", "advanced_portal", "google_drive", "team_workload", "portfolio_health"],
   },
   {
     code: "BUSINESS", name: "Business", description: "For agencies and larger teams.", monthlyPriceCents: 2490, annualPriceCents: 24900,
     storageLimitMb: 102400, activeProjectLimit: null, clientLimit: null, collaboratorLimit: 25, sortOrder: 3, highlight: false,
-    features: ["online_payments", "custom_branding", "advanced_stats", "accounting_exports", "advanced_portal", "google_drive", "advanced_permissions", "priority_support"],
+    features: ["online_payments", "custom_branding", "advanced_stats", "accounting_exports", "advanced_portal", "google_drive", "advanced_permissions", "priority_support", "team_workload", "portfolio_health"],
   },
 ];
 
@@ -76,6 +76,18 @@ async function main() {
     if (existing) continue;
     await db.plan.create({ data: { ...data, currency: "EUR", trialDays: 14, features: { create: features.map((key) => ({ key, enabled: true })) } } });
     console.log(`plan created: ${p.code}`);
+  }
+  // Features released after a plan was created: add them once to the default plans. A feature row that
+  // already exists (enabled or disabled in Platform Administration) is never touched.
+  const ROLLOUT = { STARTER: ["portfolio_health"], PRO: ["team_workload", "portfolio_health"], BUSINESS: ["team_workload", "portfolio_health"] };
+  for (const [code, keys] of Object.entries(ROLLOUT)) {
+    const plan = await db.plan.findUnique({ where: { code }, include: { features: true } });
+    if (!plan) continue;
+    for (const key of keys) {
+      if (plan.features.some((f) => f.key === key)) continue;
+      await db.planFeature.create({ data: { planId: plan.id, key, enabled: true } });
+      console.log(`feature ${key} added to ${code}`);
+    }
   }
   for (const t of TEMPLATES) {
     const existing = await db.projectTemplate.findFirst({ where: { workspaceId: null, name: t.name } });

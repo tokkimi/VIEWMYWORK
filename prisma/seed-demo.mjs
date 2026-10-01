@@ -14,6 +14,55 @@ async function hash(pw) {
   return `scrypt$${salt.toString("base64")}$${h.toString("base64")}`;
 }
 
+/**
+ * Demo team for the workload & health views: two fictional teammates (no password, they can't sign
+ * in), estimates and time spent on tasks, an absence, unassigned tasks. Idempotent; never touches
+ * any login.
+ */
+async function enrichTeam(ws) {
+  const now = new Date();
+  const days = (n) => new Date(now.getTime() + n * 86400_000);
+  const team = [
+    { email: "sophie.martin@team.followmyfuture.demo", name: "Sophie Martin", title: "Designer UI", capacity: 2100, cost: 4500 },
+    { email: "lucas.bernard@team.followmyfuture.demo", name: "Lucas Bernard", title: "Développeur", capacity: 1680, cost: 5000 },
+  ];
+  const ids = [];
+  for (const m of team) {
+    const u = await db.user.upsert({ where: { email: m.email }, create: { email: m.email, name: m.name, locale: "fr" }, update: {} });
+    ids.push(u.id);
+    const exists = await db.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId: ws.id, userId: u.id } } });
+    if (!exists) await db.workspaceMember.create({ data: { workspaceId: ws.id, userId: u.id, role: "COLLABORATOR", title: m.title, allProjects: true, weeklyCapacityMinutes: m.capacity, hourlyCostCents: m.cost } });
+  }
+  const [sophie, lucas] = ids;
+  const owner = await db.workspaceMember.findFirst({ where: { workspaceId: ws.id, role: "OWNER" } });
+  if (owner && owner.hourlyCostCents === null) await db.workspaceMember.update({ where: { id: owner.id }, data: { hourlyCostCents: 6000 } });
+  const lucasM = await db.workspaceMember.findFirst({ where: { workspaceId: ws.id, userId: lucas } });
+  if (lucasM && !(await db.memberAbsence.count({ where: { memberId: lucasM.id } })))
+    await db.memberAbsence.create({ data: { workspaceId: ws.id, memberId: lucasM.id, startDate: days(8), endDate: days(9), reason: "LEAVE", note: "Congés" } });
+
+  const ESTIMATES = { "Wireframes": 720, "Maquette page d'accueil": 900, "Maquettes pages internes": 1200, "Intégration page d'accueil": 960, "Intégration pages internes": 1440, "Recette navigateurs": 480, "Recette mobile": 420, "DNS & domaine": 120, "Formation": 180, "Mise en place technique": 600, "Réunion de lancement": 120, "Collecte des contenus": 240, "Arborescence": 300, "Marge & coûts internes": 120 };
+  const DESIGN = ["Wireframes", "Maquette page d'accueil", "Maquettes pages internes"];
+  const DEV = ["Intégration page d'accueil", "Intégration pages internes", "Mise en place technique", "DNS & domaine"];
+  const tasks = await db.task.findMany({ where: { workspaceId: ws.id } });
+  for (const t of tasks) {
+    const est = ESTIMATES[t.title];
+    const data = {};
+    if (est && t.estimatedMinutes === null) data.estimatedMinutes = est;
+    if (est && t.actualMinutes === null && t.status !== "NOT_STARTED") data.actualMinutes = t.status === "COMPLETED" ? Math.round(est * 1.1) : Math.round(est * 0.45);
+    if (DESIGN.includes(t.title) && t.status !== "COMPLETED" && t.assigneeId !== sophie) data.assigneeId = sophie;
+    if (DEV.includes(t.title) && t.status !== "COMPLETED" && t.assigneeId !== lucas) data.assigneeId = lucas;
+    if (Object.keys(data).length) await db.task.update({ where: { id: t.id }, data });
+  }
+  const project = await db.project.findFirst({ where: { workspaceId: ws.id, name: "Refonte du site web" } });
+  if (project) {
+    for (const [title, est, d] of [["Optimisation SEO", 480, 12], ["Bannière promotionnelle", 300, 6]]) {
+      if (await db.task.count({ where: { projectId: project.id, title } })) continue;
+      const phase = await db.phase.findFirst({ where: { projectId: project.id, title: "Développement" } });
+      await db.task.create({ data: { workspaceId: ws.id, projectId: project.id, phaseId: phase?.id, title, status: "NOT_STARTED", estimatedMinutes: est, deadline: days(d), position: 20 } });
+    }
+  }
+}
+
 async function main() {
   const adminEmail = (process.env.SUPER_ADMIN_EMAIL || "admin@viewmywork.demo").trim().toLowerCase();
   const clientEmail = (process.env.DEMO_CLIENT_EMAIL || "client@viewmywork.demo").trim().toLowerCase();
@@ -28,6 +77,7 @@ async function main() {
     await db.client.updateMany({ where: { workspaceId: existing.id }, data: { preferredLanguage: "fr" } });
     // Placeholder previews pointing at example.com are confusing: the project's website is set in its settings.
     await db.preview.deleteMany({ where: { url: { startsWith: "https://example.com" }, project: { workspaceId: existing.id } } });
+    await enrichTeam(existing);
     return console.log("demo: already present (content normalised)");
   }
 
@@ -108,6 +158,7 @@ async function main() {
     { workspaceId: ws.id, projectId: project.id, clientId: client.id, actorId: admin.id, actorName: admin.name, action: "PAYMENT_RECEIVED", entityType: "INVOICE", entityId: inv.id, summary: `Paiement de 1 000 € reçu pour INV-${year}-0001`, clientVisible: true, createdAt: days(-5) },
   ] });
   await db.notification.create({ data: { workspaceId: ws.id, userId: clientUser.id, audience: "CLIENT", category: "PROJECT", type: "APPROVAL_REQUESTED", title: "Votre avis est attendu : maquette V2", message: "La V2 de la page d'accueil attend votre validation.", actionUrl: `/portal/projects/${project.id}/deliverables/${d.id}`, actionLabel: "Voir" } });
+  await enrichTeam(ws);
   console.log(`demo: created — admin ${adminEmail}, client ${clientEmail}`);
 }
 

@@ -1,5 +1,9 @@
 import Link from "next/link";
-import { AlertTriangle, Clock, Monitor } from "lucide-react";
+import { Activity, AlertTriangle, Clock, Monitor } from "lucide-react";
+import { hasFeature } from "@/lib/plans";
+import { loadPortfolioHealth } from "@/server/queries/health";
+import { HEALTH_LABEL, HEALTH_TONE } from "@/lib/health";
+import { renderMsg } from "@/lib/i18n/core";
 import { db } from "@/lib/db";
 import { loadProject } from "@/server/queries/project";
 import { hasLevel } from "@/lib/auth/permissions";
@@ -18,7 +22,7 @@ import { buttonClass } from "@/components/ui/button";
 import { getI18n } from "@/lib/i18n/server";
 
 export default async function ProjectOverview({ params }: { params: Promise<{ id: string }> }) {
-  const { t, fmt, p: tp } = await getI18n();
+  const { t, fmt, p: tp, locale } = await getI18n();
   const { id } = await params;
   const { ctx, project, perms } = await loadProject(id);
   const now = new Date();
@@ -44,6 +48,8 @@ export default async function ProjectOverview({ params }: { params: Promise<{ id
   const preview = await db.preview.findFirst({ where: { projectId: id }, orderBy: [{ type: "desc" }, { createdAt: "asc" }], select: { id: true, url: true, label: true, embeddable: true, imageUrl: true, pageTitle: true } });
   const waitingApprovals = approvals.filter((a) => a.status === "WAITING_FOR_CLIENT").length;
   const changeRequests = approvals.filter((a) => a.status === "CHANGES_REQUESTED").length;
+  const health = (await hasFeature(ctx.workspace.id, "portfolio_health")) ? (await loadPortfolioHealth(ctx, new Date(), [id]))[0] : undefined;
+  const financeView = hasLevel(perms, "finance", "view");
   const attention = [
     overdue ? tp(overdue, "{n} overdue task", "{n} overdue tasks") : null,
     waitingApprovals ? tp(waitingApprovals, "{n} client approval waiting", "{n} client approvals waiting") : null,
@@ -62,6 +68,16 @@ export default async function ProjectOverview({ params }: { params: Promise<{ id
           <span className="flex items-center gap-2 font-medium text-warning"><AlertTriangle className="size-4" /><Tr>Attention required</Tr></span>
           {attention.map((a) => <span key={a} className="text-fg/90">{a}</span>)}
         </div>
+      )}
+
+      {health && health.health.status !== "done" && (
+        <Link href="/app/health" className="panel flex flex-col gap-2 rounded-2xl px-4 py-3 hover:border-line-strong sm:flex-row sm:items-center sm:gap-4">
+          <span className="flex items-center gap-2 text-sm"><Activity className="size-4 text-muted" /><Badge tone={HEALTH_TONE[health.health.status]} dot><Tr>{HEALTH_LABEL[health.health.status]}</Tr></Badge><span className="num text-xs text-muted">{health.health.score}/100</span></span>
+          <span className="flex min-w-0 flex-1 flex-col gap-1 text-xs text-muted sm:flex-row sm:flex-wrap sm:gap-x-3">
+            {health.health.alerts.filter((a) => financeView || (a.kind !== "budget" && a.kind !== "cash")).slice(0, 3).map((a, i) => <span key={i} className={a.level === "danger" ? "text-danger" : a.level === "warning" ? "text-warning" : ""}>{renderMsg(locale, a.msg)}</span>)}
+            {health.health.alerts.length === 0 && <Tr>No alert: schedule, budget and client are on track.</Tr>}
+          </span>
+        </Link>
       )}
 
       <div className="panel grid grid-cols-2 divide-line overflow-hidden rounded-2xl sm:grid-cols-3 lg:grid-cols-6 [&>*]:border-line [&>*:not(:last-child)]:border-r">

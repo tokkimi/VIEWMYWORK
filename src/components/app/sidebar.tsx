@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutGrid, FolderKanban, Users, CheckSquare, CalendarDays, Files, Receipt, LineChart, UsersRound, Bell, Settings, UserCircle, Menu, X, Shield } from "lucide-react";
+import { LayoutGrid, FolderKanban, Users, CheckSquare, CalendarDays, Files, Receipt, LineChart, UsersRound, Bell, Settings, UserCircle, Menu, X, Shield, Activity, Gauge } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { LogoMark } from "@/components/logo";
 import { WorkspaceSwitcher } from "./workspace-switcher";
@@ -12,7 +12,7 @@ import { useI18n } from "@/lib/i18n/client";
 
 type Item = { href: string; label: string; icon: React.ComponentType<{ className?: string }>; show?: boolean };
 
-export function Sidebar({ workspaces, current, can, isSuperAdmin, unread }: { workspaces: { id: string; name: string }[]; current: { id: string; name: string; logoUrl?: string | null }; can: { finance: boolean; invoices: boolean; clients: boolean; team: boolean; settings: boolean }; isSuperAdmin: boolean; unread: number }) {
+export function Sidebar({ workspaces, current, can, isSuperAdmin, unread }: { workspaces: { id: string; name: string }[]; current: { id: string; name: string; logoUrl?: string | null }; can: { finance: boolean; invoices: boolean; clients: boolean; team: boolean; settings: boolean; workload?: boolean }; isSuperAdmin: boolean; unread: number }) {
   const { t } = useI18n();
   const path = usePathname();
   const [open, setOpen] = useState(false);
@@ -21,8 +21,10 @@ export function Sidebar({ workspaces, current, can, isSuperAdmin, unread }: { wo
   const main: Item[] = [
     { href: "/app", label: "Overview", icon: LayoutGrid },
     { href: "/app/projects", label: "Projects", icon: FolderKanban },
+    { href: "/app/health", label: "Project health", icon: Activity },
     { href: "/app/clients", label: "Clients", icon: Users, show: can.clients },
     { href: "/app/tasks", label: "Tasks", icon: CheckSquare },
+    { href: "/app/workload", label: "Team workload", icon: Gauge, show: can.workload },
     { href: "/app/calendar", label: "Calendar", icon: CalendarDays },
     { href: "/app/files", label: "Files", icon: Files },
     { href: "/app/invoices", label: "Invoices", icon: Receipt, show: can.invoices },

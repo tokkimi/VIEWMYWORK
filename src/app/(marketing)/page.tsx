@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, FileStack, ListChecks, MessageSquare, Receipt, ShieldCheck, Sparkles } from "lucide-react";
+import { Activity, ArrowRight, CheckCircle2, FileStack, Gauge, ListChecks, MessageSquare, MessageSquareDiff, MonitorSmartphone, Receipt, RefreshCw, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { ProductShot } from "@/components/marketing/product-shot";
 import { getI18n } from "@/lib/i18n/server";
@@ -56,8 +56,10 @@ export default async function Home() {
             {[
               [ListChecks, "Specification builder", "Phases, milestones, tasks, weights and dependencies."],
               [Sparkles, "Honest progress", "Weighted progress calculated from real work."],
-              [FileStack, "Files & previews", "Visual file manager and live website previews."],
+              [FileStack, "Shared files", "One-tap sharing, both sides see the same files, 30-day restore."],
+              [MonitorSmartphone, "Website previews", "The client's site in desktop and mobile, live or as a full-page capture."],
               [CheckCircle2, "Approvals", "Versioned deliverables with full approval history."],
+              [MessageSquareDiff, "Change requests", "The client picks the topic and the page; you're notified instantly."],
               [Receipt, "Invoices & payments", "Send invoices, get paid online, track every euro."],
               [MessageSquare, "Contextual messages", "Internal or client-visible — always explicit."],
             ].map(([Icon, title, d]) => {
@@ -71,6 +73,54 @@ export default async function Home() {
               );
             })}
           </ul>
+        </div>
+      </section>
+
+
+      <section className="border-t border-line">
+        <div className="mx-auto max-w-6xl px-5 py-20">
+          <p className="eyebrow">{t("New · Steer your business")}</p>
+          <h2 className="mt-3 max-w-3xl text-3xl font-semibold tracking-tight">{t("Not just a client portal: a cockpit for your whole team.")}</h2>
+          <p className="mt-4 max-w-2xl text-muted">{t("See who is overloaded, which project is drifting and where your margin goes — before it becomes a problem.")}</p>
+          <div className="mt-10 grid gap-5 md:grid-cols-2">
+            <div className="glass rounded-2xl p-6">
+              <div className="flex items-center gap-2 text-sm font-medium"><Gauge className="size-5 text-accent" />{t("Team workload")}</div>
+              <p className="mt-2 text-[13px] text-muted">{t("Planned hours against each person's capacity, six weeks ahead, with absences and part-time. Unassigned tasks get a suggested owner — assign them all in one click.")}</p>
+              <div className="mt-5 space-y-2" aria-hidden>
+                {[["Sophie", [62, 88, 54, 30]], ["Lucas", [96, 112, 71, 40]], ["Inès", [35, 48, 66, 82]]].map(([n, v]) => (
+                  <div key={n as string} className="flex items-center gap-2 text-xs">
+                    <span className="w-12 text-muted">{n as string}</span>
+                    {(v as number[]).map((x, i) => <span key={i} className={`num flex-1 rounded-md py-1.5 text-center ${x > 100 ? "bg-danger-soft text-danger" : x >= 85 ? "bg-warning-soft text-warning" : "bg-success-soft text-success"}`}>{x}%</span>)}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="glass rounded-2xl p-6">
+              <div className="flex items-center gap-2 text-sm font-medium"><Activity className="size-5 text-accent" />{t("Project health")}</div>
+              <p className="mt-2 text-[13px] text-muted">{t("A score and concrete alerts for every project: delay versus expected progress, budget consumed and overrun forecast, client approvals blocking you, margin and next deadlines.")}</p>
+              <ul className="mt-5 space-y-2 text-xs" aria-hidden>
+                <li className="flex items-center justify-between rounded-lg bg-white/[0.03] px-3 py-2"><span>{t("Brand redesign")}</span><span className="rounded-full bg-success-soft px-2 py-0.5 text-success">{t("On track")} · 92</span></li>
+                <li className="flex items-center justify-between rounded-lg bg-white/[0.03] px-3 py-2"><span>{t("Mobile app")}</span><span className="rounded-full bg-warning-soft px-2 py-0.5 text-warning">{t("At risk")} · 64</span></li>
+                <li className="flex items-center justify-between rounded-lg bg-white/[0.03] px-3 py-2"><span>{t("E-shop")}</span><span className="rounded-full bg-danger-soft px-2 py-0.5 text-danger">{t("Off track")} · 41</span></li>
+              </ul>
+            </div>
+          </div>
+          <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              [RefreshCw, "Real-time on both sides", "You and your client see the same shared content, updated within seconds — no refresh needed."],
+              [Send, "Share by email, WhatsApp or link", "Clients without email get their private access by WhatsApp or any app, in one tap."],
+              [ShieldCheck, "Nothing gets lost", "Deleted files stay recoverable for 30 days, with a full history of who did what."],
+            ].map(([Icon, title, d]) => {
+              const I = Icon as typeof Gauge;
+              return (
+                <div key={title as string} className="rounded-2xl border border-line p-5">
+                  <I className="size-5 text-accent" />
+                  <div className="mt-3 text-sm font-medium">{t(title as string)}</div>
+                  <div className="mt-1 text-[13px] text-muted">{t(d as string)}</div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
 

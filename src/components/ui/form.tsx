@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useRef, useState, useTransition, type ComponentProps, type ReactNode } from "react";
+import { useEffect, createContext, useContext, useRef, useState, useTransition, type ComponentProps, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { ActionResult } from "@/lib/errors";
 import { cn } from "@/lib/cn";
@@ -38,8 +38,12 @@ export function Form({ action, onSuccess, successMessage, redirectTo, resetOnSuc
         ref={ref}
         className={className}
         noValidate
+        // POST, never GET: if someone submits before the page is interactive, fields (passwords!)
+        // must not end up in the URL. The submit button is also disabled until hydration.
+        method="post"
         onSubmit={(e) => {
           e.preventDefault();
+          if (pending) return; // no double submit
           // Include the clicked submit button's name/value (forms with several submit buttons).
           const fd = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
           start(async () => {
@@ -75,8 +79,10 @@ export function useFormState() {
 export function Submit({ children, variant = "primary", size = "md", className, pendingLabel }: { children: ReactNode; variant?: "primary" | "secondary" | "danger" | "outline" | "ghost"; size?: "sm" | "md" | "lg"; className?: string; pendingLabel?: string }) {
   const { pending } = useFormState();
   const { t } = useI18n();
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
   return (
-    <button type="submit" aria-busy={pending} className={buttonClass(variant, size, className)}>
+    <button type="submit" aria-busy={pending} disabled={!ready || pending} className={buttonClass(variant, size, className)}>
       {pending && <span aria-hidden className="size-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />}
       {pending && pendingLabel ? t(pendingLabel) : <Tx>{children}</Tx>}
     </button>

@@ -169,8 +169,12 @@ model WorkspaceMember {
   allProjects Boolean       @default(false)
   status      MemberStatus  @default(ACTIVE)
   createdAt   DateTime      @default(now())
+  /// Team workload: hours available per week (in minutes; 35h by default) and internal cost per hour.
+  weeklyCapacityMinutes Int  @default(2100)
+  hourlyCostCents       Int?
 
   projectMemberships ProjectMember[]
+  absences           MemberAbsence[]
 
   @@unique([workspaceId, userId])
   @@index([userId])
@@ -1234,4 +1238,20 @@ model FileChunk {
   data Bytes
 
   @@id([key, idx])
+}
+
+/// Holidays, sick leave, training… reduce the member's capacity on the team workload view.
+model MemberAbsence {
+  id          String          @id @default(uuid()) @db.Uuid
+  workspaceId String          @db.Uuid
+  memberId    String          @db.Uuid
+  member      WorkspaceMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  startDate   DateTime
+  endDate     DateTime
+  reason      String          @default("LEAVE") // LEAVE | SICK | TRAINING | OTHER
+  note        String?
+  createdAt   DateTime        @default(now())
+
+  @@index([workspaceId, startDate])
+  @@index([memberId])
 }
