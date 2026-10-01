@@ -152,7 +152,12 @@ export function InvoiceSettingsForm({ s }: { s: InvS }) {
 export function StripeConnectPanel({ state, configured, allowed }: { state: null | { chargesEnabled: boolean; payoutsEnabled: boolean; detailsSubmitted: boolean }; configured: boolean; allowed: boolean }) {
   const { t } = useI18n();
   const { pending, run } = useActionButton();
-  const go = (fn: () => Promise<{ ok: boolean; data?: unknown }>) => run(fn as never, undefined, (d) => { const url = (d as { url?: string })?.url; if (url) window.location.href = url; });
+  const go = (fn: () => Promise<{ ok: boolean; data?: unknown }>) => run(fn as never, undefined, (d) => {
+    const url = (d as { url?: string })?.url;
+    if (!url) return false;
+    window.location.assign(url);
+    return true;
+  });
   if (!configured) return <p className="rounded-xl border border-line p-4 text-sm text-muted"><Tr>Client online payments aren&apos;t configured yet. This does not affect your FollowMyFuture subscription. You can still record manual client payments (bank transfer, cash, check).</Tr></p>;
   if (!allowed) return <p className="rounded-xl border border-line p-4 text-sm text-muted"><Tr>Online payments aren&apos;t included in your plan.</Tr></p>;
   return (
@@ -184,7 +189,12 @@ export function PlanPicker({ plans, currentCode, configured, hasSubscription, ha
   const { t, fmt } = useI18n();
   const [interval, setInterval] = useState<"month" | "year">("month");
   const { pending, run } = useActionButton();
-  const go = (fn: () => Promise<{ ok: boolean }>) => run(fn as never, undefined, (d) => { const url = (d as { url?: string })?.url; if (url) window.location.href = url; });
+  const go = (fn: () => Promise<{ ok: boolean }>) => run(fn as never, undefined, (d) => {
+    const url = (d as { url?: string })?.url;
+    if (!url) return false;
+    window.location.assign(url);
+    return true;
+  });
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">

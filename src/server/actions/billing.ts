@@ -75,7 +75,20 @@ export async function startSubscriptionCheckoutAction(planCode: string, interval
     if (sub?.stripeSubscriptionId && sub.status !== "CANCELED") {
       // Existing paying customer: change plan in place (prorated) instead of a second subscription.
       const s = await stripe.subscriptions.retrieve(sub.stripeSubscriptionId);
-      await stripe.subscriptions.update(s.id, { items: [{ id: s.items.data[0].id, price: priceId }], proration_behavior: "create_prorations", metadata: { workspaceId: ctx.workspace.id } });
+      const changed = await stripe.subscriptions.update(s.id, { items: [{ id: s.items.data[0].id, price: priceId }], proration_behavior: "create_prorations", metadata: { workspaceId: ctx.workspace.id } });
+      // Reflect the selected plan immediately. Webhooks remain authoritative for
+      // billing status and period dates, but the UI must not keep showing the old plan.
+      await db.subscription.update({
+        where: { id: sub.id },
+        data: {
+          planId: plan.id,
+          stripePriceId: priceId,
+          priceCents: i.interval === "month" ? plan.monthlyPriceCents : plan.annualPriceCents ?? plan.monthlyPriceCents,
+          currency: plan.currency,
+          interval: i.interval,
+          cancelAtPeriodEnd: changed.cancel_at_period_end,
+        },
+      });
       return { url: `${env.appUrl}/app/settings/billing?changed=1` };
     }
     if (!sub) throw new AppError("No subscription record was found for this workspace.", "NOT_FOUND");

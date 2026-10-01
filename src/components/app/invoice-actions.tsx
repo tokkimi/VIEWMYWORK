@@ -17,13 +17,15 @@ export function useActionButton() {
   const [pending, start] = useTransition();
   const router = useRouter();
   const toast = useToast();
-  const run = (fn: () => Promise<ActionResult<unknown>>, success?: string, onOk?: (d: unknown) => void) =>
+  const run = (fn: () => Promise<ActionResult<unknown>>, success?: string, onOk?: (d: unknown) => boolean | void) =>
     start(async () => {
       const r = await fn();
       if (!r.ok) return toast.error(r.error);
       if (success || r.message) toast.success(r.message ?? success!);
       const redirect = (r.data as { redirect?: string } | null)?.redirect;
-      if (onOk) onOk(r.data);
+      // External flows (Stripe Checkout/Connect/Portal) navigate the browser
+      // themselves. Do not immediately router.refresh(), which cancels that navigation.
+      if (onOk?.(r.data)) return;
       if (redirect) router.push(redirect);
       else router.refresh();
     });
