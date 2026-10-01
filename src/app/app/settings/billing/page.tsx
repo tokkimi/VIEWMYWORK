@@ -33,6 +33,7 @@ export default async function Billing({ searchParams }: { searchParams: Promise<
       <section className="rounded-2xl border border-accent/30 bg-accent-soft px-5 py-5">
         <h1 className="text-lg font-semibold"><Tr>Manage your subscription</Tr></h1>
         <p className="mt-1 text-sm text-muted"><Tr>Update your plan, payment method or billing details, and cancel whenever you need.</Tr></p>
+        <p className="mt-3 text-xs text-subtle"><Tr>This page is only for your FollowMyFuture subscription. Client invoices and client payments are managed separately in Settings → Client payments.</Tr></p>
       </section>
       {sp.success && <p className="rounded-xl bg-success-soft px-4 py-3 text-sm text-success"><Tr>Thanks! Your subscription is being activated — it can take a few seconds to appear.</Tr></p>}
       {sp.changed && <p className="rounded-xl bg-success-soft px-4 py-3 text-sm text-success"><Tr>Plan change requested. It will be reflected here as soon as Stripe confirms it.</Tr></p>}

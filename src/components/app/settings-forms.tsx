@@ -153,7 +153,7 @@ export function StripeConnectPanel({ state, configured, allowed }: { state: null
   const { t } = useI18n();
   const { pending, run } = useActionButton();
   const go = (fn: () => Promise<{ ok: boolean; data?: unknown }>) => run(fn as never, undefined, (d) => { const url = (d as { url?: string })?.url; if (url) window.location.href = url; });
-  if (!configured) return <p className="rounded-xl border border-line p-4 text-sm text-muted"><Tr>Online payments aren&apos;t configured on this platform yet. You can still record manual payments (bank transfer, cash, check).</Tr></p>;
+  if (!configured) return <p className="rounded-xl border border-line p-4 text-sm text-muted"><Tr>Client online payments aren&apos;t configured yet. This does not affect your FollowMyFuture subscription. You can still record manual client payments (bank transfer, cash, check).</Tr></p>;
   if (!allowed) return <p className="rounded-xl border border-line p-4 text-sm text-muted"><Tr>Online payments aren&apos;t included in your plan.</Tr></p>;
   return (
     <div className="panel rounded-2xl p-5">
