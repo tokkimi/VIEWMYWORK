@@ -714,7 +714,6 @@ export const fr: Record<string, string> = {
   "Client invoice payments go straight to your own Stripe account (Stripe Connect). They are completely separate from your FollowMyFuture subscription.": "Les paiements de factures clients arrivent directement sur votre propre compte Stripe (Stripe Connect). Ils sont totalement séparés de votre abonnement FollowMyFuture.",
   "Client not found.": "Client introuvable.",
   "Client payment link": "Lien de paiement client",
-  "Client payments": "Paiements clients",
   "Client portal access ·": "Accès au portail client ·",
   "Client portal logo": "Logo du portail client",
   "Client portal preview — internal tasks, notes and finances are not shown.": "Aperçu du portail client — les tâches internes, notes et finances ne sont pas affichées.",
