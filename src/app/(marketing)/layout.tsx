@@ -45,6 +45,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
           </div>
           <p className="text-xs text-subtle">© {new Date().getFullYear()} FollowMyFuture · {LEGAL.company} · {t("Switzerland")}</p>
         </div>
+        <p className="mx-auto max-w-6xl px-5 pb-4 text-subtle" style={{ fontSize: "9px", opacity: 0.45 }}>Made by Alexia Naudy</p>
       </footer>
     </div>
   );
