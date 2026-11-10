@@ -13,6 +13,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const description = t("Manage specifications, progress, deliverables, documents, approvals and invoices from one beautifully simple client portal.");
   return {
     metadataBase: new URL(env.appUrl),
+    creator: "Alexia Naudy",
+    authors: [{ name: "Alexia Naudy" }],
     applicationName: "FollowMyFuture",
     title: { default: title, template: "%s · FollowMyFuture" },
     description,
